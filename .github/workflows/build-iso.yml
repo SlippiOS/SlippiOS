@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
 
     steps:
       - name: Check out source
@@ -31,22 +30,25 @@ jobs:
       - name: Build SlippiOS ISO
         run: nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
 
-      - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: slippios-iso
-          path: result/iso/*.iso
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Keep only the newest 3 artifacts
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Upload ISO
+        id: upload
         run: |
-          gh api "repos/${{ github.repository }}/actions/artifacts" --paginate \
-            --jq '.artifacts[] | select(.expired == false) | [.id, .created_at] | @tsv' \
-            | sort -k2 -r | tail -n +4 | cut -f1 \
-            | while read -r id; do
-                gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
-              done
+          iso=$(find result/iso -maxdepth 1 -name '*.iso' -print -quit)
+          name="slippios-${GITHUB_SHA::7}.iso"
+          url=$(curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+                 --max-time 3600 --upload-file "$iso" \
+                 "https://transfer.archivete.am/$name")
+          test -n "$url"
+          sha=$(sha256sum "$iso" | cut -d' ' -f1)
+          size=$(du -h "$iso" | cut -f1)
+          {
+            echo "### SlippiOS ISO"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA::7}\`"
+            echo "- Size: $size"
+            echo "- SHA-256: \`$sha\`"
+            echo "- Download: [$name]($url)"
+            echo ""
+            echo "Hosted on transfer.archivete.am (transfer.sh mirror); links expire."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Download: $url"
