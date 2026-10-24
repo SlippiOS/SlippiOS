@@ -20,6 +20,17 @@ let
 
   slippi-runner = pkgs.callPackage ../packages/slippi-runner.nix { };
 
+  ipl-ui-src = pkgs.runCommand "slippios-ipl-ui" { } ''
+    mkdir -p $out
+    cp -r ${../programs/ipl-ui}/. $out/
+  '';
+
+  ipl-ui = pkgs.writeShellScriptBin "slippios-ipl-ui" ''
+    runtime=$(${pkgs.coreutils}/bin/mktemp -d)
+    ${pkgs.coreutils}/bin/cp -r ${ipl-ui-src}/. "$runtime"/
+    exec ${pkgs.godot_4}/bin/godot --path "$runtime"       --fullscreen --rendering-driver opengl3
+  '';
+
   slippios-cli = pkgs.writeShellScriptBin "slippios-cli" ''
     exec ${python}/bin/python3 ${iplSrc}/slippios_cli.py "$@"
   '';
@@ -28,7 +39,8 @@ let
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
   autostart = pkgs.writeText "slippi-openbox-autostart" ''
     ${pkgs.xorg.xset}/bin/xset s off -dpms
-    exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${ipl}/bin/slippi-ipl
+    ${ipl-ui}/bin/slippios-ipl-ui || \
+      exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${ipl}/bin/slippi-ipl
   '';
 in {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
