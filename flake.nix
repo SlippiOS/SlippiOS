@@ -22,8 +22,19 @@
         };
       };
 
-      packages.${system}.ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
-        exec ${pkgs.python3}/bin/python3 ${./programs/ipl/slippi-ipl.py} "$@"
-      '';
+      packages.${system} = let
+        python = pkgs.python3.withPackages (ps: [ ps.tomli-w ]);
+        iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
+          mkdir -p $out
+          cp ${./programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
+          cp ${./programs/ipl/slippi_settings.py} $out/slippi_settings.py
+        '';
+      in {
+        slippi-dolphin = pkgs.callPackage ./packages/slippi-dolphin.nix { };
+
+        ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
+          exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
+        '';
+      };
     };
 }

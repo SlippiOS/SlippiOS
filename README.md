@@ -49,6 +49,53 @@ The ISO auto-logs into a minimal X11/Openbox session and starts the IPL
 (Initial Program Loader). The real GameCube adapter requires exclusive USB
 access and should be tested later with USB passthrough from virt-manager.
 
+## Data, settings, and game images
+
+Everything user-owned lives on a partition labelled `SLIPPI`, mounted at
+`/slippi` when present. Without that partition the live ISO falls back to a
+temporary `/slippi` on the root filesystem, so nothing persists.
+
+```text
+/slippi
+├── settings.toml     hand-editable; written by first-time setup
+├── isos/             Melee 1.02 and derivative builds (*.iso)
+├── dolphin/          Dolphin user dir (accounts, config, saves)
+├── replays/
+└── logs/
+```
+
+`settings.toml` references a single game image for now:
+
+```toml
+schema_version = 1
+
+[game]
+iso = "/slippi/isos/melee.iso"
+
+[display]
+refresh_hz = 120
+resolution = "auto"
+
+[audio]
+sink = "auto"
+
+[network]
+ssid = "Home"
+psk = "plaintext-for-now"
+```
+
+On boot the IPL behaves as follows:
+
+- settings **and** a valid image present → launches Slippi Dolphin
+- neither present → first-time setup
+- only one present, or the image is invalid → alert, then setup
+
+Game images are validated by their GameCube ID (`GALE01`/`GALJ01`/`GALP01`).
+SlippiOS never downloads or ships Melee.
+
+Dolphin is the pinned Slippi Mainline release, wrapped as an AppImage. A
+runtime updater that tracks the newest upstream build is the next milestone.
+
 `slippi-iso` is the current hardware-independent target. GPU drivers, adapter
 rules, persistence, and the installed-PC target will be added as separate NixOS
 modules rather than tied to a VM.

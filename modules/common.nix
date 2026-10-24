@@ -1,14 +1,19 @@
 { config, pkgs, lib, ... }:
 
 let
-  iplScript = pkgs.writeText "slippi-ipl.py"
-    (builtins.readFile ../programs/ipl/slippi-ipl.py);
+  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ]);
 
-  # NixOS has no /usr/bin/python3, so a bare `#!/usr/bin/env python3` shebang
-  # fails. Always invoke the interpreter by store path.
-  ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
-    exec ${pkgs.python3}/bin/python3 ${iplScript} "$@"
+  iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
+    mkdir -p $out
+    cp ${../programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
+    cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
   '';
+
+  ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
+    exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
+  '';
+
+  slippi-dolphin = pkgs.callPackage ../packages/slippi-dolphin.nix { };
 
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
@@ -45,14 +50,40 @@ in {
     coreutils
     ipl
     openbox
+    slippi-dolphin
     xterm
     xorg.xset
   ];
 
   environment.etc."slippi-os/README".text = ''
-    The IPL is active. The Slippi launcher is not packaged yet.
-    The next hardware milestone is exclusive USB hand-off for 057e:0337.
+    Settings live in /slippi/settings.toml. Game images live in /slippi/isos/.
+    The next milestone is the runtime Slippi updater.
   '';
+
+  # SlippiOS stores user data on a partition labelled SLIPPI. Mount it when
+  # present; otherwise /slippi lives on the (ephemeral) root filesystem so the
+  # live ISO still works.
+  systemd.services.slippi-data = {
+    description = "Prepare SlippiOS data directory";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "display-manager.service" ];
+    after = [ "local-fs.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      ${pkgs.coreutils}/bin/mkdir -p /slippi
+      if [ -b /dev/disk/by-label/SLIPPI ]; then
+        ${pkgs.util-linux}/bin/mountpoint -q /slippi || \
+          ${pkgs.util-linux}/bin/mount -L SLIPPI /slippi || true
+      fi
+      ${pkgs.coreutils}/bin/mkdir -p \
+        /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs
+      ${pkgs.coreutils}/bin/chown melee:users /slippi || true
+      ${pkgs.coreutils}/bin/chmod 0775 /slippi || true
+    '';
+  };
 
   systemd.tmpfiles.rules = [
     "d /home/melee 0755 melee users -"
