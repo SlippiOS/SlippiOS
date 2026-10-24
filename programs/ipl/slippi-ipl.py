@@ -138,7 +138,10 @@ def launch(settings: dict) -> None:
     try:
         result = subprocess.run(command)
     except FileNotFoundError:
-        alert(["slippi-dolphin is not installed."])
+        alert([
+            "Slippi Dolphin is not installed in this image.",
+            "Runtime download is the next milestone.",
+        ])
         return
     if result.returncode != 0:
         alert([f"Dolphin exited with status {result.returncode}."])

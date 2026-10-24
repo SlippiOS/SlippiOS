@@ -13,8 +13,6 @@ let
     exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
   '';
 
-  slippi-dolphin = pkgs.callPackage ../packages/slippi-dolphin.nix { };
-
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
   autostart = pkgs.writeText "slippi-openbox-autostart" ''
@@ -50,7 +48,6 @@ in {
     coreutils
     ipl
     openbox
-    slippi-dolphin
     xterm
     xorg.xset
   ];
