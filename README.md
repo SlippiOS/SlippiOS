@@ -106,11 +106,11 @@ psk = "plaintext-for-now"
 user_json = "slippi-user.json"
 ```
 
-SlippiOS never stores a Slippi password. Online play uses the official
-`user.json` export, which contains the account's `uid`, `playKey`, and
-`connectCode`. Get it from <https://slippi.gg/online/enable>, copy it to the
-cartridge as `slippi-user.json`, and the IPL installs it into Dolphin's user
-directory on boot.
+SlippiOS never stores a Slippi password. On first run the IPL starts a small
+LAN sign-in page (`http://<console-ip>:8080/`, with a QR code in the console).
+Open it on a phone, follow the official Slippi sign-in link, and upload the
+resulting `user.json`; the IPL installs it into Dolphin's user directory. The
+file can also be placed on the cartridge as `slippi-user.json` by hand.
 
 On boot the IPL behaves as follows:
 

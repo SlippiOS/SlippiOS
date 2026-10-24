@@ -10,12 +10,14 @@ Boot flow:
 from __future__ import annotations
 
 import os
+import select
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+import slippi_login_server as login_server
 import slippi_settings as settings_lib
 import slippi_update
 
@@ -115,10 +117,6 @@ def onboarding(reason: str | None = None) -> dict | None:
     if ssid:
         psk = input("                 Wi-Fi password: ").strip()
 
-    user_json = input(
-        "\n                 Slippi user.json path (blank to skip): "
-    ).strip()
-
     settings = settings_lib.defaults()
     chosen = Path(iso)
     try:
@@ -127,7 +125,6 @@ def onboarding(reason: str | None = None) -> dict | None:
         settings["game"]["iso"] = str(chosen)
     settings["network"]["ssid"] = ssid
     settings["network"]["psk"] = psk
-    settings["slippi"]["user_json"] = user_json or settings_lib.DEFAULT_USER_JSON
     settings_lib.save(settings)
     print(f"\n                 Wrote {settings_lib.SETTINGS_FILE}")
     time.sleep(1)
@@ -180,6 +177,37 @@ def apply_audio(settings: dict) -> None:
         )
     except (OSError, subprocess.TimeoutExpired):
         pass
+
+
+def ensure_login(settings: dict) -> tuple[bool, str]:
+    """Install an existing login, or offer the LAN sign-in page."""
+    ok, detail = settings_lib.install_login(settings)
+    if ok:
+        return True, detail
+
+    server = login_server.start()
+    address = login_server.url()
+    clear()
+    print("\n                 SLIPPI ACCOUNT\n")
+    print("                 Sign in using your phone or another device:")
+    print(f"                 {address}\n")
+    if shutil.which("qrencode"):
+        subprocess.run(["qrencode", "-t", "ANSIUTF8", address], check=False)
+    print("\n                 Waiting for sign-in… press Enter to skip.")
+
+    deadline = time.monotonic() + 300
+    try:
+        while time.monotonic() < deadline:
+            ok, detail = settings_lib.install_login(settings)
+            if ok:
+                return True, detail
+            if select.select([sys.stdin], [], [], 1.0)[0]:
+                sys.stdin.readline()
+                break
+    finally:
+        login_server.stop(server)
+
+    return settings_lib.install_login(settings)
 
 
 def ensure_dolphin() -> Path | None:
@@ -272,12 +300,11 @@ def main() -> None:
     apply_display(settings)
     apply_audio(settings)
 
-    logged_in, detail = settings_lib.install_login(settings)
+    logged_in, detail = ensure_login(settings)
     if logged_in:
         print(f"\n                 Slippi login: {detail}")
     else:
-        print("\n                 No Slippi login configured; online play unavailable.")
-        print("                 Get user.json from https://slippi.gg/online/enable")
+        print("\n                 No Slippi login; online play unavailable.")
 
     appimage = ensure_dolphin()
     if appimage is None:

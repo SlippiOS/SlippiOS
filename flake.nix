@@ -29,6 +29,7 @@
           cp ${./programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
           cp ${./programs/ipl/slippi_settings.py} $out/slippi_settings.py
           cp ${./programs/ipl/slippi_update.py} $out/slippi_update.py
+          cp ${./programs/ipl/slippi_login_server.py} $out/slippi_login_server.py
         '';
       in {
         slippi-runner = pkgs.callPackage ./packages/slippi-runner.nix { };

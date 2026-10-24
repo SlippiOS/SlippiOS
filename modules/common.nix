@@ -8,6 +8,7 @@ let
     cp ${../programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
     cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
     cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
+    cp ${../programs/ipl/slippi_login_server.py} $out/slippi_login_server.py
   '';
 
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
@@ -29,6 +30,7 @@ in {
   boot.kernelModules = [ "uinput" ];
 
   networking.networkmanager.enable = true;
+  networking.firewall.allowedTCPPorts = [ 8080 ];
   time.timeZone = "UTC";
 
   users.users.melee = {
@@ -52,6 +54,7 @@ in {
     ipl
     openbox
     pulseaudio
+    qrencode
     slippi-runner
     xterm
     xorg.xrandr
