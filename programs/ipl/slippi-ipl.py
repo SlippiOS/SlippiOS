@@ -9,6 +9,7 @@ Boot flow:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -135,16 +136,37 @@ def launch(settings: dict) -> None:
         "-b",
         "-e", iso,
     ]
+
+    log_path = settings_lib.SLIPPI_DIR / "logs" / "dolphin.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    environment = os.environ.copy()
+    runtime_dir = Path(f"/run/user/{os.getuid()}")
+    if runtime_dir.is_dir():
+        environment.setdefault("XDG_RUNTIME_DIR", str(runtime_dir))
+
     try:
-        result = subprocess.run(command)
+        with log_path.open("w") as log:
+            result = subprocess.run(
+                command, stdout=log, stderr=subprocess.STDOUT, env=environment,
+            )
     except FileNotFoundError:
         alert([
             "Slippi Dolphin is not installed in this image.",
             "Runtime download is the next milestone.",
         ])
         return
+
     if result.returncode != 0:
-        alert([f"Dolphin exited with status {result.returncode}."])
+        try:
+            tail = log_path.read_text(errors="replace").strip().splitlines()[-4:]
+        except OSError:
+            tail = []
+        alert([
+            f"Dolphin exited with status {result.returncode}.",
+            f"Log: {log_path}",
+            *tail,
+        ])
 
 
 def main() -> None:
