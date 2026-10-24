@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: write
 
     steps:
       - name: Check out source
@@ -36,4 +37,16 @@ jobs:
           name: slippios-iso
           path: result/iso/*.iso
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
+
+      - name: Keep only the newest 3 artifacts
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/artifacts" --paginate \
+            --jq '.artifacts[] | select(.expired == false) | [.id, .created_at] | @tsv' \
+            | sort -k2 -r | tail -n +4 | cut -f1 \
+            | while read -r id; do
+                gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+              done
