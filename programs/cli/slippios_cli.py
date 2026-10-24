@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""slippios-cli: JSON interface between the IPL UI and system logic."""
+"""slippios-cli: human-first system control, JSON for the graphical IPL."""
 
 from __future__ import annotations
 
@@ -15,11 +15,6 @@ import slippi_settings as settings_lib
 import slippi_update
 
 RUNNER = "slippi-appimage-run"
-
-
-def emit(payload: dict, code: int = 0) -> int:
-    print(json.dumps(payload, sort_keys=True))
-    return code
 
 
 def _settings_summary() -> tuple[dict, dict | None]:
@@ -43,9 +38,8 @@ def _settings_summary() -> tuple[dict, dict | None]:
     return summary, settings
 
 
-def cmd_status(_args) -> int:
-    summary, settings = _settings_summary()
-
+def cmd_status(_args) -> dict:
+    summary, _settings = _settings_summary()
     login_ok, login_detail = settings_lib.login_status(settings_lib.DOLPHIN_USER_FILE)
 
     current = None
@@ -58,38 +52,38 @@ def cmd_status(_args) -> int:
     try:
         import usb.core
         adapter = usb.core.find(
-            idVendor=slippi_adapter.VID, idProduct=slippi_adapter.PID
+            idVendor=0x057E, idProduct=0x0337
         ) is not None
     except Exception:
         adapter = False
 
-    return emit({
+    return {
         "ok": True,
         "settings": summary,
         "login": {"signed_in": login_ok, "detail": login_detail},
         "dolphin": {"current": current},
         "adapter": {"present": adapter},
-    })
+    }
 
 
-def cmd_login(args) -> int:
+def cmd_login(args) -> dict:
     email = args.email
     password = args.password
     if args.stdin:
         try:
             payload = json.load(sys.stdin)
         except ValueError as exc:
-            return emit({"ok": False, "error": f"invalid JSON: {exc}"}, 2)
+            return {"ok": False, "error": f"invalid JSON: {exc}"}
         email = payload.get("email", email)
         password = payload.get("password", password)
 
     if not email or not password:
-        return emit({"ok": False, "error": "email and password are required"}, 2)
+        return {"ok": False, "error": "email and password are required"}
 
     try:
         user = slippi_auth.login(email, password)
     except slippi_auth.AuthError as exc:
-        return emit({"ok": False, "error": str(exc)}, 1)
+        return {"ok": False, "error": str(exc)}
 
     target = settings_lib.SLIPPI_DIR / settings_lib.DEFAULT_USER_JSON
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -97,52 +91,48 @@ def cmd_login(args) -> int:
     target.chmod(0o600)
     installed, detail = settings_lib.install_login(settings_lib.defaults())
 
-    return emit({
+    return {
         "ok": installed,
         "connect_code": user.get("connectCode"),
         "display_name": user.get("displayName"),
         "detail": detail,
-    }, 0 if installed else 1)
+        **({} if installed else {"error": detail}),
+    }
 
 
-def cmd_update(args) -> int:
+def cmd_update(args) -> dict:
     if args.check:
         try:
             tag, _asset = slippi_update._latest_release()
         except Exception as exc:
-            return emit({"ok": False, "error": str(exc)}, 1)
-        return emit({
-            "ok": True,
-            "current": slippi_update.current_tag(),
-            "latest": tag,
-        })
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "check": True,
+                "current": slippi_update.current_tag(), "latest": tag}
 
     try:
         path = slippi_update.ensure(log=lambda message: print(message, file=sys.stderr))
     except slippi_update.UpdateError as exc:
-        return emit({"ok": False, "error": str(exc)}, 1)
+        return {"ok": False, "error": str(exc)}
 
-    return emit({
-        "ok": True,
-        "current": slippi_update.current_tag(),
-        "path": str(path),
-    })
+    return {"ok": True, "check": False,
+            "current": slippi_update.current_tag(), "path": str(path)}
 
 
-def cmd_play(args) -> int:
-    shared = slippi_settings.defaults()
-    login_ok, _detail = settings_lib.install_login(shared)
+def cmd_play(args) -> dict:
+    login_ok, _detail = settings_lib.install_login(settings_lib.defaults())
     if not login_ok and args.require_login:
-        return emit({"ok": False, "error": "not signed in"}, 1)
+        return {"ok": False, "error": "not signed in"}
 
     try:
-        appimage = slippi_update.ensure(log=lambda message: print(message, file=sys.stderr))
+        appimage = slippi_update.ensure(
+            log=lambda message: print(message, file=sys.stderr)
+        )
     except slippi_update.UpdateError as exc:
-        return emit({"ok": False, "error": str(exc)}, 1)
+        return {"ok": False, "error": str(exc)}
 
     summary, settings = _settings_summary()
     if not settings or not summary.get("iso_valid"):
-        return emit({"ok": False, "error": summary.get("iso_reason", "no game image")}, 1)
+        return {"ok": False, "error": summary.get("iso_reason", "no game image")}
 
     iso = str(settings_lib.iso_path(settings["game"]["iso"]))
     environment = os.environ.copy()
@@ -157,38 +147,99 @@ def cmd_play(args) -> int:
         "-C", "Graphics.Hardware.VSync=False",
         "-b", "-e", iso,
     ]
-    print(json.dumps({"ok": True, "event": "launching", "iso": iso}), flush=True)
     result = subprocess.run(command, env=environment)
-    return emit({"ok": result.returncode == 0, "returncode": result.returncode})
+    return {"ok": result.returncode == 0, "iso": iso,
+            "returncode": result.returncode}
 
 
-def cmd_adapter(args) -> int:
+def cmd_adapter(args) -> dict:
     try:
         import slippi_adapter
         held = slippi_adapter.a_held(args.seconds)
     except Exception as exc:
-        return emit({"ok": False, "error": str(exc)}, 1)
-    return emit({"ok": True, "present": held is not None, "a_held": held})
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "present": held is not None, "a_held": held}
+
+
+def human_status(payload: dict) -> None:
+    settings = payload["settings"]
+    state = "ok" if settings.get("exists") else "missing"
+    print(f"Settings:  {settings['path']} ({state})")
+    if settings.get("iso"):
+        game = "ok" if settings.get("iso_valid") else settings.get("iso_reason", "invalid")
+        print(f"Game:      {settings['iso_path']} ({game})")
+        if settings.get("refresh_hz"):
+            print(f"Display:   {settings['refresh_hz']} Hz")
+    else:
+        print("Game:      not configured")
+    login = payload["login"]
+    print(f"Login:     signed in ({login['detail']})" if login["signed_in"]
+          else "Login:     not signed in")
+    print(f"Dolphin:   {payload['dolphin']['current'] or 'not installed'}")
+    print(f"Adapter:   {'connected' if payload['adapter']['present'] else 'not connected'}")
+
+
+def human_update(payload: dict) -> None:
+    if payload.get("check"):
+        print(f"Current:   {payload.get('current') or 'not installed'}")
+        print(f"Latest:    {payload.get('latest')}")
+    else:
+        print(f"Dolphin:   {payload.get('current')}")
+        print(f"Path:      {payload.get('path')}")
+
+
+def human_login(payload: dict) -> None:
+    name = payload.get("display_name") or "player"
+    print(f"Signed in as {name} ({payload.get('connect_code')})")
+
+
+def human_play(payload: dict) -> None:
+    if payload.get("ok"):
+        print("Dolphin exited cleanly.")
+    else:
+        print(f"Dolphin exited with status {payload.get('returncode')}.")
+
+
+def human_adapter(payload: dict) -> None:
+    if not payload.get("present"):
+        print("GameCube adapter: not connected")
+        return
+    held = payload.get("a_held")
+    print(f"GameCube adapter: connected, A {'held' if held else 'not held'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    common.add_argument("--human", action="store_true", default=argparse.SUPPRESS)
+
     parser = argparse.ArgumentParser(prog="slippios-cli")
+    parser.add_argument("--json", action="store_true",
+                        help="force machine-readable output")
+    parser.add_argument("--human", action="store_true",
+                        help="force human-readable output")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="report settings, login, Dolphin and adapter state")
+    sub.add_parser("status", parents=[common],
+                   help="settings, login, Dolphin and adapter state")
 
-    login = sub.add_parser("login", help="authenticate and install user.json")
+    login = sub.add_parser("login", parents=[common],
+                           help="authenticate and install user.json")
     login.add_argument("--email")
     login.add_argument("--password")
-    login.add_argument("--stdin", action="store_true", help="read {email,password} JSON from stdin")
+    login.add_argument("--stdin", action="store_true",
+                       help="read {email,password} JSON from stdin")
 
-    update = sub.add_parser("update", help="check or apply a Dolphin update")
+    update = sub.add_parser("update", parents=[common],
+                            help="check or apply a Dolphin update")
     update.add_argument("--check", action="store_true")
 
-    play = sub.add_parser("play", help="launch Dolphin with the configured game")
+    play = sub.add_parser("play", parents=[common],
+                          help="launch Dolphin with the configured game")
     play.add_argument("--require-login", action="store_true")
 
-    adapter = sub.add_parser("adapter", help="report adapter presence and A button")
+    adapter = sub.add_parser("adapter", parents=[common],
+                             help="adapter presence and A button")
     adapter.add_argument("--seconds", type=float, default=1.0)
 
     return parser
@@ -203,7 +254,31 @@ def main() -> int:
         "play": cmd_play,
         "adapter": cmd_adapter,
     }
-    return handlers[args.command](args)
+    renderers = {
+        "status": human_status,
+        "login": human_login,
+        "update": human_update,
+        "play": human_play,
+        "adapter": human_adapter,
+    }
+
+    payload = handlers[args.command](args)
+
+    if args.json:
+        json_mode = True
+    elif args.human:
+        json_mode = False
+    else:
+        json_mode = not sys.stdout.isatty()
+
+    if json_mode:
+        print(json.dumps(payload, sort_keys=True))
+    elif payload.get("ok"):
+        renderers[args.command](payload)
+    else:
+        print(f"error: {payload.get('error')}", file=sys.stderr)
+
+    return 0 if payload.get("ok") else 1
 
 
 if __name__ == "__main__":

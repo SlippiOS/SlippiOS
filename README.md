@@ -153,5 +153,7 @@ slippios-cli play              # install login, update, launch Dolphin
 slippios-cli adapter           # adapter presence and A-button state
 ```
 
-Every command prints one JSON object; long-running commands stream progress to
-stderr. Passwords are read from stdin, never argv.
+Output follows the terminal: human-readable on a TTY, JSON when piped (which is
+what the graphical IPL gets). `--json` and `--human` override the detection.
+Long-running commands stream progress to stderr, and passwords are read from
+stdin, never argv.
