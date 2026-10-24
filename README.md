@@ -4,23 +4,30 @@ SlippiOS is a console-style NixOS appliance for booting directly into Slippi
 Melee. This repository contains the NixOS configuration and ISO build
 pipeline; virtual machines are run externally with virt-manager.
 
-## Build and download the ISO
+## Build the ISO locally
 
-Push this repository to GitHub and run **Build ISO** from the Actions tab. The
-workflow builds the `slippi-iso` target and uploads the ISO as an artifact.
-Download it from the completed workflow run, then create a VM in virt-manager
-and attach the ISO as its boot disk.
-
-The target follows the NixOS manual's live-ISO method: it imports
-`nixos/modules/installer/cd-dvd/installation-cd-minimal.nix` and builds
-`config.system.build.isoImage`.
-
-For a local build, on a machine with Nix and flakes enabled:
+Local builds are the fast path: Nix caches every dependency, so only the
+changed parts rebuild. One-time setup on a non-NixOS host:
 
 ```sh
-nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
-ls result/iso/*.iso
+sh <(curl -L https://nixos.org/nix/install) --daemon
 ```
+
+After logging back in, enable flakes:
+
+```sh
+mkdir -p ~/.config/nix
+echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+```
+
+Then:
+
+```sh
+./scripts/build-iso
+```
+
+The ISO lands in `result/iso/`. A GitHub Actions workflow still exists as a
+fallback, but it is not needed for normal iteration.
 
 The live ISO must contain its full system closure. It cannot install packages
 at runtime, so build time is dominated by compressing that closure. SlippiOS

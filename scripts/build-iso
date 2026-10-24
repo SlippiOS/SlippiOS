@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Build the SlippiOS ISO locally. Requires Nix with flakes enabled.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
+
+ls -lh result/iso/*.iso
