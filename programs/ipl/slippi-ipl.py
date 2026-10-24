@@ -10,14 +10,12 @@ Boot flow:
 from __future__ import annotations
 
 import os
-import select
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-import slippi_login_server as login_server
 import slippi_settings as settings_lib
 import slippi_update
 
@@ -180,34 +178,20 @@ def apply_audio(settings: dict) -> None:
 
 
 def ensure_login(settings: dict) -> tuple[bool, str]:
-    """Install an existing login, or offer the LAN sign-in page."""
+    """Open the embedded sign-in window and capture the login file."""
     ok, detail = settings_lib.install_login(settings)
     if ok:
         return True, detail
 
-    server = login_server.start()
-    address = login_server.url()
     clear()
-    print("\n                 SLIPPI ACCOUNT\n")
-    print("                 Sign in using your phone or another device:")
-    print(f"                 {address}\n")
-    if shutil.which("qrencode"):
-        subprocess.run(["qrencode", "-t", "ANSIUTF8", address], check=False)
-    print("\n                 Waiting for sign-in… press Enter to skip.")
-
-    deadline = time.monotonic() + 300
+    print("\n\n                 Sign in to Slippi in the window…\n")
     try:
-        while time.monotonic() < deadline:
-            ok, detail = settings_lib.install_login(settings)
-            if ok:
-                return True, detail
-            if select.select([sys.stdin], [], [], 1.0)[0]:
-                sys.stdin.readline()
-                break
-    finally:
-        login_server.stop(server)
-
-    return settings_lib.install_login(settings)
+        result = subprocess.run(["slippi-login"])
+    except FileNotFoundError:
+        return False, "slippi-login is not installed"
+    if result.returncode == 0:
+        return settings_lib.install_login(settings)
+    return False, "sign-in skipped"
 
 
 def ensure_dolphin() -> Path | None:

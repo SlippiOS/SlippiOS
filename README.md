@@ -106,10 +106,9 @@ psk = "plaintext-for-now"
 user_json = "slippi-user.json"
 ```
 
-SlippiOS never stores a Slippi password. On first run the IPL starts a small
-LAN sign-in page (`http://<console-ip>:8080/`, with a QR code in the console).
-Open it on a phone, follow the official Slippi sign-in link, and upload the
-resulting `user.json`; the IPL installs it into Dolphin's user directory. The
+SlippiOS never stores a Slippi password. On first run it opens a fullscreen
+Slippi sign-in window; after you log in and download the login file, SlippiOS
+captures it automatically and installs it into Dolphin's user directory. The
 file can also be placed on the cartridge as `slippi-user.json` by hand.
 
 On boot the IPL behaves as follows:
