@@ -47,7 +47,8 @@ echo "Run:    $run_id"
 echo "Commit: ${commit:0:7} ($created)"
 
 log=$(gh run view "$run_id" --repo "$repo" --log)
-url=$(grep -o 'https://transfer[^ ]*' <<<"$log" | head -1 || true)
+url=$(grep -o 'Download: https://[^[:space:]]*' <<<"$log" | head -1 \
+      | sed -E 's/^Download: //; s/\x1b\[[0-9;]*m//g' | tr -d '\r' || true)
 hash=$(grep -o 'SHA256: [0-9a-f]\{64\}' <<<"$log" | head -1 | awk '{print $2}' || true)
 
 if [[ -z "${url:-}" ]]; then
