@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import slippi_settings as settings_lib
+import slippi_update
 
 
 def clear() -> None:
@@ -124,14 +125,27 @@ def onboarding(reason: str | None = None) -> dict | None:
     return settings
 
 
-def launch(settings: dict) -> None:
+def ensure_dolphin() -> Path | None:
+    clear()
+    print("\n\n                 Checking for Slippi Dolphin updates…\n")
+    try:
+        appimage = slippi_update.ensure(
+            log=lambda message: print("                 " + message, flush=True)
+        )
+    except slippi_update.UpdateError as exc:
+        alert(["Could not prepare Slippi Dolphin.", str(exc)])
+        return None
+    return appimage
+
+
+def launch(settings: dict, appimage: Path) -> None:
     iso = settings["game"]["iso"]
     clear()
     print("\n\n                 Launching Slippi Dolphin…\n")
     print(f"                 {iso}")
 
     command = [
-        "slippi-dolphin",
+        "slippi-appimage-run", str(appimage),
         "-u", str(settings_lib.DOLPHIN_DIR),
         "-b",
         "-e", iso,
@@ -151,10 +165,7 @@ def launch(settings: dict) -> None:
                 command, stdout=log, stderr=subprocess.STDOUT, env=environment,
             )
     except FileNotFoundError:
-        alert([
-            "Slippi Dolphin is not installed in this image.",
-            "Runtime download is the next milestone.",
-        ])
+        alert(["slippi-appimage-run is not installed in this image."])
         return
 
     if result.returncode != 0:
@@ -198,7 +209,11 @@ def main() -> None:
         return
 
     configure_network(settings)
-    launch(settings)
+
+    appimage = ensure_dolphin()
+    if appimage is None:
+        return
+    launch(settings, appimage)
 
 
 if __name__ == "__main__":

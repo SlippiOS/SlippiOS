@@ -7,13 +7,14 @@ let
     mkdir -p $out
     cp ${../programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
     cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
+    cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
   '';
 
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
     exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
   '';
 
-  slippi-dolphin = pkgs.callPackage ../packages/slippi-dolphin.nix { };
+  slippi-runner = pkgs.callPackage ../packages/slippi-runner.nix { };
 
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
@@ -50,7 +51,7 @@ in {
     coreutils
     ipl
     openbox
-    slippi-dolphin
+    slippi-runner
     xterm
     xorg.xset
   ];

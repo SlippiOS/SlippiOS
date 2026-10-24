@@ -28,9 +28,10 @@
           mkdir -p $out
           cp ${./programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
           cp ${./programs/ipl/slippi_settings.py} $out/slippi_settings.py
+          cp ${./programs/ipl/slippi_update.py} $out/slippi_update.py
         '';
       in {
-        slippi-dolphin = pkgs.callPackage ./packages/slippi-dolphin.nix { };
+        slippi-runner = pkgs.callPackage ./packages/slippi-runner.nix { };
 
         ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
           exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
