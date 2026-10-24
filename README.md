@@ -106,10 +106,10 @@ psk = "plaintext-for-now"
 user_json = "slippi-user.json"
 ```
 
-SlippiOS never stores a Slippi password. On first run it opens a fullscreen
-Slippi sign-in window; after you log in and download the login file, SlippiOS
-captures it automatically and installs it into Dolphin's user directory. The
-file can also be placed on the cartridge as `slippi-user.json` by hand.
+SlippiOS never stores a Slippi password. On first run it prompts for the Slippi
+email and password, authenticates against the same public web endpoints used by
+slippi.gg, fetches the account's `playKey`, and writes `slippi-user.json` into
+Dolphin's user directory. The password is only held in memory for that request.
 
 On boot the IPL behaves as follows:
 

@@ -8,13 +8,13 @@ let
     cp ${../programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
     cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
     cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
+    cp ${../programs/ipl/slippi_auth.py} $out/slippi_auth.py
   '';
 
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
     exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
   '';
 
-  slippi-login = pkgs.callPackage ../packages/slippi-login.nix { };
   slippi-runner = pkgs.callPackage ../packages/slippi-runner.nix { };
 
   # openbox-autostart only reads its own built-in global file and
@@ -53,7 +53,6 @@ in {
     ipl
     openbox
     pulseaudio
-    slippi-login
     slippi-runner
     xterm
     xorg.xrandr

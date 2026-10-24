@@ -9,6 +9,8 @@ Boot flow:
 
 from __future__ import annotations
 
+import getpass
+import json
 import os
 import shutil
 import subprocess
@@ -16,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 
+import slippi_auth
 import slippi_settings as settings_lib
 import slippi_update
 
@@ -178,20 +181,32 @@ def apply_audio(settings: dict) -> None:
 
 
 def ensure_login(settings: dict) -> tuple[bool, str]:
-    """Open the embedded sign-in window and capture the login file."""
+    """Prompt for Slippi credentials and write the login file."""
     ok, detail = settings_lib.install_login(settings)
     if ok:
         return True, detail
 
-    clear()
-    print("\n\n                 Sign in to Slippi in the window…\n")
-    try:
-        result = subprocess.run(["slippi-login"])
-    except FileNotFoundError:
-        return False, "slippi-login is not installed"
-    if result.returncode == 0:
+    for _ in range(3):
+        clear()
+        print("\n                 SLIPPI ACCOUNT\n")
+        email = input("                 Email (blank to skip): ").strip()
+        if not email:
+            return False, "skipped"
+        password = getpass.getpass("                 Password: ")
+        try:
+            user = slippi_auth.login(email, password)
+        except slippi_auth.AuthError as exc:
+            print(f"\n                 {exc}")
+            time.sleep(2)
+            continue
+
+        target = settings_lib.SLIPPI_DIR / settings_lib.DEFAULT_USER_JSON
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(user, indent=2))
+        target.chmod(0o600)
         return settings_lib.install_login(settings)
-    return False, "sign-in skipped"
+
+    return False, "sign-in failed"
 
 
 def ensure_dolphin() -> Path | None:
