@@ -51,8 +51,10 @@ in {
     coreutils
     ipl
     openbox
+    pulseaudio
     slippi-runner
     xterm
+    xorg.xrandr
     xorg.xset
   ];
 

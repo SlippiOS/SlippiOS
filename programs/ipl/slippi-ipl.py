@@ -134,6 +134,54 @@ def onboarding(reason: str | None = None) -> dict | None:
     return settings
 
 
+def apply_display(settings: dict) -> None:
+    """Set the requested resolution/refresh rate on the connected output."""
+    if not shutil.which("xrandr"):
+        return
+    try:
+        query = subprocess.run(
+            ["xrandr", "--query"], capture_output=True, text=True, timeout=5,
+        ).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return
+
+    output = None
+    for line in query.splitlines():
+        if " connected" in line:
+            output = line.split()[0]
+            if " primary" in line:
+                break
+    if not output:
+        return
+
+    resolution = str(settings["display"].get("resolution", "auto"))
+    rate = settings["display"].get("refresh_hz")
+    command = ["xrandr", "--output", output]
+    if resolution and resolution != "auto":
+        command += ["--mode", resolution]
+    if rate:
+        command += ["--rate", str(rate)]
+    if len(command) == 3:
+        return
+    try:
+        subprocess.run(command, capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def apply_audio(settings: dict) -> None:
+    """Select the configured audio sink when one is named."""
+    sink = settings["audio"].get("sink", "auto")
+    if sink in ("", "auto") or not shutil.which("pactl"):
+        return
+    try:
+        subprocess.run(
+            ["pactl", "set-default-sink", sink], capture_output=True, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def ensure_dolphin() -> Path | None:
     clear()
     print("\n\n                 Checking for Slippi Dolphin updates…\n")
@@ -156,6 +204,8 @@ def launch(settings: dict, appimage: Path) -> None:
     command = [
         "slippi-appimage-run", str(appimage),
         "-u", str(settings_lib.DOLPHIN_DIR),
+        "-C", "Dolphin.Display.Fullscreen=True",
+        "-C", "Graphics.Hardware.VSync=False",
         "-b",
         "-e", iso,
     ]
@@ -218,6 +268,9 @@ def main() -> None:
         return
 
     configure_network(settings)
+
+    apply_display(settings)
+    apply_audio(settings)
 
     logged_in, detail = settings_lib.install_login(settings)
     if logged_in:
