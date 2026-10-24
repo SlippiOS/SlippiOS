@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ]);
+  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
 
   iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
     mkdir -p $out
@@ -10,6 +10,7 @@ let
     cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
     cp ${../programs/ipl/slippi_auth.py} $out/slippi_auth.py
     cp ${../programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
+    cp ${../programs/ipl/slippi_input.py} $out/slippi_input.py
   '';
 
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''

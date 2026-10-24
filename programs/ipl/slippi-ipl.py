@@ -20,6 +20,7 @@ from pathlib import Path
 
 import slippi_adapter
 import slippi_auth
+import slippi_input
 import slippi_settings as settings_lib
 import slippi_update
 
@@ -270,12 +271,15 @@ def launch(settings: dict, appimage: Path) -> None:
 def main() -> None:
     boot_animation()
 
+    pads = slippi_input.Gamepads()
     try:
-        held = slippi_adapter.a_held(2.0)
+        held = slippi_adapter.a_held(1.5)
     except Exception:
         held = None
+    held = bool(held) or pads.any_south_held()
+    pads.close()
     if held:
-        print("\n                 GameCube adapter: A held at boot.")
+        print("\n                 Controller A held at boot.")
         print("                 Configuration menu is the next milestone.")
         time.sleep(1.5)
 
