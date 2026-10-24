@@ -45,7 +45,9 @@ fi
 
 target=$(sudo virsh -c "$URI" domblklist "$DOMAIN" --details | awk '$2 == "cdrom" { print $3; exit }')
 if [[ -n "${target:-}" ]]; then
-  sudo virsh -c "$URI" change-media "$DOMAIN" "$target" --update --force "$IMAGE" || true
+  if ! sudo virsh -c "$URI" change-media "$DOMAIN" "$target" --update --force "$IMAGE"; then
+    echo "warning: could not switch the VM to the new ISO" >&2
+  fi
 else
   echo "warning: no cdrom device found on '$DOMAIN'" >&2
 fi
