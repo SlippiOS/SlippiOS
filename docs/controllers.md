@@ -33,7 +33,12 @@ SlippiOS seeds these community profiles into
 `/slippi/dolphin/Config/Profiles/GCPad/` on first boot (existing files are not
 overwritten):
 
-B0XX_Linux, Glyph, HayBox_DInput_Linux, HayBox_XInput_Linux.
+B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux, HayBox_XInput_Linux.
+
+`Frame1_Linux.ini` is derived from the upstream Ishiiruka Frame1 profile with
+the DirectInput bindings translated to evdev names. The device is named
+`evdev/0/Frame1`; if your unit enumerates under a different name, select the
+device manually in Dolphin (the button/axis bindings stay valid).
 
 Only Linux profiles are shipped. Sources: the user's Slippi install and
 `JonnyHaystack/HayBox`. Load them from Dolphin's controller profile menu.
