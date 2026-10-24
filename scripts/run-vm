@@ -15,6 +15,7 @@ fi
 exec qemu-system-x86_64 \
   -machine pc,accel=kvm \
   -cpu host \
+  -smbios type=1,uuid=8f0f5c2a-3b7d-4e6a-9c1d-2a3b4c5d6e7f \
   -m 4096 -smp 4 \
   -cdrom "$iso" -boot d \
   -nic user,model=virtio-net-pci \

@@ -17,6 +17,46 @@ ISO_DIR = SLIPPI_DIR / "isos"
 DOLPHIN_DIR = SLIPPI_DIR / "dolphin"
 DOLPHIN_USER_FILE = DOLPHIN_DIR / "Slippi" / "user.json"
 DEFAULT_USER_JSON = "slippi-user.json"
+HARDWARE_FILE = SLIPPI_DIR / "hardware-id"
+
+_PLACEHOLDER_IDS = {
+    "",
+    "none",
+    "not specified",
+    "to be filled by o.e.m.",
+    "03000200-0400-0500-0006-000700080009",
+}
+
+
+def hardware_id() -> str | None:
+    """Best-effort stable machine identity (DMI product UUID)."""
+    for path in ("/sys/class/dmi/id/product_uuid", "/sys/class/dmi/id/board_serial"):
+        try:
+            value = Path(path).read_text().strip()
+        except OSError:
+            continue
+        if value.lower() not in _PLACEHOLDER_IDS:
+            return value
+    return None
+
+
+def check_hardware_binding() -> bool:
+    """Drop a persisted login when the cartridge moved to different hardware."""
+    current = hardware_id()
+    if current is None:
+        return False
+    try:
+        stored = HARDWARE_FILE.read_text().strip()
+    except OSError:
+        stored = ""
+    if stored and stored != current:
+        (SLIPPI_DIR / DEFAULT_USER_JSON).unlink(missing_ok=True)
+        DOLPHIN_USER_FILE.unlink(missing_ok=True)
+        HARDWARE_FILE.unlink(missing_ok=True)
+        return True
+    if not stored:
+        HARDWARE_FILE.write_text(current + "\n")
+    return False
 
 SCHEMA_VERSION = 1
 
@@ -74,6 +114,9 @@ def install_login(settings: dict) -> tuple[bool, str]:
         DOLPHIN_USER_FILE.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(candidate, DOLPHIN_USER_FILE)
         os.chmod(DOLPHIN_USER_FILE, 0o600)
+        current = hardware_id()
+        if current:
+            HARDWARE_FILE.write_text(current + "\n")
         return True, detail
     return False, f"no Slippi login file at {resolve_path(configured)}"
 

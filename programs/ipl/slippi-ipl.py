@@ -269,6 +269,13 @@ def launch(settings: dict, appimage: Path) -> None:
 def main() -> None:
     boot_animation()
 
+    if settings_lib.check_hardware_binding():
+        alert([
+            "This cartridge was used on different hardware.",
+            "The saved Slippi login has been removed.",
+            "Sign in again to play online.",
+        ])
+
     have_settings = settings_lib.SETTINGS_FILE.is_file()
     settings, error = settings_lib.load() if have_settings else (None, None)
 
