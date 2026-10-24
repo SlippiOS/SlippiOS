@@ -93,10 +93,8 @@ On boot the IPL behaves as follows:
 Game images are validated by their GameCube ID (`GALE01`/`GALJ01`/`GALP01`).
 SlippiOS never downloads or ships Melee.
 
-Dolphin is not bundled in the ISO yet. The standard installer closure leaves
-too little scratch space in CI for the 158 MB AppImage, so runtime download of
-the newest upstream release is the next milestone. `packages/slippi-dolphin.nix`
-still provides a wrapped build for local testing.
+Dolphin is the pinned Slippi Mainline release, wrapped with `appimageTools`.
+A runtime updater that tracks the newest upstream build is the next milestone.
 
 `slippi-iso` is the current hardware-independent target. GPU drivers, adapter
 rules, persistence, and the installed-PC target will be added as separate NixOS
