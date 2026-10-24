@@ -13,7 +13,9 @@
         slippi-iso = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            (nixpkgs + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
+            ({ modulesPath, ... }: {
+              imports = [ (modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix") ];
+            })
             common
             ./hosts/slippi-iso.nix
           ];

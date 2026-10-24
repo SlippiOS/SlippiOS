@@ -11,12 +11,21 @@ workflow builds the `slippi-iso` target and uploads the ISO as an artifact.
 Download it from the completed workflow run, then create a VM in virt-manager
 and attach the ISO as its boot disk.
 
+The target follows the NixOS manual's live-ISO method: it imports
+`nixos/modules/installer/cd-dvd/installation-cd-minimal.nix` and builds
+`config.system.build.isoImage`.
+
 For a local build, on a machine with Nix and flakes enabled:
 
 ```sh
 nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
 ls result/iso/*.iso
 ```
+
+The live ISO must contain its full system closure. It cannot install packages
+at runtime, so build time is dominated by compressing that closure. SlippiOS
+uses `zstd -Xcompression-level 6` instead of nixpkgs' `-19` default to keep CI
+builds practical while remaining bootable.
 
 The ISO auto-logs into a minimal X11/Openbox session and starts the IPL
 (Initial Program Loader). The real GameCube adapter requires exclusive USB
