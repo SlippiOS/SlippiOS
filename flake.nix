@@ -22,14 +22,8 @@
         };
       };
 
-      packages.${system}.ipl = pkgs.python3Packages.buildPythonApplication {
-        pname = "slippi-ipl";
-        version = "0.1.0";
-        pyproject = false;
-        src = ./programs/ipl;
-        installPhase = ''
-          install -Dm755 slippi-ipl.py $out/bin/slippi-ipl
-        '';
-      };
+      packages.${system}.ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
+        exec ${pkgs.python3}/bin/python3 ${./programs/ipl/slippi-ipl.py} "$@"
+      '';
     };
 }

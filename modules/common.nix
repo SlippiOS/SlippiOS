@@ -1,12 +1,14 @@
 { config, pkgs, lib, ... }:
 
 let
-  ipl = pkgs.writeTextFile {
-    name = "slippi-ipl.py";
-    executable = true;
-    destination = "/bin/slippi-ipl";
-    text = builtins.readFile ../programs/ipl/slippi-ipl.py;
-  };
+  iplScript = pkgs.writeText "slippi-ipl.py"
+    (builtins.readFile ../programs/ipl/slippi-ipl.py);
+
+  # NixOS has no /usr/bin/python3, so a bare `#!/usr/bin/env python3` shebang
+  # fails. Always invoke the interpreter by store path.
+  ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
+    exec ${pkgs.python3}/bin/python3 ${iplScript} "$@"
+  '';
 in {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 

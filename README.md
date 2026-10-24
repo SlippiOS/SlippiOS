@@ -27,6 +27,17 @@ at runtime, so build time is dominated by compressing that closure. SlippiOS
 uses `zstd -Xcompression-level 6` instead of nixpkgs' `-19` default to keep CI
 builds practical while remaining bootable.
 
+## Quick test without libvirt
+
+libvirt is only useful later, for persistent VMs and USB passthrough. To just
+boot the ISO:
+
+```sh
+./scripts/run-vm /path/to/slippios.iso
+```
+
+That runs plain QEMU with KVM as your user — no daemon, no sudo.
+
 The ISO auto-logs into a minimal X11/Openbox session and starts the IPL
 (Initial Program Loader). The real GameCube adapter requires exclusive USB
 access and should be tested later with USB passthrough from virt-manager.

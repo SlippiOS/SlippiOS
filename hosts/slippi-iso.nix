@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 {
   # The ISO must boot on varied hardware. Keep GPU selection generic and let
@@ -6,6 +6,11 @@
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   services.xserver.videoDrivers = [ "modesetting" ];
+
+  # installation-cd-minimal.nix disables fontconfig to save space, but xterm's
+  # Xft font needs it. Without this, xterm exits before the IPL can start.
+  fonts.fontconfig.enable = lib.mkForce true;
+  fonts.packages = [ pkgs.dejavu_fonts ];
 
   # installation-cd-minimal.nix enables the legacy wireless module. SlippiOS
   # uses NetworkManager so the config menu can manage Wi-Fi, and NixOS rejects

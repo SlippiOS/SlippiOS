@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run a SlippiOS ISO in a throwaway KVM guest. No libvirt, no root.
+set -euo pipefail
+
+iso="${1:-}"
+if [[ -z "$iso" ]]; then
+  echo "usage: $0 /path/to/slippios.iso" >&2
+  exit 1
+fi
+if [[ ! -r "$iso" ]]; then
+  echo "cannot read ISO: $iso" >&2
+  exit 1
+fi
+
+exec qemu-system-x86_64 \
+  -machine pc,accel=kvm \
+  -cpu host \
+  -m 4096 -smp 4 \
+  -cdrom "$iso" -boot d \
+  -nic user,model=virtio-net-pci \
+  -vga std
