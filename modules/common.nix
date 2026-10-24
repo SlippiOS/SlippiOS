@@ -55,9 +55,9 @@ in {
   '';
 
   systemd.tmpfiles.rules = [
-    "d /home/melee 0755 melee melee -"
-    "d /home/melee/.config 0755 melee melee -"
-    "d /home/melee/.config/openbox 0755 melee melee -"
+    "d /home/melee 0755 melee users -"
+    "d /home/melee/.config 0755 melee users -"
+    "d /home/melee/.config/openbox 0755 melee users -"
     "L+ /home/melee/.config/openbox/autostart - - - - ${autostart}"
   ];
 
