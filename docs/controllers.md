@@ -26,3 +26,16 @@ Boot-time "hold A" therefore maps to the SDL south face, which is what
 `057e:0337` is polled directly for A during boot. While the config menu exists,
 the adapter must be exposed as a virtual SDL pad (uinput) and then released
 before Dolphin starts, so Dolphin can claim it with libusb.
+
+## Bundled profiles
+
+SlippiOS seeds these community profiles into
+`/slippi/dolphin/Config/Profiles/GCPad/` on first boot (existing files are not
+overwritten):
+
+B0XX, B0XX_Linux, B0XX_macOS, Frame1, Glyph, HayBox_DInput,
+HayBox_DInput_Linux, HayBox_DInput_macOS, HayBox_XInput,
+HayBox_XInput_Linux, slippibot.
+
+Sources: the user's Slippi install, `JonnyHaystack/HayBox`, and GRAM/HayBox
+forks. Load them from Dolphin's controller profile menu.
