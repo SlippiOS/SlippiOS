@@ -31,6 +31,7 @@
           cp ${./programs/ipl/slippi_update.py} $out/slippi_update.py
           cp ${./programs/ipl/slippi_auth.py} $out/slippi_auth.py
           cp ${./programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
+          cp ${./programs/cli/slippios_cli.py} $out/slippios_cli.py
           cp ${./programs/ipl/slippi_input.py} $out/slippi_input.py
         '';
       in {
@@ -38,6 +39,10 @@
 
         ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
           exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
+        '';
+
+        slippios-cli = pkgs.writeShellScriptBin "slippios-cli" ''
+          exec ${python}/bin/python3 ${iplSrc}/slippios_cli.py "$@"
         '';
       };
     };

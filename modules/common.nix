@@ -10,6 +10,7 @@ let
     cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
     cp ${../programs/ipl/slippi_auth.py} $out/slippi_auth.py
     cp ${../programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
+    cp ${../programs/cli/slippios_cli.py} $out/slippios_cli.py
     cp ${../programs/ipl/slippi_input.py} $out/slippi_input.py
   '';
 
@@ -18,6 +19,10 @@ let
   '';
 
   slippi-runner = pkgs.callPackage ../packages/slippi-runner.nix { };
+
+  slippios-cli = pkgs.writeShellScriptBin "slippios-cli" ''
+    exec ${python}/bin/python3 ${iplSrc}/slippios_cli.py "$@"
+  '';
 
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
@@ -60,6 +65,7 @@ in {
     openbox
     pulseaudio
     slippi-runner
+    slippios-cli
     xterm
     xorg.xrandr
     xorg.xset

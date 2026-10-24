@@ -138,3 +138,20 @@ modules rather than tied to a VM.
 3. USB hand-off tests: IPL releases `057e:0337` before Dolphin starts.
 4. Package/pin the mainline Slippi Dolphin beta.
 5. Persistent USB image and install-to-disk flow.
+
+## slippios-cli
+
+The graphical IPL talks to system logic through a JSON CLI rather than
+importing Python:
+
+```sh
+slippios-cli status            # settings, login, Dolphin version, adapter
+slippios-cli update --check    # current vs newest upstream release
+slippios-cli update            # download and verify the newest release
+slippios-cli login --stdin     # {"email": "...", "password": "..."}
+slippios-cli play              # install login, update, launch Dolphin
+slippios-cli adapter           # adapter presence and A-button state
+```
+
+Every command prints one JSON object; long-running commands stream progress to
+stderr. Passwords are read from stdin, never argv.
