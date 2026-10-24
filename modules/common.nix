@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ]);
+  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ]);
 
   iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
     mkdir -p $out
@@ -9,6 +9,7 @@ let
     cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
     cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
     cp ${../programs/ipl/slippi_auth.py} $out/slippi_auth.py
+    cp ${../programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
   '';
 
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
@@ -28,6 +29,10 @@ in {
 
   boot.kernelParams = [ "quiet" "loglevel=3" "vt.global_cursor_default=0" ];
   boot.kernelModules = [ "uinput" ];
+
+  services.udev.extraRules = ''
+    SUBSYSTEM=="usb", ATTR{idVendor}=="057e", ATTR{idProduct}=="0337", MODE="0666"
+  '';
 
   networking.networkmanager.enable = true;
   time.timeZone = "UTC";

@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 
+import slippi_adapter
 import slippi_auth
 import slippi_settings as settings_lib
 import slippi_update
@@ -268,6 +269,15 @@ def launch(settings: dict, appimage: Path) -> None:
 
 def main() -> None:
     boot_animation()
+
+    try:
+        held = slippi_adapter.a_held(2.0)
+    except Exception:
+        held = None
+    if held:
+        print("\n                 GameCube adapter: A held at boot.")
+        print("                 Configuration menu is the next milestone.")
+        time.sleep(1.5)
 
     if settings_lib.check_hardware_binding():
         alert([

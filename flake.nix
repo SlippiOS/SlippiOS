@@ -23,13 +23,14 @@
       };
 
       packages.${system} = let
-        python = pkgs.python3.withPackages (ps: [ ps.tomli-w ]);
+        python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ]);
         iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
           mkdir -p $out
           cp ${./programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
           cp ${./programs/ipl/slippi_settings.py} $out/slippi_settings.py
           cp ${./programs/ipl/slippi_update.py} $out/slippi_update.py
           cp ${./programs/ipl/slippi_auth.py} $out/slippi_auth.py
+          cp ${./programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
         '';
       in {
         slippi-runner = pkgs.callPackage ./packages/slippi-runner.nix { };
