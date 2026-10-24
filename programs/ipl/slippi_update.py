@@ -1,7 +1,7 @@
 """Fetch and verify the newest Slippi Mainline Dolphin release.
 
 The appliance always follows upstream, because netplay requires matching
-Dolphin versions. The previous verified build is kept for offline fallback.
+Dolphin versions. A failed check or download leaves the current build usable.
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ from pathlib import Path
 BASE = Path("/slippi/dolphin-app")
 VERSIONS = BASE / "versions"
 CURRENT = BASE / "current"
-PREVIOUS = BASE / "previous"
 STATE = BASE / "state.json"
 LOCK = BASE / "lock"
 
@@ -125,22 +124,10 @@ def _download(asset: dict, destination: Path, log) -> None:
 
 
 def _switch(tag: str, path: Path) -> None:
-    previous_target = None
-    try:
-        previous_target = os.readlink(CURRENT)
-    except OSError:
-        pass
-
     temporary = CURRENT.with_name("current.tmp")
     temporary.unlink(missing_ok=True)
     os.symlink(path, temporary)
     os.replace(temporary, CURRENT)
-
-    if previous_target and previous_target != str(path):
-        temporary = PREVIOUS.with_name("previous.tmp")
-        temporary.unlink(missing_ok=True)
-        os.symlink(previous_target, temporary)
-        os.replace(temporary, PREVIOUS)
 
     state = _read_json(STATE)
     state.update({"tag": tag, "checked_at": int(time.time())})

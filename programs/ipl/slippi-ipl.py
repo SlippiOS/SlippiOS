@@ -115,10 +115,19 @@ def onboarding(reason: str | None = None) -> dict | None:
     if ssid:
         psk = input("                 Wi-Fi password: ").strip()
 
+    user_json = input(
+        "\n                 Slippi user.json path (blank to skip): "
+    ).strip()
+
     settings = settings_lib.defaults()
-    settings["game"]["iso"] = iso
+    chosen = Path(iso)
+    try:
+        settings["game"]["iso"] = str(chosen.relative_to(settings_lib.ISO_DIR))
+    except ValueError:
+        settings["game"]["iso"] = str(chosen)
     settings["network"]["ssid"] = ssid
     settings["network"]["psk"] = psk
+    settings["slippi"]["user_json"] = user_json or settings_lib.DEFAULT_USER_JSON
     settings_lib.save(settings)
     print(f"\n                 Wrote {settings_lib.SETTINGS_FILE}")
     time.sleep(1)
@@ -139,7 +148,7 @@ def ensure_dolphin() -> Path | None:
 
 
 def launch(settings: dict, appimage: Path) -> None:
-    iso = settings["game"]["iso"]
+    iso = str(settings_lib.iso_path(settings["game"]["iso"]))
     clear()
     print("\n\n                 Launching Slippi Dolphin…\n")
     print(f"                 {iso}")
@@ -209,6 +218,13 @@ def main() -> None:
         return
 
     configure_network(settings)
+
+    logged_in, detail = settings_lib.install_login(settings)
+    if logged_in:
+        print(f"\n                 Slippi login: {detail}")
+    else:
+        print("\n                 No Slippi login configured; online play unavailable.")
+        print("                 Get user.json from https://slippi.gg/online/enable")
 
     appimage = ensure_dolphin()
     if appimage is None:

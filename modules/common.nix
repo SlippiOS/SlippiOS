@@ -81,7 +81,7 @@ in {
       fi
       ${pkgs.coreutils}/bin/mkdir -p \
         /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs
-      ${pkgs.coreutils}/bin/chown melee:users /slippi || true
+      ${pkgs.coreutils}/bin/chown melee:users         /slippi /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /slippi || true
     '';
   };

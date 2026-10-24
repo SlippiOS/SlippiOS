@@ -73,11 +73,11 @@ temporary `/slippi` on the root filesystem, so nothing persists.
 ```text
 /slippi
 ├── settings.toml     hand-editable; written by first-time setup
+├── slippi-user.json  optional Slippi login export (playKey)
 ├── isos/             Melee 1.02 and derivative builds (*.iso)
 ├── dolphin-app/      downloaded Slippi Dolphin releases
 │   ├── versions/<tag>/Slippi_Netplay_Mainline-x86_64.AppImage
-│   ├── current       → newest verified release
-│   └── previous      → last verified release (offline fallback)
+│   └── current       → newest verified release
 ├── dolphin/          Dolphin user dir (accounts, config, saves)
 ├── replays/
 └── logs/
@@ -89,7 +89,7 @@ temporary `/slippi` on the root filesystem, so nothing persists.
 schema_version = 1
 
 [game]
-iso = "/slippi/isos/melee.iso"
+iso = "melee.iso"
 
 [display]
 refresh_hz = 120
@@ -101,7 +101,16 @@ sink = "auto"
 [network]
 ssid = "Home"
 psk = "plaintext-for-now"
+
+[slippi]
+user_json = "slippi-user.json"
 ```
+
+SlippiOS never stores a Slippi password. Online play uses the official
+`user.json` export, which contains the account's `uid`, `playKey`, and
+`connectCode`. Get it from <https://slippi.gg/online/enable>, copy it to the
+cartridge as `slippi-user.json`, and the IPL installs it into Dolphin's user
+directory on boot.
 
 On boot the IPL behaves as follows:
 
@@ -114,9 +123,9 @@ SlippiOS never downloads or ships Melee.
 
 Dolphin is not baked into the image. On boot the IPL checks the newest Slippi
 Mainline release, downloads it to `/slippi/dolphin-app/versions/<tag>/`,
-verifies GitHub's SHA-256 digest, and points `current` at it. The previous
-verified build stays available for offline fallback. Netplay requires matching
-Dolphin versions, so the appliance always follows upstream.
+verifies GitHub's SHA-256 digest, and points `current` at it. Netplay requires
+matching Dolphin versions, so the appliance always follows upstream. If a
+check or download fails, the current build keeps working.
 
 `slippi-iso` is the current hardware-independent target. GPU drivers, adapter
 rules, persistence, and the installed-PC target will be added as separate NixOS

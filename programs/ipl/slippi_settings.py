@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
 import tomllib
 from pathlib import Path
 
@@ -12,6 +15,8 @@ SLIPPI_DIR = Path("/slippi")
 SETTINGS_FILE = SLIPPI_DIR / "settings.toml"
 ISO_DIR = SLIPPI_DIR / "isos"
 DOLPHIN_DIR = SLIPPI_DIR / "dolphin"
+DOLPHIN_USER_FILE = DOLPHIN_DIR / "Slippi" / "user.json"
+DEFAULT_USER_JSON = "slippi-user.json"
 
 SCHEMA_VERSION = 1
 
@@ -22,11 +27,55 @@ MELEE_ID = re.compile(rb"GAL[A-Z0-9]01")
 def defaults() -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
-        "game": {"iso": str(ISO_DIR / "melee.iso")},
+        "game": {"iso": "melee.iso"},
         "display": {"refresh_hz": 120, "resolution": "auto"},
         "audio": {"sink": "auto"},
         "network": {"ssid": "", "psk": ""},
+        "slippi": {"user_json": DEFAULT_USER_JSON},
     }
+
+
+def iso_path(value: str | Path) -> Path:
+    """Resolve an ISO reference; relative paths live in the isos directory."""
+    path = Path(value)
+    return path if path.is_absolute() else ISO_DIR / path
+
+
+def resolve_path(value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else SLIPPI_DIR / path
+
+
+def login_status(path: str | Path) -> tuple[bool, str]:
+    """Check a Slippi user.json export and return its connect code."""
+    candidate = resolve_path(path)
+    if not candidate.is_file():
+        return False, f"not found: {candidate}"
+    try:
+        data = json.loads(candidate.read_text())
+    except (OSError, ValueError) as exc:
+        return False, f"cannot read {candidate}: {exc}"
+    if not isinstance(data, dict):
+        return False, f"{candidate} is not a Slippi user file"
+    missing = [key for key in ("uid", "playKey", "connectCode") if not data.get(key)]
+    if missing:
+        return False, f"{candidate} is missing {', '.join(missing)}"
+    return True, str(data["connectCode"])
+
+
+def install_login(settings: dict) -> tuple[bool, str]:
+    """Copy an imported user.json into Dolphin's user directory."""
+    configured = settings.get("slippi", {}).get("user_json", DEFAULT_USER_JSON)
+    candidates = [resolve_path(configured), SLIPPI_DIR / "user.json"]
+    for candidate in candidates:
+        ok, detail = login_status(candidate)
+        if not ok:
+            continue
+        DOLPHIN_USER_FILE.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(candidate, DOLPHIN_USER_FILE)
+        os.chmod(DOLPHIN_USER_FILE, 0o600)
+        return True, detail
+    return False, f"no Slippi login file at {resolve_path(configured)}"
 
 
 def load() -> tuple[dict | None, str | None]:
@@ -60,7 +109,7 @@ def save(settings: dict) -> None:
 
 def iso_status(path: str | Path) -> tuple[bool, str]:
     """Check that a path looks like a Melee disc image."""
-    iso = Path(path)
+    iso = iso_path(path)
     if not iso.is_file():
         return False, f"not found: {iso}"
     try:
