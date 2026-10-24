@@ -51,4 +51,5 @@ jobs:
             echo ""
             echo "Hosted on transfer.archivete.am (transfer.sh mirror); links expire."
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA256: $sha"
           echo "Download: $url"

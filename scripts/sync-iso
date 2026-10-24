@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Download the newest successful SlippiOS ISO and install it for libvirt.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+DOMAIN="${SLIPPI_DOMAIN:-slippios-iso}"
+DEST="${SLIPPI_IMAGE:-/var/lib/libvirt/images/slippios.iso}"
+RESTART=0
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/sync-iso [--restart] [--domain NAME] [--dest PATH]
+
+Downloads the ISO from the newest successful "Build ISO" run, verifies its
+SHA-256, and installs it at the libvirt image path. With --restart it also
+swaps the VM's CD-ROM and reboots or starts the domain.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --restart) RESTART=1 ;;
+    --domain) DOMAIN="${2:?missing domain}"; shift ;;
+    --dest) DEST="${2:?missing destination}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+command -v gh >/dev/null || { echo "gh is required" >&2; exit 1; }
+command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+read -r run_id commit created <<<"$(
+  gh run list --repo "$repo" --workflow "Build ISO" --status success --limit 1 \
+    --json databaseId,headSha,createdAt \
+    -q '.[0] | "\(.databaseId) \(.headSha) \(.createdAt)"'
+)"
+
+if [[ -z "${run_id:-}" || "$run_id" == "null" ]]; then
+  echo "no successful Build ISO run found" >&2
+  exit 1
+fi
+
+echo "Run:    $run_id"
+echo "Commit: ${commit:0:7} ($created)"
+
+log=$(gh run view "$run_id" --repo "$repo" --log)
+url=$(grep -o 'https://transfer[^ ]*' <<<"$log" | head -1 || true)
+hash=$(grep -o 'SHA256: [0-9a-f]\{64\}' <<<"$log" | head -1 | awk '{print $2}' || true)
+
+if [[ -z "${url:-}" ]]; then
+  echo "no download URL in run $run_id (upload may have failed)" >&2
+  exit 1
+fi
+
+tmp=$(mktemp --suffix=.iso)
+trap 'rm -f "$tmp"' EXIT
+
+echo "URL:    $url"
+curl --fail --location --progress-bar -o "$tmp" "$url"
+
+if [[ -n "${hash:-}" ]]; then
+  echo "$hash  $tmp" | sha256sum --check -
+else
+  echo "warning: no SHA-256 in the run log; skipping verification" >&2
+fi
+
+sudo install -m 0444 "$tmp" "$DEST"
+if command -v restorecon >/dev/null 2>&1; then
+  sudo restorecon -v "$DEST" || true
+fi
+echo "Installed: $DEST"
+
+if [[ "$RESTART" -eq 1 ]]; then
+  if ! sudo virsh -c qemu:///system dominfo "$DOMAIN" >/dev/null 2>&1; then
+    echo "domain '$DOMAIN' does not exist; ISO installed only" >&2
+    exit 0
+  fi
+
+  target=$(sudo virsh -c qemu:///system domblklist "$DOMAIN" --details \
+           | awk '$2 == "cdrom" { print $3; exit }')
+  if [[ -n "${target:-}" ]]; then
+    if ! sudo virsh -c qemu:///system change-media "$DOMAIN" "$target" \
+         --update --force "$DEST"; then
+      echo "warning: could not switch the CD-ROM" >&2
+    fi
+  fi
+
+  if sudo virsh -c qemu:///system domstate "$DOMAIN" | grep -q running; then
+    sudo virsh -c qemu:///system reboot "$DOMAIN" || {
+      sudo virsh -c qemu:///system destroy "$DOMAIN"
+      sudo virsh -c qemu:///system start "$DOMAIN"
+    }
+  else
+    sudo virsh -c qemu:///system start "$DOMAIN"
+  fi
+  echo "Domain '$DOMAIN' restarted with the new ISO"
+fi
