@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Build SlippiOS locally and deploy the ISO to libvirt.
+#
+# After the first run, the loop is:
+#   edit nix/python -> ./scripts/dev -> boot/reboot the VM
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+DOMAIN="${SLIPPI_DOMAIN:-slippios-iso}"
+URI="${LIBVIRT_URI:-qemu:///system}"
+IMAGE="${SLIPPI_IMAGE:-/var/lib/libvirt/images/slippios.iso}"
+
+if ! command -v nix >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+Nix is required for local builds. Install it once:
+
+  sh <(curl -L https://nixos.org/nix/install) --daemon
+  mkdir -p ~/.config/nix
+  echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+
+Then log out and back in, and rerun this script.
+EOF
+  exit 1
+fi
+
+nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
+
+iso=$(find result/iso -maxdepth 1 -name '*.iso' -print -quit)
+if [[ -z "$iso" ]]; then
+  echo "error: no ISO produced under result/iso" >&2
+  exit 1
+fi
+
+echo "Deploying $(basename "$iso") -> $IMAGE"
+sudo install -m 0444 "$iso" "$IMAGE"
+if command -v restorecon >/dev/null 2>&1; then
+  sudo restorecon -v "$IMAGE" || true
+fi
+
+if ! sudo virsh -c "$URI" dominfo "$DOMAIN" >/dev/null 2>&1; then
+  echo "Domain '$DOMAIN' does not exist yet; ISO is deployed."
+  echo "Create it with virt-manager or virt-install, then rerun this script."
+  exit 0
+fi
+
+target=$(sudo virsh -c "$URI" domblklist "$DOMAIN" --details | awk '$2 == "cdrom" { print $3; exit }')
+if [[ -n "${target:-}" ]]; then
+  sudo virsh -c "$URI" change-media "$DOMAIN" "$target" --update --force "$IMAGE" || true
+else
+  echo "warning: no cdrom device found on '$DOMAIN'" >&2
+fi
+
+if sudo virsh -c "$URI" domstate "$DOMAIN" | grep -q running; then
+  echo "Rebooting '$DOMAIN' into the new ISO"
+  sudo virsh -c "$URI" reboot "$DOMAIN" || {
+    sudo virsh -c "$URI" destroy "$DOMAIN"
+    sudo virsh -c "$URI" start "$DOMAIN"
+  }
+else
+  echo "Starting '$DOMAIN'"
+  sudo virsh -c "$URI" start "$DOMAIN"
+fi

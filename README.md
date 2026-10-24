@@ -29,6 +29,21 @@ Then:
 The ISO lands in `result/iso/`. A GitHub Actions workflow still exists as a
 fallback, but it is not needed for normal iteration.
 
+## Development loop
+
+`./scripts/dev` builds the ISO and deploys it into libvirt in one step:
+
+```sh
+./scripts/dev
+```
+
+It installs the ISO at `/var/lib/libvirt/images/slippios.iso`, updates the
+domain's CD-ROM if `slippios-iso` exists, and reboots or starts it. Override
+the defaults with `SLIPPI_DOMAIN`, `SLIPPI_IMAGE`, or `LIBVIRT_URI`.
+
+First run downloads the full closure (a few minutes). Later runs are much
+faster because the Nix store is already populated.
+
 The live ISO must contain its full system closure. It cannot install packages
 at runtime, so build time is dominated by compressing that closure. SlippiOS
 uses `zstd -Xcompression-level 6` instead of nixpkgs' `-19` default to keep CI
