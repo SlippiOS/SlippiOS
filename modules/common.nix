@@ -9,6 +9,13 @@ let
   ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
     exec ${pkgs.python3}/bin/python3 ${iplScript} "$@"
   '';
+
+  # openbox-autostart only reads its own built-in global file and
+  # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
+  autostart = pkgs.writeText "slippi-openbox-autostart" ''
+    ${pkgs.xorg.xset}/bin/xset s off -dpms
+    exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${ipl}/bin/slippi-ipl
+  '';
 in {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
@@ -42,16 +49,17 @@ in {
     xorg.xset
   ];
 
-  environment.etc."xdg/openbox/autostart".text = ''
-    ${pkgs.xorg.xset}/bin/xset s off -dpms
-    exec ${pkgs.xterm}/bin/xterm -fullscreen -fa Monospace -fs 18 -e ${ipl}/bin/slippi-ipl
-  '';
-
-  # Development-only placeholder until the real Dolphin package is selected.
   environment.etc."slippi-os/README".text = ''
     The IPL is active. The Slippi launcher is not packaged yet.
     The next hardware milestone is exclusive USB hand-off for 057e:0337.
   '';
+
+  systemd.tmpfiles.rules = [
+    "d /home/melee 0755 melee melee -"
+    "d /home/melee/.config 0755 melee melee -"
+    "d /home/melee/.config/openbox 0755 melee melee -"
+    "L+ /home/melee/.config/openbox/autostart - - - - ${autostart}"
+  ];
 
   system.stateVersion = "25.05";
 }
