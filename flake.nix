@@ -12,8 +12,9 @@
 
       # Sortable, unique, and short enough for a GPT partition label.
       version =
-        if self ? rev then
-          "${toString (self.lastModified or 0)}-${builtins.substring 0 7 self.rev}"
+        let rev = self.rev or self.dirtyRev or null; in
+        if rev != null then
+          "${toString (self.lastModified or 0)}-${builtins.substring 0 7 rev}"
         else
           "dev-${toString (self.lastModified or 0)}";
 

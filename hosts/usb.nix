@@ -163,15 +163,9 @@ in {
     };
   };
 
-  # The update payload is exactly the split nix-store partition plus the
-  # matching UKI. systemd-sysupdate consumes these files.
-  system.build.sysupdate-package = pkgs.runCommand "slippios-update-${version}" { } ''
-    mkdir -p $out
-    cp ${config.system.build.image}/${imageId}_${version}.nix-store.raw $out/
-    cp ${config.system.build.uki}/${ukiFile} $out/
-    cd $out
-    sha256sum * > SHA256SUMS
-  '';
+  # The update payload is built from the split image plus the matching UKI
+  # by CI; the on-device updater stages those files in
+  # /data/system/update before invoking systemd-sysupdate.
 
   systemd.sysupdate = {
     enable = true;

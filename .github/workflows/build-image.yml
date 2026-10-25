@@ -50,19 +50,24 @@ jobs:
             .#nixosConfigurations.slippios-usb.config.system.build.image \
             -o result-image
           nix build --print-build-logs \
-            .#nixosConfigurations.slippios-usb.config.system.build.sysupdate-package \
-            -o result-update
+            .#nixosConfigurations.slippios-usb.config.system.build.uki \
+            -o result-uki
 
       - name: Inspect artifacts
         run: |
           set -euo pipefail
-          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' -print -quit)
-          raw=$(find -L result-update -maxdepth 1 -name '*.nix-store.raw' -print -quit)
-          uki=$(find -L result-update -maxdepth 1 -name '*.efi' -print -quit)
+          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
+            ! -name '*.nix-store.raw.xz' -print -quit)
+          split=$(find -L result-image -maxdepth 1 -name '*.nix-store.raw.xz' -print -quit)
+          uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
 
           test -n "$image"
-          test -n "$raw"
+          test -n "$split"
           test -n "$uki"
+
+          mkdir -p artifacts
+          raw="artifacts/$(basename "${split%.xz}")"
+          xz -d -T0 -c "$split" > "$raw"
 
           echo "image=$image"
           echo "raw=$raw"
@@ -98,7 +103,8 @@ jobs:
         id: upload
         run: |
           set -euo pipefail
-          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' -print -quit)
+          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
+            ! -name '*.nix-store.raw.xz' -print -quit)
           name="slippios-usb-${GITHUB_SHA::7}.raw.xz"
           url=$(curl --fail --silent --show-error --retry 3 --retry-delay 5 \
                  --max-time 3600 --upload-file "$image" \
