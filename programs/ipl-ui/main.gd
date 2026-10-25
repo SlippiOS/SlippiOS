@@ -89,8 +89,8 @@ func _refresh_status() -> void:
 	var login: Dictionary = _status.get("login", {})
 	var dolphin: Dictionary = _status.get("dolphin", {})
 
-	var game := "ready" if settings.get("iso_valid", false) else settings.get("iso_reason", "not configured")
-	var account := "signed in" if login.get("signed_in", false) else "not signed in"
+	var game: String = "ready" if settings.get("iso_valid", false) else str(settings.get("iso_reason", "not configured"))
+	var account: String = "signed in" if login.get("signed_in", false) else "not signed in"
 	var version: String = str(dolphin.get("current") or "not installed")
 	_status_label.text = "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
 
@@ -101,7 +101,7 @@ func _cli(args: Array) -> Dictionary:
 	var text := ""
 	for line in output:
 		text += str(line)
-	var parsed = JSON.parse_string(text)
+	var parsed: Variant = JSON.parse_string(text)
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return {"ok": false, "error": "invalid CLI output (exit %d)" % code}
 	return parsed
