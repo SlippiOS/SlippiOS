@@ -69,7 +69,14 @@ def cmd_status(_args) -> dict:
 def cmd_login(args) -> dict:
     email = args.email
     password = args.password
-    if args.stdin:
+    if args.file:
+        try:
+            payload = json.loads(Path(args.file).read_text())
+        except (OSError, ValueError) as exc:
+            return {"ok": False, "error": f"cannot read credentials: {exc}"}
+        email = payload.get("email", email)
+        password = payload.get("password", password)
+    elif args.stdin:
         try:
             payload = json.load(sys.stdin)
         except ValueError as exc:
@@ -152,6 +159,53 @@ def cmd_play(args) -> dict:
             "returncode": result.returncode}
 
 
+def cmd_isos(_args) -> dict:
+    found = settings_lib.find_isos()
+    entries = [
+        {
+            "path": str(path),
+            "name": path.name,
+            "valid": ok,
+            "reason": reason,
+        }
+        for path, ok, reason in found
+    ]
+    return {"ok": True, "isos": entries}
+
+
+def cmd_settings(args) -> dict:
+    settings, error = settings_lib.load()
+    if settings is None:
+        if error and settings_lib.SETTINGS_FILE.is_file():
+            return {"ok": False, "error": error}
+        settings = settings_lib.defaults()
+
+    if args.action == "show":
+        return {"ok": True, "settings": settings}
+
+    key, value = args.key, args.value
+    section, _, name = key.partition(".")
+    if not section or not name or section not in settings or not isinstance(settings[section], dict):
+        return {"ok": False, "error": f"unknown setting {key}"}
+
+    if name == "iso":
+        path = settings_lib.iso_path(value)
+        try:
+            value = str(path.relative_to(settings_lib.ISO_DIR))
+        except ValueError:
+            value = str(path)
+
+    if name == "refresh_hz":
+        try:
+            value = int(value)
+        except ValueError:
+            return {"ok": False, "error": "refresh_hz must be a number"}
+
+    settings[section][name] = value
+    settings_lib.save(settings)
+    return {"ok": True, "settings": settings}
+
+
 def cmd_adapter(args) -> dict:
     try:
         import adapter
@@ -208,6 +262,25 @@ def human_adapter(payload: dict) -> None:
     print(f"GameCube adapter: connected, A {'held' if held else 'not held'}")
 
 
+def human_isos(payload: dict) -> None:
+    if not payload["isos"]:
+        print("No game images found in /slippi/isos.")
+        return
+    for entry in payload["isos"]:
+        state = "ok" if entry["valid"] else entry["reason"]
+        print(f"{entry['name']}: {state}")
+
+
+def human_settings(payload: dict) -> None:
+    settings = payload["settings"]
+    print(f"Game:      {settings['game'].get('iso')}")
+    print(f"Display:   {settings['display'].get('refresh_hz')} Hz, "
+          f"{settings['display'].get('resolution')}")
+    print(f"Audio:     {settings['audio'].get('sink')}")
+    ssid = settings['network'].get('ssid') or "(none)"
+    print(f"Network:   {ssid}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
@@ -229,6 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
     login.add_argument("--password")
     login.add_argument("--stdin", action="store_true",
                        help="read {email,password} JSON from stdin")
+    login.add_argument("--file", help="read {email,password} JSON from a file")
 
     update = sub.add_parser("update", parents=[common],
                             help="check or apply a Dolphin update")
@@ -242,6 +316,16 @@ def build_parser() -> argparse.ArgumentParser:
                              help="adapter presence and A button")
     adapter.add_argument("--seconds", type=float, default=1.0)
 
+    sub.add_parser("isos", parents=[common], help="list discovered game images")
+
+    settings = sub.add_parser("settings", parents=[common],
+                              help="show or change settings")
+    settings_sub = settings.add_subparsers(dest="action", required=True)
+    settings_sub.add_parser("show", parents=[common])
+    setter = settings_sub.add_parser("set", parents=[common])
+    setter.add_argument("key", help="section.key, e.g. game.iso")
+    setter.add_argument("value")
+
     return parser
 
 
@@ -253,6 +337,8 @@ def main() -> int:
         "update": cmd_update,
         "play": cmd_play,
         "adapter": cmd_adapter,
+        "isos": cmd_isos,
+        "settings": cmd_settings,
     }
     renderers = {
         "status": human_status,
@@ -260,6 +346,8 @@ def main() -> int:
         "update": human_update,
         "play": human_play,
         "adapter": human_adapter,
+        "isos": human_isos,
+        "settings": human_settings,
     }
 
     payload = handlers[args.command](args)

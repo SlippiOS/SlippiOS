@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Flash the SlippiOS ISO to a USB device and add a persistent SLIPPI partition.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+ISO=""
+DEVICE=""
+ASSUME_YES=0
+DRY_RUN=0
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/flash-usb [--iso PATH] [--yes] [--dry-run] /dev/sdX
+
+Writes the SlippiOS ISO to a USB device with dd, then adds and formats an
+ext4 partition labelled SLIPPI in the remaining space. THIS ERASES THE DEVICE.
+
+Without --iso, the newest ISO in ~/.cache/slippios or result/iso is used.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iso) ISO="${2:?missing path}"; shift ;;
+    --yes|-y) ASSUME_YES=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *) DEVICE="$1" ;;
+  esac
+  shift
+done
+
+[[ -n "$DEVICE" ]] || { usage >&2; exit 2; }
+[[ -b "$DEVICE" ]] || { echo "not a block device: $DEVICE" >&2; exit 1; }
+command -v sgdisk >/dev/null || { echo "sgdisk is required (gdisk package)" >&2; exit 1; }
+
+if [[ -z "$ISO" ]]; then
+  ISO=$(find "${XDG_CACHE_HOME:-$HOME/.cache}/slippios" result/iso \
+         -maxdepth 1 -name '*.iso' -printf '%T@ %p\n' 2>/dev/null \
+         | sort -nr | head -1 | cut -d' ' -f2-)
+fi
+[[ -n "$ISO" && -f "$ISO" ]] || { echo "no ISO found; pass --iso" >&2; exit 1; }
+
+iso_size=$(stat -c %s "$ISO")
+dev_size=$(blockdev --getsize64 "$DEVICE")
+if (( dev_size <= iso_size )); then
+  echo "device is too small for the ISO" >&2
+  exit 1
+fi
+
+if lsblk -ln -o MOUNTPOINT "$DEVICE" | grep -q .; then
+  echo "device has mounted partitions; unmount them first" >&2
+  exit 1
+fi
+
+echo "Device: $(lsblk -dno MODEL,SIZE "$DEVICE") ($DEVICE)"
+echo "ISO:    $ISO"
+echo "This will ERASE $DEVICE."
+
+if [[ "$ASSUME_YES" -eq 0 ]]; then
+  read -r -p "Type the device path to confirm: " answer
+  [[ "$answer" == "$DEVICE" ]] || { echo "aborted" >&2; exit 1; }
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "dry run: dd, sgdisk, mkfs.ext4 -L SLIPPI would run"
+  exit 0
+fi
+
+sudo dd if="$ISO" of="$DEVICE" bs=4M conv=fsync oflag=direct status=progress
+sudo sgdisk --move-second-header "$DEVICE"
+sudo sgdisk --new=0:0:0 --typecode=0:8300 --change-name=0:SLIPPI "$DEVICE"
+sudo partprobe "$DEVICE" || true
+
+partition=$(lsblk -lnpo PATH,TYPE "$DEVICE" | awk '$2 == "part" { p = $1 } END { print p }')
+[[ -n "$partition" ]] || { echo "could not find the SLIPPI partition" >&2; exit 1; }
+
+sudo mkfs.ext4 -F -L SLIPPI "$partition"
+echo "Done. $partition is mounted at /slippi when the USB boots."
