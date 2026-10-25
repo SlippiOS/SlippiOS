@@ -11,9 +11,9 @@
       python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
 
       appSrc = pkgs.runCommand "slippios-apps" { } ''
-        mkdir -p $out
-        cp ${./apps/session}/*.py $out/
-        cp ${./apps/cli}/main.py $out/cli.py
+        mkdir -p $out/session $out/cli
+        cp ${./apps/session}/*.py $out/session/
+        cp ${./apps/cli}/*.py $out/cli/
       '';
     in {
       nixosConfigurations.slippios-live = nixpkgs.lib.nixosSystem {
@@ -32,11 +32,13 @@
         appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
 
         session = pkgs.writeShellScriptBin "slippios-session" ''
-          exec ${python}/bin/python3 ${appSrc}/main.py "$@"
+          exec env PYTHONPATH=${appSrc}/session \
+            ${python}/bin/python3 ${appSrc}/session/main.py "$@"
         '';
 
         cli = pkgs.writeShellScriptBin "slippios" ''
-          exec ${python}/bin/python3 ${appSrc}/cli.py "$@"
+          exec env PYTHONPATH=${appSrc}/session:${appSrc}/cli \
+            ${python}/bin/python3 ${appSrc}/cli/main.py "$@"
         '';
 
         shell = pkgs.writeShellScriptBin "slippios-shell" ''

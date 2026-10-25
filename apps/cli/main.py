@@ -206,6 +206,12 @@ def cmd_settings(args) -> dict:
     return {"ok": True, "settings": settings}
 
 
+def cmd_net(args) -> dict:
+    import net
+    net.serve(args.token, args.port)
+    return {"ok": True}
+
+
 def cmd_adapter(args) -> dict:
     try:
         import adapter
@@ -318,6 +324,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("isos", parents=[common], help="list discovered game images")
 
+    net_parser = sub.add_parser("net", parents=[common],
+                                help="serve LAN sign-in and ISO upload pages")
+    net_parser.add_argument("--token", required=True)
+    net_parser.add_argument("--port", type=int, default=8080)
+
     settings = sub.add_parser("settings", parents=[common],
                               help="show or change settings")
     settings_sub = settings.add_subparsers(dest="action", required=True)
@@ -339,6 +350,7 @@ def main() -> int:
         "adapter": cmd_adapter,
         "isos": cmd_isos,
         "settings": cmd_settings,
+        "net": cmd_net,
     }
     renderers = {
         "status": human_status,
@@ -348,6 +360,7 @@ def main() -> int:
         "adapter": human_adapter,
         "isos": human_isos,
         "settings": human_settings,
+        "net": lambda payload: None,
     }
 
     payload = handlers[args.command](args)

@@ -16,6 +16,12 @@ var _auth_stage := ""
 var _auth_email := ""
 var _auth_field := ""
 var _auth_label: Label
+var _auth_origin := "setup"
+var _net_pid := -1
+var _net_mode := ""
+var _net_url := ""
+var _net_timer := 0.0
+var _net_status: Label
 
 
 func _ready() -> void:
@@ -137,6 +143,7 @@ func _cli(args: Array) -> Dictionary:
 
 
 func _show_menu() -> void:
+	_stop_net()
 	_refresh_status()
 	_screen = "menu"
 	_clear()
@@ -152,6 +159,7 @@ func _show_menu() -> void:
 
 
 func _show_setup(message: String = "") -> void:
+	_stop_net()
 	_screen = "setup"
 	_clear()
 	_title = _add_title("SETUP", 48)
@@ -172,8 +180,9 @@ func _show_setup(message: String = "") -> void:
 	if not found:
 		_add_label("Put an ISO in /data/isos, then press Rescan.", 0.7)
 
+	_add_button("Add game over network", _start_net.bind("iso"))
 	_add_button("Rescan", _show_setup.bind(""))
-	_add_button("Skip for now", _show_menu)
+	_add_button("Back", _show_menu)
 	_focus_first()
 
 
@@ -187,18 +196,22 @@ func _select_iso(path: String) -> void:
 
 
 func _show_login_setup(message: String = "") -> void:
+	_stop_net()
 	_screen = "login-setup"
 	_clear()
 	_title = _add_title("SLIPPI ACCOUNT", 44)
 	_add_label("Sign in to play online, or skip for offline play.", 0.7)
 	if message != "":
 		_add_label(message, 0.9)
-	_add_button("Sign in", _start_login)
+	_add_button("Sign in", _start_login.bind("setup"))
+	_add_button("Sign in on phone", _start_net.bind("login"))
 	_add_button("Skip", _show_menu)
+	_add_button("Back", _show_setup.bind(""))
 	_focus_first()
 
 
 func _show_account() -> void:
+	_stop_net()
 	_screen = "account"
 	_clear()
 	_title = _add_title("ACCOUNT", 44)
@@ -207,17 +220,20 @@ func _show_account() -> void:
 		_add_label("Signed in: %s" % str(login.get("detail", "unknown")), 0.9)
 	else:
 		_add_label("Not signed in.", 0.8)
-		_add_button("Sign in", _start_login)
+		_add_button("Sign in", _start_login.bind("account"))
+		_add_button("Sign in on phone", _start_net.bind("login"))
 	_add_button("Back", _show_menu)
 	_focus_first()
 
 
-func _start_login() -> void:
+func _start_login(origin: String = "setup") -> void:
+	_auth_origin = origin
 	_auth_email = ""
 	_show_auth_field("email", "")
 
 
 func _show_auth_field(stage: String, message: String = "") -> void:
+	_stop_net()
 	_screen = "auth"
 	_auth_stage = stage
 	_auth_field = ""
@@ -227,6 +243,8 @@ func _show_auth_field(stage: String, message: String = "") -> void:
 	if message != "":
 		_add_label(message, 0.9)
 	_build_keyboard(stage == "password")
+	_add_button("Use phone instead", _start_net.bind("login"))
+	_add_button("Back", _back_from_auth)
 	_focus_first()
 
 
@@ -324,6 +342,7 @@ func _submit_login(password: String) -> void:
 
 
 func _show_settings() -> void:
+	_stop_net()
 	_screen = "settings"
 	_clear()
 	_title = _add_title("SETTINGS", 44)
@@ -341,6 +360,7 @@ func _show_settings() -> void:
 
 
 func _show_update() -> void:
+	_stop_net()
 	_screen = "update"
 	_clear()
 	_title = _add_title("UPDATE", 44)
@@ -368,14 +388,149 @@ func _on_play() -> void:
 	set_process(true)
 
 
-func _process(_delta: float) -> void:
-	if _play_pid == -1:
-		return
-	if not OS.is_process_running(_play_pid):
+func _process(delta: float) -> void:
+	if _net_pid != -1:
+		_net_timer += delta
+		if _net_timer >= 1.0:
+			_net_timer = 0.0
+			_poll_net()
+
+	if _play_pid != -1 and not OS.is_process_running(_play_pid):
 		_play_pid = -1
 		_busy = false
-		set_process(false)
+		_update_process()
 		_show_menu()
+
+
+func _update_process() -> void:
+	set_process(_play_pid != -1 or _net_pid != -1)
+
+
+func _local_ip() -> String:
+	for address in IP.get_local_addresses():
+		if address.contains(".") and not address.begins_with("127.") and not address.begins_with("169.254."):
+			return address
+	return "127.0.0.1"
+
+
+func _start_net(mode: String) -> void:
+	_stop_net()
+	var token := Crypto.new().generate_random_bytes(8).hex_encode()
+	_net_url = "http://%s:8080/%s/" % [_local_ip(), token]
+	_net_mode = mode
+	_net_timer = 0.0
+	_net_pid = OS.create_process("slippios", PackedStringArray([
+		"net", "--token", token, "--port", "8080",
+	]))
+	_update_process()
+	_show_net_screen(mode)
+
+
+func _stop_net() -> void:
+	if _net_pid != -1:
+		OS.kill(_net_pid)
+		_net_pid = -1
+	_update_process()
+
+
+func _show_net_screen(mode: String) -> void:
+	_screen = "net"
+	_net_mode = mode
+	_clear()
+	if mode == "iso":
+		_title = _add_title("ADD A GAME", 44)
+		_add_label("Open this address on a phone or computer:", 0.8)
+	else:
+		_title = _add_title("SIGN IN ON YOUR PHONE", 40)
+		_add_label("Open this address on a phone or computer:", 0.8)
+
+	_add_label(_net_url, 1.0)
+	var qr := _make_qr(_net_url)
+	if qr != null:
+		_content.add_child(qr)
+	_add_label("Upload a Melee ISO." if mode == "iso" else "Enter your Slippi email and password.", 0.7)
+	_net_status = _add_label("Waiting…", 0.7)
+	_add_button("Back", _net_back)
+	_focus_first()
+
+
+func _make_qr(url: String) -> TextureRect:
+	var path := ProjectSettings.globalize_path("user://qr.png")
+	var code := OS.execute("qrencode", PackedStringArray([
+		"-o", path, "-s", "8", "-m", "2", url,
+	]))
+	if code != 0:
+		return null
+	var image := Image.load_from_file(path)
+	if image == null:
+		return null
+	var rect := TextureRect.new()
+	rect.texture = ImageTexture.create_from_image(image)
+	rect.custom_minimum_size = Vector2(260, 260)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	return rect
+
+
+func _net_back() -> void:
+	var mode := _net_mode
+	_stop_net()
+	if mode == "iso":
+		_show_setup()
+	else:
+		_show_account()
+
+
+func _poll_net() -> void:
+	if _net_pid == -1:
+		return
+	if not OS.is_process_running(_net_pid):
+		_net_pid = -1
+		_update_process()
+		if is_instance_valid(_net_status):
+			_net_status.text = "Network page stopped."
+		return
+
+	if _net_mode == "iso":
+		var result := _cli(["isos"])
+		var isos: Array = result.get("isos", [])
+		for entry in isos:
+			if entry.get("valid", false):
+				_stop_net()
+				_refresh_status()
+				_show_setup("Game image added.")
+				return
+	else:
+		var result := _cli(["status"])
+		var login: Dictionary = result.get("login", {})
+		if login.get("signed_in", false):
+			_stop_net()
+			_refresh_status()
+			_show_account()
+			return
+		if is_instance_valid(_net_status):
+			_net_status.text = "Waiting for sign-in…"
+
+
+func _back_from_auth() -> void:
+	_stop_net()
+	if _auth_origin == "account":
+		_show_account()
+	else:
+		_show_login_setup()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	match _screen:
+		"net":
+			_net_back()
+		"auth":
+			_back_from_auth()
+		"login-setup", "setup", "settings", "update", "account":
+			_stop_net()
+			_show_menu()
 
 
 func _on_quit() -> void:

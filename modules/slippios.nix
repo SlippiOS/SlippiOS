@@ -23,6 +23,7 @@ in {
   '';
 
   networking.networkmanager.enable = true;
+  networking.firewall.allowedTCPPorts = [ 8080 ];
   time.timeZone = "UTC";
 
   users.users.player = {
@@ -45,6 +46,7 @@ in {
     coreutils
     openbox
     pulseaudio
+    qrencode
     slippiosPackages.appimage-runner
     slippiosPackages.session
     slippiosPackages.cli
