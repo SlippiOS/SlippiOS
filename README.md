@@ -58,6 +58,17 @@ For a direct QEMU test without libvirt:
 ./scripts/run-vm /path/to/slippios.iso
 ```
 
+## Flashing a USB
+
+```sh
+./scripts/flash-usb /dev/sdX
+```
+
+This **erases the device**: it writes the newest ISO, then adds an ext4
+partition labelled `SLIPPI` in the remaining space. That partition becomes
+`/slippi` at boot, so settings, the Slippi login, ISOs, replays, and Dolphin
+survive reboots. Use `--iso PATH`, `--yes`, or `--dry-run` as needed.
+
 ## Data and settings
 
 Everything user-owned lives on a partition labelled `SLIPPI`, mounted at
@@ -123,7 +134,8 @@ shell calls it and parses stdout.
 
 ## Roadmap
 
-1. Shell polish: boot animation, account and settings screens.
+1. Shell polish: boot animation and richer settings screens (onboarding and
+   account sign-in are implemented).
 2. Adapter helper: expose the GameCube adapter as a virtual SDL pad, then
    release it before Dolphin starts.
 3. Live/install boot entries in the same ISO: one entry boots the kiosk, one

@@ -1,24 +1,36 @@
 extends Control
 
 const CLI := "slippios"
+const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@"]
+const MASK := "•"
 
 var _status: Dictionary = {}
+var _screen := ""
+var _content: VBoxContainer
+var _title: Label
+var _status_label: Label
 var _play_pid := -1
 var _busy := false
-var _menu: VBoxContainer
-var _status_label: Label
-var _title: Label
+
+var _auth_stage := ""
+var _auth_email := ""
+var _auth_field := ""
+var _auth_label: Label
 
 
 func _ready() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	set_process(false)
-	_build()
+	_build_base()
 	_refresh_status()
+	if _needs_setup():
+		_show_setup()
+	else:
+		_show_menu()
 	_animate_boot()
 
 
-func _build() -> void:
+func _build_base() -> void:
 	var background := ColorRect.new()
 	background.color = Color("#0b0b10")
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -29,70 +41,87 @@ func _build() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	var column := VBoxContainer.new()
-	column.custom_minimum_size = Vector2(560, 0)
-	column.add_theme_constant_override("separation", 18)
-	center.add_child(column)
-
-	_title = Label.new()
-	_title.text = "SLIPPIOS"
-	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.add_theme_font_size_override("font_size", 64)
-	column.add_child(_title)
-
-	var subtitle := Label.new()
-	subtitle.text = "Super Smash Bros. Melee"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.modulate = Color(1, 1, 1, 0.55)
-	column.add_child(subtitle)
-
-	_menu = VBoxContainer.new()
-	_menu.add_theme_constant_override("separation", 10)
-	column.add_child(_menu)
-
-	_add_button("Play", _on_play)
-	_add_button("Update", _on_update)
-	_add_button("Account", _on_account)
-	_add_button("Settings", _on_settings)
-	_add_button("Quit", _on_quit)
-
-	_status_label = Label.new()
-	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status_label.modulate = Color(1, 1, 1, 0.6)
-	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(_status_label)
+	_content = VBoxContainer.new()
+	_content.custom_minimum_size = Vector2(760, 0)
+	_content.add_theme_constant_override("separation", 12)
+	center.add_child(_content)
 
 
-func _add_button(text: String, callback: Callable) -> void:
+func _clear() -> void:
+	for child in _content.get_children():
+		_content.remove_child(child)
+		child.queue_free()
+
+
+func _add_title(text: String, size: int = 56) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", size)
+	_content.add_child(label)
+	return label
+
+
+func _add_label(text: String, alpha: float = 0.65) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.modulate = Color(1, 1, 1, alpha)
+	_content.add_child(label)
+	return label
+
+
+func _add_button(text: String, callback: Callable, height: int = 50) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 52)
+	button.custom_minimum_size = Vector2(0, height)
 	button.pressed.connect(callback)
-	_menu.add_child(button)
+	_content.add_child(button)
+	return button
+
+
+func _focus_first() -> void:
+	var first := _find_button(_content)
+	if first != null:
+		first.grab_focus()
+
+
+func _find_button(node: Node) -> Button:
+	if node is Button:
+		return node
+	for child in node.get_children():
+		var found := _find_button(child)
+		if found != null:
+			return found
+	return null
 
 
 func _animate_boot() -> void:
+	if _title == null:
+		return
 	_title.modulate.a = 0.0
 	var tween := create_tween()
-	tween.tween_property(_title, "modulate:a", 1.0, 0.8)
-	tween.tween_interval(0.6)
-	tween.tween_callback(func() -> void:
-		var first := _menu.get_child(0) as Button
-		if first != null:
-			first.grab_focus()
-	)
+	tween.tween_property(_title, "modulate:a", 1.0, 0.7)
+
+
+func _needs_setup() -> bool:
+	var settings: Dictionary = _status.get("settings", {})
+	return not settings.get("exists", false) or not settings.get("iso_valid", false)
 
 
 func _refresh_status() -> void:
 	_status = _cli(["status"])
+
+
+func _status_text() -> String:
 	var settings: Dictionary = _status.get("settings", {})
 	var login: Dictionary = _status.get("login", {})
 	var dolphin: Dictionary = _status.get("dolphin", {})
-
 	var game: String = "ready" if settings.get("iso_valid", false) else str(settings.get("iso_reason", "not configured"))
 	var account: String = "signed in" if login.get("signed_in", false) else "not signed in"
 	var version: String = str(dolphin.get("current") or "not installed")
-	_status_label.text = "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
+	return "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
 
 
 func _cli(args: Array) -> Dictionary:
@@ -107,15 +136,234 @@ func _cli(args: Array) -> Dictionary:
 	return parsed
 
 
+func _show_menu() -> void:
+	_refresh_status()
+	_screen = "menu"
+	_clear()
+	_title = _add_title("SLIPPIOS", 64)
+	_add_label("Super Smash Bros. Melee", 0.55)
+	_add_button("Play", _on_play)
+	_add_button("Update", _show_update)
+	_add_button("Account", _show_account)
+	_add_button("Settings", _show_settings)
+	_add_button("Quit", _on_quit)
+	_status_label = _add_label(_status_text(), 0.6)
+	_focus_first()
+
+
+func _show_setup(message: String = "") -> void:
+	_screen = "setup"
+	_clear()
+	_title = _add_title("SETUP", 48)
+	_add_label("Choose your Melee image (NTSC 1.02).", 0.7)
+	if message != "":
+		_add_label(message, 0.9)
+
+	var result := _cli(["isos"])
+	var found := false
+	var isos: Array = result.get("isos", [])
+	for entry in isos:
+		if entry.get("valid", false):
+			found = true
+			var path: String = str(entry.get("path", ""))
+			var name: String = str(entry.get("name", path))
+			_add_button(name, _select_iso.bind(path))
+
+	if not found:
+		_add_label("Put an ISO in /slippi/isos, then press Rescan.", 0.7)
+
+	_add_button("Rescan", _show_setup.bind(""))
+	_add_button("Skip for now", _show_menu)
+	_focus_first()
+
+
+func _select_iso(path: String) -> void:
+	var result := _cli(["settings", "set", "game.iso", path])
+	if result.get("ok", false):
+		_refresh_status()
+		_show_login_setup()
+	else:
+		_show_setup(str(result.get("error", "could not save the game image")))
+
+
+func _show_login_setup(message: String = "") -> void:
+	_screen = "login-setup"
+	_clear()
+	_title = _add_title("SLIPPI ACCOUNT", 44)
+	_add_label("Sign in to play online, or skip for offline play.", 0.7)
+	if message != "":
+		_add_label(message, 0.9)
+	_add_button("Sign in", _start_login)
+	_add_button("Skip", _show_menu)
+	_focus_first()
+
+
+func _show_account() -> void:
+	_screen = "account"
+	_clear()
+	_title = _add_title("ACCOUNT", 44)
+	var login: Dictionary = _status.get("login", {})
+	if login.get("signed_in", false):
+		_add_label("Signed in: %s" % str(login.get("detail", "unknown")), 0.9)
+	else:
+		_add_label("Not signed in.", 0.8)
+		_add_button("Sign in", _start_login)
+	_add_button("Back", _show_menu)
+	_focus_first()
+
+
+func _start_login() -> void:
+	_auth_email = ""
+	_show_auth_field("email", "")
+
+
+func _show_auth_field(stage: String, message: String = "") -> void:
+	_screen = "auth"
+	_auth_stage = stage
+	_auth_field = ""
+	_clear()
+	_title = _add_title("EMAIL" if stage == "email" else "PASSWORD", 40)
+	_auth_label = _add_label("", 1.0)
+	if message != "":
+		_add_label(message, 0.9)
+	_build_keyboard(stage == "password")
+	_focus_first()
+
+
+func _build_keyboard(masked: bool) -> void:
+	var grid := GridContainer.new()
+	grid.columns = 10
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	_content.add_child(grid)
+
+	for row in KEY_ROWS:
+		for character in row:
+			var key := Button.new()
+			key.text = character
+			key.custom_minimum_size = Vector2(56, 44)
+			key.pressed.connect(_append_character.bind(character, masked))
+			grid.add_child(key)
+
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	_content.add_child(actions)
+
+	var space := Button.new()
+	space.text = "Space"
+	space.custom_minimum_size = Vector2(300, 44)
+	space.pressed.connect(_append_character.bind(" ", masked))
+	actions.add_child(space)
+
+	var backspace := Button.new()
+	backspace.text = "Delete"
+	backspace.custom_minimum_size = Vector2(160, 44)
+	backspace.pressed.connect(_delete_character.bind(masked))
+	actions.add_child(backspace)
+
+	var done := Button.new()
+	done.text = "Done"
+	done.custom_minimum_size = Vector2(160, 44)
+	done.pressed.connect(_finish_field)
+	actions.add_child(done)
+
+
+func _display_auth(masked: bool) -> void:
+	if masked:
+		_auth_label.text = MASK.repeat(_auth_field.length())
+	else:
+		_auth_label.text = _auth_field
+
+
+func _append_character(character: String, masked: bool) -> void:
+	_auth_field += character
+	_display_auth(masked)
+
+
+func _delete_character(masked: bool) -> void:
+	if _auth_field.length() > 0:
+		_auth_field = _auth_field.substr(0, _auth_field.length() - 1)
+	_display_auth(masked)
+
+
+func _finish_field() -> void:
+	if _auth_stage == "email":
+		var email := _auth_field.strip_edges()
+		if email == "" or not email.contains("@"):
+			_show_auth_field("email", "Enter a valid email address.")
+			return
+		_auth_email = email
+		_show_auth_field("password", "")
+		return
+
+	_submit_login(_auth_field)
+
+
+func _submit_login(password: String) -> void:
+	if password == "":
+		_show_auth_field("password", "Password cannot be empty.")
+		return
+
+	var path := ProjectSettings.globalize_path("user://credentials.json")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		_show_auth_field("password", "Could not prepare the sign-in request.")
+		return
+	file.store_string(JSON.stringify({"email": _auth_email, "password": password}))
+	file.close()
+	OS.execute("chmod", PackedStringArray(["600", path]))
+
+	var result := _cli(["login", "--file", path])
+	DirAccess.remove_absolute(path)
+
+	if result.get("ok", false):
+		_refresh_status()
+		_show_account()
+	else:
+		_show_auth_field("password", str(result.get("error", "Sign-in failed.")))
+
+
+func _show_settings() -> void:
+	_screen = "settings"
+	_clear()
+	_title = _add_title("SETTINGS", 44)
+	var result := _cli(["settings", "show"])
+	var settings: Dictionary = result.get("settings", {})
+	var display: Dictionary = settings.get("display", {})
+	var audio: Dictionary = settings.get("audio", {})
+	var network: Dictionary = settings.get("network", {})
+	_add_label("Refresh: %s Hz" % str(display.get("refresh_hz", "auto")), 0.8)
+	_add_label("Resolution: %s" % str(display.get("resolution", "auto")), 0.8)
+	_add_label("Audio: %s" % str(audio.get("sink", "auto")), 0.8)
+	_add_label("Network: %s" % str(network.get("ssid") or "(none)"), 0.8)
+	_add_button("Back", _show_menu)
+	_focus_first()
+
+
+func _show_update() -> void:
+	_screen = "update"
+	_clear()
+	_title = _add_title("UPDATE", 44)
+	var result := _cli(["update", "--check"])
+	if result.get("ok", false):
+		_add_label("Current: %s" % str(result.get("current") or "not installed"), 0.8)
+		_add_label("Latest: %s" % str(result.get("latest")), 0.8)
+	else:
+		_add_label(str(result.get("error", "Update check failed.")), 0.9)
+	_add_button("Back", _show_menu)
+	_focus_first()
+
+
 func _on_play() -> void:
 	if _busy:
 		return
-	var settings: Dictionary = _status.get("settings", {})
-	if not settings.get("iso_valid", false):
-		_status_label.text = "No valid Melee image."
+	if _needs_setup():
+		_show_setup("No valid game image yet.")
 		return
 	_busy = true
-	_status_label.text = "Launching Dolphin…"
+	_clear()
+	_title = _add_title("LAUNCHING", 44)
+	_add_label("Starting Slippi Dolphin…", 0.8)
 	_play_pid = OS.create_process(CLI, PackedStringArray(["play"]))
 	set_process(true)
 
@@ -127,29 +375,7 @@ func _process(_delta: float) -> void:
 		_play_pid = -1
 		_busy = false
 		set_process(false)
-		_refresh_status()
-
-
-func _on_update() -> void:
-	if _busy:
-		return
-	_busy = true
-	_status_label.text = "Checking for updates…"
-	var result := _cli(["update", "--check"])
-	_busy = false
-	if result.get("ok", false):
-		_status_label.text = "Latest: %s" % result.get("latest", "?")
-	else:
-		_status_label.text = "Update error: %s" % result.get("error", "?")
-	_refresh_status()
-
-
-func _on_account() -> void:
-	_status_label.text = "Account sign-in UI is next."
-
-
-func _on_settings() -> void:
-	_status_label.text = "Settings UI is next."
+		_show_menu()
 
 
 func _on_quit() -> void:
