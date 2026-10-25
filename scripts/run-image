@@ -94,6 +94,10 @@ serial_args=()
 if [[ -n "${SLIPPI_SERIAL:-}" ]]; then
   serial_args=(-serial "file:${SLIPPI_SERIAL}")
 fi
+monitor_args=()
+if [[ -n "${SLIPPI_MONITOR:-}" ]]; then
+  monitor_args=(-monitor "unix:${SLIPPI_MONITOR},server,nowait")
+fi
 
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
@@ -111,4 +115,5 @@ exec qemu-system-x86_64 \
   -nic user,model=virtio-net-pci,hostfwd=tcp::8080-:8080 \
   -vga std \
   "${serial_args[@]}" \
+  "${monitor_args[@]}" \
   -display "$DISPLAY_MODE"

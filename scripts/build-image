@@ -25,6 +25,8 @@ build() {
     -o "$OUT"
 }
 
+rm -f "$OUT"
+
 if command -v nix >/dev/null 2>&1; then
   echo "Building with system Nix ($JOBS cores)..."
   build nix
