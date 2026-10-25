@@ -1,6 +1,7 @@
 /result
 /result-*
 /dist/
+/drivers/joybusd/target/
 __pycache__/
 *.qcow2
 *.raw

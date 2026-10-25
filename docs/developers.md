@@ -22,13 +22,23 @@ mise run build:iso      # development ISO (not published)
 mise run run:image      # boot the local USB image
 mise run run:iso        # boot the local ISO
 mise run fetch:image    # download the latest published USB image
-mise run test           # Python byte-compile + headless Godot parse
-mise run test:python
+mise run test           # Go + Rust tests + headless Godot parse
 mise run test:shell
+mise run go:test
+mise run go:build
+mise run rust:test
+mise run rust:build
 mise run nix            # shell with Godot, QEMU, zsync, xz, jq
 ```
 
 The image is written to `result-local-image/` (git-ignored).
+
+## Settings format
+
+`/data/users/default/settings.toml` stays TOML. It is small, human-editable for
+recovery from another machine, and has a maintained Go decoder. JSON remains the
+shell/CLI protocol; changing the config format would add migration work without
+improving the appliance.
 
 ## Build notes
 
@@ -77,7 +87,7 @@ partition to a physical stick; it cannot update in place.
 
 ## CI
 
-- **Validate** — pushes to `main`; Python byte-compile and headless Godot.
+- **Validate** — pushes to `main`; Go and Rust tests, headless Godot.
 - **Build Image** — `v*`/`os-*` tags and manual dispatch only.
 
 Release assets:
@@ -107,15 +117,27 @@ flake.nix                  NixOS configs and app packages
 hosts/live.nix             development ISO
 hosts/usb.nix              A/B USB image, sysupdate, data growth
 modules/slippios.nix       kiosk, user, data mount, boot hooks
-apps/session/              settings, auth, launch, Dolphin/OS updates
+backend/                   Go CLI, session fallback, auth, updates, LAN pages
+drivers/joybusd/           Rust GameCube-adapter daemon
 apps/shell/                Godot UI
-apps/cli/                  slippios CLI and LAN pages
+pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 scripts/build-image        local image build
 scripts/run-image          QEMU/OVMF USB runner
 scripts/build-iso          local ISO build
 scripts/fetch-image        release downloader
 scripts/flash-usb          legacy ISO + data partition flasher
+```
+
+## GameCube adapter
+
+`drivers/joybusd` parses the adapter's 37-byte report and maps it to a virtual
+gamepad. Current scope is the protocol parser and mapping; USB and uinput come
+next. Decode a captured report without hardware:
+
+```sh
+cd drivers/joybusd
+cargo run -- --decode "21 10 01 00 80 80 80 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
 ```
 
 ## Wi-Fi
@@ -138,7 +160,7 @@ slippios os update
 slippios os reboot
 ```
 
-`osupdate.py` fetches `manifest.json`, zsyncs the store image against the active
+`osupdate.go` fetches `manifest.json`, zsyncs the store image against the active
 `/nix/store` device, verifies SHA-256, downloads the UKI, and writes a request
 file. A root oneshot runs `systemd-sysupdate`. The shell polls
 `/data/system/update/status.json` and offers a restart.

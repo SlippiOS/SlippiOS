@@ -3,13 +3,20 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/auth"
+	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	"github.com/SlippiOS/SlippiOS/backend/internal/netpages"
+	"github.com/SlippiOS/SlippiOS/backend/internal/osupdate"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/SlippiOS/SlippiOS/backend/internal/wifi"
 )
@@ -46,6 +53,9 @@ func emit(payload map[string]any, mode modes, human func()) {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "")
 		_ = encoder.Encode(payload)
+		if ok, _ := payload["ok"].(bool); !ok {
+			os.Exit(1)
+		}
 		return
 	}
 	if ok, _ := payload["ok"].(bool); !ok {
@@ -83,12 +93,12 @@ func statusPayload() map[string]any {
 
 	login, loginDetail := paths.LoginStatus(paths.DolphinUserFile)
 	adapter := adapterPresent()
-	dolphin := dolphinCurrent(paths)
+	currentDolphin := dolphinCurrent()
 	return map[string]any{
 		"ok":       true,
 		"settings": summary,
 		"login":    map[string]any{"signed_in": login, "detail": loginDetail},
-		"dolphin":  map[string]any{"current": dolphin},
+		"dolphin":  map[string]any{"current": currentDolphin},
 		"adapter":  map[string]any{"present": adapter},
 	}
 }
@@ -115,18 +125,11 @@ func adapterPresent() bool {
 	return false
 }
 
-func dolphinCurrent(paths settings.Paths) string {
-	target, err := os.Readlink(filepath.Join(paths.DolphinDir, "current"))
-	if err != nil {
-		return ""
+func dolphinCurrent() string {
+	if tag, ok := dolphin.DefaultPaths().CurrentTag(); ok {
+		return tag
 	}
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(paths.DolphinDir, target)
-	}
-	if info, err := os.Stat(target); err != nil || info.IsDir() {
-		return ""
-	}
-	return filepath.Base(filepath.Dir(target))
+	return ""
 }
 
 func printStatus(payload map[string]any) {
@@ -212,8 +215,11 @@ func settingsCommand(args []string, mode modes) {
 	}
 	if name == "iso" {
 		path := paths.ISOPath(value)
-		if relative, err := filepath.Rel(paths.ISODir, path); err == nil {
+		if relative, err := filepath.Rel(paths.ISODir, path); err == nil &&
+			relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 			value = relative
+		} else {
+			value = path
 		}
 	}
 	if name == "refresh_hz" {
@@ -254,6 +260,304 @@ func isosCommand(mode modes) {
 				state = entry.Reason
 			}
 			fmt.Printf("%s: %s\n", entry.Name, state)
+		}
+	})
+}
+
+type credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func readCredentials(path string, fromStdin bool) (credentials, error) {
+	var data []byte
+	var err error
+	if path != "" {
+		data, err = os.ReadFile(path)
+		if err != nil {
+			return credentials{}, fmt.Errorf("cannot read credentials: %w", err)
+		}
+	} else if fromStdin {
+		data, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return credentials{}, fmt.Errorf("cannot read credentials: %w", err)
+		}
+	} else {
+		return credentials{}, nil
+	}
+	var value credentials
+	if err := json.Unmarshal(data, &value); err != nil {
+		if path != "" {
+			return credentials{}, fmt.Errorf("cannot read credentials: %w", err)
+		}
+		return credentials{}, fmt.Errorf("invalid JSON: %w", err)
+	}
+	return value, nil
+}
+
+func loginCommand(args []string, mode modes) {
+	flags := flag.NewFlagSet("login", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	email := flags.String("email", "", "Slippi account email")
+	password := flags.String("password", "", "Slippi account password")
+	fromStdin := flags.Bool("stdin", false, "read {email,password} JSON from stdin")
+	file := flags.String("file", "", "read {email,password} JSON from a file")
+	if err := flags.Parse(args); err != nil {
+		fail(err.Error())
+	}
+
+	credentials, err := readCredentials(*file, *fromStdin)
+	if err != nil {
+		fail(err.Error())
+	}
+	if credentials.Email == "" {
+		credentials.Email = *email
+	}
+	if credentials.Password == "" {
+		credentials.Password = *password
+	}
+	if credentials.Email == "" || credentials.Password == "" {
+		fail("email and password are required")
+	}
+
+	user, err := auth.Login(credentials.Email, credentials.Password)
+	if err != nil {
+		fail(err.Error())
+	}
+
+	paths := settings.DefaultPaths()
+	if err := os.MkdirAll(paths.ProfileDir, 0o755); err != nil {
+		fail(err.Error())
+	}
+	data, err := json.MarshalIndent(user, "", "  ")
+	if err != nil {
+		fail(err.Error())
+	}
+	target := paths.Resolve(settings.DefaultUserJSON)
+	if err := os.WriteFile(target, data, 0o600); err != nil {
+		fail(fmt.Sprintf("cannot write %s: %v", target, err))
+	}
+	_ = os.Chmod(target, 0o600)
+
+	values, err := paths.Load()
+	if err != nil {
+		values = settings.Defaults()
+	}
+	installed, detail := paths.InstallLogin(values)
+	payload := map[string]any{
+		"ok":           installed,
+		"connect_code": user.ConnectCode,
+		"display_name": user.DisplayName,
+		"detail":       detail,
+	}
+	if !installed {
+		payload["error"] = detail
+	}
+	emit(payload, mode, func() {
+		fmt.Printf("Signed in as %s (%s)\n", user.DisplayName, user.ConnectCode)
+	})
+}
+
+func netCommand(args []string) {
+	flags := flag.NewFlagSet("net", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	token := flags.String("token", "", "URL token")
+	port := flags.Int("port", 8080, "listen port")
+	if err := flags.Parse(args); err != nil {
+		fail(err.Error())
+	}
+	if *token == "" {
+		fail("--token is required")
+	}
+	server := netpages.New(*token, *port, settings.DefaultPaths())
+	url, err := server.Start()
+	if err != nil {
+		fail(err.Error())
+	}
+	line, _ := json.Marshal(map[string]any{"ok": true, "url": url})
+	fmt.Println(string(line))
+	if err := server.Serve(); err != nil {
+		fail(err.Error())
+	}
+}
+
+func updateCommand(args []string, mode modes) {
+	flags := flag.NewFlagSet("update", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	check := flags.Bool("check", false, "only check for a new release")
+	if err := flags.Parse(args); err != nil {
+		fail(err.Error())
+	}
+	paths := dolphin.DefaultPaths()
+	if *check {
+		tag, _, err := dolphin.LatestRelease()
+		if err != nil {
+			fail(err.Error())
+		}
+		var current any
+		if value, ok := paths.CurrentTag(); ok {
+			current = value
+		}
+		payload := map[string]any{
+			"ok": true, "check": true, "current": current, "latest": tag,
+		}
+		emit(payload, mode, func() {
+			shown := "not installed"
+			if current != nil {
+				shown = fmt.Sprint(current)
+			}
+			fmt.Printf("Current:   %s\nLatest:    %s\n", shown, tag)
+		})
+		return
+	}
+
+	path, err := paths.Ensure(func(message string) {
+		fmt.Fprintln(os.Stderr, message)
+	}, false)
+	if err != nil {
+		fail(err.Error())
+	}
+	current, _ := paths.CurrentTag()
+	emit(map[string]any{
+		"ok": true, "check": false, "current": current, "path": path,
+	}, mode, func() {
+		fmt.Printf("Dolphin:   %s\nPath:      %s\n", current, path)
+	})
+}
+
+func osCommand(args []string, mode modes) {
+	if len(args) == 0 {
+		fail("os action required")
+	}
+	paths := osupdate.DefaultPaths()
+	switch args[0] {
+	case "check":
+		checked, err := paths.Check()
+		if err != nil {
+			fail(err.Error())
+		}
+		emit(map[string]any{
+			"ok": true, "current": checked.Current, "latest": checked.Latest,
+			"update_available": checked.Available,
+		}, mode, func() {
+			fmt.Printf("Current:   %s\nLatest:    %s\n", checked.Current, checked.Latest)
+			if checked.Available {
+				fmt.Println("Update:    available")
+			} else {
+				fmt.Println("Update:    up to date")
+			}
+		})
+	case "status":
+		status := paths.Status()
+		emit(status, mode, func() {
+			fmt.Printf("Current:   %v\nLatest:    %v\n", status["current"], status["latest"])
+			fmt.Printf("Phase:     %v\n", status["phase"])
+			if status["error"] != nil {
+				fmt.Printf("Error:     %v\n", status["error"])
+			}
+		})
+	case "update":
+		result, err := paths.Stage(func(message string) {
+			fmt.Fprintln(os.Stderr, message)
+		})
+		if err != nil {
+			fail(err.Error())
+		}
+		emit(result, mode, func() {
+			if result["updated"] == true {
+				fmt.Printf("Staged SlippiOS %v. Restart to install.\n", result["latest"])
+			} else {
+				fmt.Printf("SlippiOS %v is up to date.\n", result["current"])
+			}
+		})
+	case "reboot":
+		if err := paths.RequestReboot(); err != nil {
+			fail(err.Error())
+		}
+		emit(map[string]any{"ok": true}, mode, func() {
+			fmt.Println("Restarting…")
+		})
+	default:
+		fail("unknown os action")
+	}
+}
+
+func playCommand(args []string, mode modes) {
+	flags := flag.NewFlagSet("play", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	requireLogin := flags.Bool("require-login", false, "refuse to start without a saved login")
+	if err := flags.Parse(args); err != nil {
+		fail(err.Error())
+	}
+
+	paths := settings.DefaultPaths()
+	if installed, _ := paths.InstallLogin(settings.Defaults()); !installed && *requireLogin {
+		fail("not signed in")
+	}
+	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
+		fmt.Fprintln(os.Stderr, message)
+	}, false)
+	if err != nil {
+		fail(err.Error())
+	}
+
+	values, err := paths.Load()
+	if err != nil {
+		fail("no game image")
+	}
+	game, _ := values["game"].(map[string]any)
+	raw, _ := game["iso"].(string)
+	if raw == "" {
+		fail("no game image")
+	}
+	valid, reason := paths.ISOStatus(raw)
+	if !valid {
+		fail(reason)
+	}
+	iso := paths.ISOPath(raw)
+
+	environment := os.Environ()
+	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
+	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
+		hasRuntime := false
+		for _, value := range environment {
+			if strings.HasPrefix(value, "XDG_RUNTIME_DIR=") {
+				hasRuntime = true
+				break
+			}
+		}
+		if !hasRuntime {
+			environment = append(environment, "XDG_RUNTIME_DIR="+runtime)
+		}
+	}
+
+	command := exec.Command(
+		"slippi-appimage-run", appimage,
+		"-u", paths.DolphinDir,
+		"-C", "Dolphin.Display.Fullscreen=True",
+		"-C", "Graphics.Hardware.VSync=False",
+		"-b", "-e", iso,
+	)
+	command.Env = environment
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	runErr := command.Run()
+	returncode := 0
+	if runErr != nil {
+		var exitError *exec.ExitError
+		if errors.As(runErr, &exitError) {
+			returncode = exitError.ExitCode()
+		} else {
+			fail(runErr.Error())
+		}
+	}
+	emit(map[string]any{
+		"ok": returncode == 0, "iso": iso, "returncode": returncode,
+	}, mode, func() {
+		if returncode == 0 {
+			fmt.Println("Dolphin exited cleanly.")
+		} else {
+			fmt.Printf("Dolphin exited with status %d.\n", returncode)
 		}
 	})
 }
@@ -329,6 +633,16 @@ func main() {
 		settingsCommand(args[1:], mode)
 	case "isos":
 		isosCommand(mode)
+	case "login":
+		loginCommand(args[1:], mode)
+	case "net":
+		netCommand(args[1:])
+	case "update":
+		updateCommand(args[1:], mode)
+	case "os":
+		osCommand(args[1:], mode)
+	case "play":
+		playCommand(args[1:], mode)
 	case "wifi":
 		wifiCommand(args[1:], mode)
 	default:

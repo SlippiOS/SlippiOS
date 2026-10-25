@@ -16,7 +16,22 @@ import (
 
 const SchemaVersion = 1
 
+const DefaultUserJSON = "slippi-user.json"
+
 var meleeID = regexp.MustCompile(`^GAL[A-Z0-9]01`)
+
+var hardwareIDPaths = []string{
+	"/sys/class/dmi/id/product_uuid",
+	"/sys/class/dmi/id/board_serial",
+}
+
+var placeholderHardwareIDs = map[string]bool{
+	"":                                     true,
+	"none":                                 true,
+	"not specified":                        true,
+	"to be filled by o.e.m.":               true,
+	"03000200-0400-0500-0006-000700080009": true,
+}
 
 // Paths describes the data layout. Tests use a temporary root.
 type Paths struct {
@@ -27,6 +42,7 @@ type Paths struct {
 	ISODir          string
 	DolphinDir      string
 	DolphinUserFile string
+	HardwareFile    string
 }
 
 func DefaultPaths() Paths {
@@ -49,6 +65,7 @@ func PathsFor(root string) Paths {
 		ISODir:          filepath.Join(root, "isos"),
 		DolphinDir:      dolphin,
 		DolphinUserFile: filepath.Join(dolphin, "Slippi", "user.json"),
+		HardwareFile:    filepath.Join(root, "system", "hardware-id"),
 	}
 }
 
@@ -70,7 +87,7 @@ func Defaults() map[string]any {
 			"psk":  "",
 		},
 		"slippi": map[string]any{
-			"user_json": "slippi-user.json",
+			"user_json": DefaultUserJSON,
 		},
 	}
 }
@@ -233,7 +250,10 @@ func (p Paths) LoginStatus(path string) (bool, string) {
 	}
 	data, err := os.ReadFile(candidate)
 	if err != nil {
-		return false, fmt.Sprintf("not found: %s", candidate)
+		if errors.Is(err, os.ErrNotExist) {
+			return false, fmt.Sprintf("not found: %s", candidate)
+		}
+		return false, fmt.Sprintf("cannot read %s: %v", candidate, err)
 	}
 	var value map[string]any
 	if err := json.Unmarshal(data, &value); err != nil {
@@ -245,4 +265,82 @@ func (p Paths) LoginStatus(path string) (bool, string) {
 		}
 	}
 	return true, fmt.Sprint(value["connectCode"])
+}
+
+// HardwareID returns the best-effort stable machine identity (DMI product UUID).
+func HardwareID() (string, bool) {
+	for _, path := range hardwareIDPaths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		value := strings.TrimSpace(string(raw))
+		if !placeholderHardwareIDs[strings.ToLower(value)] {
+			return value, true
+		}
+	}
+	return "", false
+}
+
+// CheckHardwareBinding drops a persisted login when the cartridge moved to
+// different hardware. It records the current machine on first use.
+func (p Paths) CheckHardwareBinding() bool {
+	current, ok := HardwareID()
+	if !ok {
+		return false
+	}
+	stored, err := os.ReadFile(p.HardwareFile)
+	previous := strings.TrimSpace(string(stored))
+	if err != nil || previous == "" {
+		if err := os.MkdirAll(filepath.Dir(p.HardwareFile), 0o755); err == nil {
+			_ = os.WriteFile(p.HardwareFile, []byte(current+"\n"), 0o644)
+		}
+		return false
+	}
+	if previous == current {
+		return false
+	}
+	_ = os.Remove(filepath.Join(p.ProfileDir, DefaultUserJSON))
+	_ = os.Remove(p.DolphinUserFile)
+	_ = os.Remove(p.HardwareFile)
+	return true
+}
+
+// InstallLogin copies an imported user.json into Dolphin's user directory.
+func (p Paths) InstallLogin(values map[string]any) (bool, string) {
+	configured := DefaultUserJSON
+	if slippi, ok := values["slippi"].(map[string]any); ok {
+		if value, ok := slippi["user_json"].(string); ok && value != "" {
+			configured = value
+		}
+	}
+	candidates := []string{
+		p.Resolve(configured),
+		filepath.Join(p.ProfileDir, "user.json"),
+		filepath.Join(p.DataDir, "user.json"),
+	}
+	for _, candidate := range candidates {
+		ok, detail := p.LoginStatus(candidate)
+		if !ok {
+			continue
+		}
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(p.DolphinUserFile), 0o755); err != nil {
+			return false, fmt.Sprintf("cannot create %s: %v", filepath.Dir(p.DolphinUserFile), err)
+		}
+		if err := os.WriteFile(p.DolphinUserFile, data, 0o600); err != nil {
+			return false, fmt.Sprintf("cannot write %s: %v", p.DolphinUserFile, err)
+		}
+		_ = os.Chmod(p.DolphinUserFile, 0o600)
+		if current, ok := HardwareID(); ok {
+			if err := os.MkdirAll(filepath.Dir(p.HardwareFile), 0o755); err == nil {
+				_ = os.WriteFile(p.HardwareFile, []byte(current+"\n"), 0o644)
+			}
+		}
+		return true, detail
+	}
+	return false, fmt.Sprintf("no Slippi login file at %s", p.Resolve(configured))
 }

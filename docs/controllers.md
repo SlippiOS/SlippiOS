@@ -18,14 +18,15 @@ GameCube adapter in parallel.
 | Stick / C-stick | `Left X/Y`, `Right X/Y` | left / right sticks |
 | D-Pad | `Pad N/S/W/E` | dpad |
 
-Boot-time "hold A" therefore maps to the SDL south face, which is what
-`slippi_input.Gamepads.any_south_held()` checks.
+Boot-time "hold A" maps to the SDL south face. The shell currently has no
+controller navigation; that arrives with the virtual pad.
 
 ## GameCube adapter
 
-`057e:0337` is polled directly for A during boot. While the config menu exists,
-the adapter must be exposed as a virtual SDL pad (uinput) and then released
-before Dolphin starts, so Dolphin can claim it with libusb.
+`057e:0337` is the official Wii U/Mayflash adapter. `joybusd` is the planned
+Rust daemon that will expose its four ports as virtual SDL pads through uinput.
+It will release the adapter before Dolphin starts so Dolphin can claim it with
+libusb. The Go CLI only reports adapter presence today.
 
 ## Bundled profiles
 

@@ -8,7 +8,7 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
 
-      python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
+      cliPackage = pkgs.callPackage ./pkgs/slippios.nix { };
 
       # Sortable, unique, and short enough for a GPT partition label.
       version =
@@ -17,12 +17,6 @@
           "${toString (self.lastModified or 0)}-${builtins.substring 0 7 rev}"
         else
           "dev-${toString (self.lastModified or 0)}";
-
-      appSrc = pkgs.runCommand "slippios-apps" { } ''
-        mkdir -p $out/session $out/cli
-        cp ${./apps/session}/*.py $out/session/
-        cp ${./apps/cli}/*.py $out/cli/
-      '';
     in {
       nixosConfigurations.slippios-live = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -48,17 +42,9 @@
 
       packages.${system} = {
         appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
-        slippios-go = pkgs.callPackage ./pkgs/slippios-go.nix { };
-
-        session = pkgs.writeShellScriptBin "slippios-session" ''
-          exec env PYTHONPATH=${appSrc}/session \
-            ${python}/bin/python3 ${appSrc}/session/main.py "$@"
-        '';
-
-        cli = pkgs.writeShellScriptBin "slippios" ''
-          exec env PYTHONPATH=${appSrc}/session:${appSrc}/cli \
-            ${python}/bin/python3 ${appSrc}/cli/main.py "$@"
-        '';
+        slippios = cliPackage;
+        session = cliPackage;
+        cli = cliPackage;
 
         shell = pkgs.writeShellScriptBin "slippios-shell" ''
           runtime=$(${pkgs.coreutils}/bin/mktemp -d)

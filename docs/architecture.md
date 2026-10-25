@@ -94,22 +94,24 @@ The profile layout is multi-user ready; the shell currently uses `default`.
 ## Components
 
 - `slippios-shell` — Godot kiosk UI.
-- `slippios-session` — Python fallback/session launch.
-- `slippios` — CLI; human output on a TTY, JSON when piped.
+- `slippios-session` — terminal fallback/session launch.
+- `slippios` — Go CLI; human output on a TTY, JSON when piped.
+- `joybusd` — Rust GameCube-adapter daemon (protocol and mapping implemented;
+  USB/uinput pending).
 - `slippios-os-update.service` — root installer for staged updates.
 - `slippios-os-reboot.path` — root reboot request.
 - `slippios-data.service` — mounts/creates `/data`, seeds controller profiles.
 
 ## Slippi auth
 
-The session performs the same Firebase/GraphQL exchange as the Slippi client.
+The Go backend performs the same Firebase/GraphQL exchange as the Slippi client.
 Passwords stay in memory. The resulting `user.json` token is stored with mode
 `0600`, installed into Dolphin, and bound to the machine's DMI UUID. A mismatch
 removes the saved login.
 
 ## CI and hosting
 
-- **Validate** on pushes: Python compile and headless Godot.
+- **Validate** on pushes: Go tests and headless Godot.
 - **Build Image** on tags/manual: full image + update slot + UKI + zsync +
   manifest, published as a GitHub release.
 - The ISO is a local development artifact and is not published.

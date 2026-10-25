@@ -85,3 +85,84 @@ func TestLoginStatus(t *testing.T) {
 		t.Fatalf("login = %v %q", ok, detail)
 	}
 }
+
+func TestInstallLogin(t *testing.T) {
+	paths := PathsFor(t.TempDir())
+	if err := os.MkdirAll(paths.ProfileDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := map[string]any{
+		"uid": "u", "playKey": "k", "connectCode": "ABC#123",
+	}
+	data, _ := json.Marshal(payload)
+	source := paths.Resolve(DefaultUserJSON)
+	if err := os.WriteFile(source, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ok, detail := paths.InstallLogin(Defaults())
+	if !ok || detail != "ABC#123" {
+		t.Fatalf("install = %v %q", ok, detail)
+	}
+	installed, err := os.ReadFile(paths.DolphinUserFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(installed) != string(data) {
+		t.Fatalf("installed = %s", installed)
+	}
+	info, err := os.Stat(paths.DolphinUserFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode = %v", info.Mode().Perm())
+	}
+}
+
+func TestCheckHardwareBinding(t *testing.T) {
+	paths := PathsFor(t.TempDir())
+	device := filepath.Join(t.TempDir(), "product_uuid")
+	if err := os.WriteFile(device, []byte("machine-1\n"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	saved := hardwareIDPaths
+	hardwareIDPaths = []string{device}
+	t.Cleanup(func() { hardwareIDPaths = saved })
+
+	if err := os.MkdirAll(filepath.Dir(paths.HardwareFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(paths.DolphinUserFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.ProfileDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{paths.HardwareFile, paths.DolphinUserFile, paths.Resolve(DefaultUserJSON)} {
+		if err := os.WriteFile(path, []byte(`{"uid":"u","playKey":"k","connectCode":"ABC#123"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(paths.HardwareFile, []byte("machine-2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !paths.CheckHardwareBinding() {
+		t.Fatal("hardware change not detected")
+	}
+	for _, path := range []string{paths.HardwareFile, paths.DolphinUserFile, paths.Resolve(DefaultUserJSON)} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists", path)
+		}
+	}
+	if paths.CheckHardwareBinding() {
+		t.Fatal("first binding reported a change")
+	}
+	stored, err := os.ReadFile(paths.HardwareFile)
+	if err != nil || string(stored) != "machine-1\n" {
+		t.Fatalf("hardware file = %q, %v", stored, err)
+	}
+	if paths.CheckHardwareBinding() {
+		t.Fatal("same hardware reported a change")
+	}
+}
