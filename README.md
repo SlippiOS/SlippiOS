@@ -3,8 +3,8 @@
 A console-style NixOS appliance for Slippi Melee. Boots into a fullscreen Godot
 shell and stores games, settings, the Slippi login, and replays on the USB.
 
-**Status:** alpha. A/B system updates, phone sign-in, and network ISO upload
-work. The GameCube-adapter helper and Wi-Fi setup are in progress.
+**Status:** alpha. A/B system updates, phone sign-in, Wi-Fi setup, and network
+ISO upload work. The GameCube-adapter helper is in progress.
 
 ## Players
 
