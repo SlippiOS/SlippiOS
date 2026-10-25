@@ -90,14 +90,14 @@ in {
       profile_dir=/data/users/default/dolphin/Config/Profiles/GCPad
       ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
       ${pkgs.coreutils}/bin/cp -n ${../assets/controller-profiles}/*.ini "$profile_dir"/ || true
-      ${pkgs.coreutils}/bin/chown -R melee:users "$profile_dir" || true
+      ${pkgs.coreutils}/bin/chown -R player:users "$profile_dir" || true
     '';
   };
 
   systemd.tmpfiles.rules = [
-    "d /home/player 0755 melee users -"
-    "d /home/player/.config 0755 melee users -"
-    "d /home/player/.config/openbox 0755 melee users -"
+    "d /home/player 0755 player users -"
+    "d /home/player/.config 0755 player users -"
+    "d /home/player/.config/openbox 0755 player users -"
     "L+ /home/player/.config/openbox/autostart - - - - ${autostart}"
   ];
 
