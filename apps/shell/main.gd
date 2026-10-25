@@ -1,7 +1,7 @@
 extends Control
 
 const CLI := "slippios"
-const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@"]
+const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@", "!@#$%^&*()", "+=[]{};:'\",.<>/?"]
 const MASK := "•"
 
 var _status: Dictionary = {}
@@ -17,6 +17,8 @@ var _auth_email := ""
 var _auth_field := ""
 var _auth_label: Label
 var _auth_origin := "setup"
+var _input_mode := "auth"
+var _wifi_ssid := ""
 var _net_pid := -1
 var _net_mode := ""
 var _net_url := ""
@@ -239,6 +241,7 @@ func _start_login(origin: String = "setup") -> void:
 func _show_auth_field(stage: String, message: String = "") -> void:
 	_stop_net()
 	_screen = "auth"
+	_input_mode = "auth"
 	_auth_stage = stage
 	_auth_field = ""
 	_clear()
@@ -309,6 +312,9 @@ func _delete_character(masked: bool) -> void:
 
 
 func _finish_field() -> void:
+	if _input_mode == "wifi_password":
+		_submit_wifi(_wifi_ssid, _auth_field)
+		return
 	if _auth_stage == "email":
 		var email := _auth_field.strip_edges()
 		if email == "" or not email.contains("@"):
@@ -359,8 +365,82 @@ func _show_settings() -> void:
 	_add_label("Resolution: %s" % str(display.get("resolution", "auto")), 0.8)
 	_add_label("Audio: %s" % str(audio.get("sink", "auto")), 0.8)
 	_add_label("Network: %s" % str(network.get("ssid") or "(none)"), 0.8)
+	_add_button("Wi-Fi network", _show_wifi)
 	_add_button("Back", _show_menu)
 	_focus_first()
+
+
+func _show_wifi(message: String = "") -> void:
+	_stop_net()
+	_screen = "wifi"
+	_input_mode = ""
+	_clear()
+	_title = _add_title("WI-FI", 44)
+
+	var status := _cli(["wifi", "status"])
+	if status.get("ok", false) and status.get("connected", false):
+		_add_label("Connected to %s" % str(status.get("ssid")), 0.8)
+	else:
+		_add_label("Not connected.", 0.8)
+	if message != "":
+		_add_label(message, 0.9)
+
+	var result := _cli(["wifi", "scan"])
+	if not result.get("ok", false):
+		_add_label(str(result.get("error", "Could not scan for networks.")), 0.9)
+	else:
+		var networks: Array = result.get("networks", [])
+		if networks.is_empty():
+			_add_label("No networks found.", 0.7)
+		var shown := 0
+		for network in networks:
+			if shown >= 8:
+				break
+			var ssid := str(network.get("ssid", ""))
+			var security := str(network.get("security", ""))
+			var label := ssid
+			if security != "":
+				label += "  (%s)" % security
+			_add_button(label, _select_wifi.bind(ssid, security))
+			shown += 1
+
+	_add_button("Rescan", _show_wifi.bind(""))
+	_add_button("Back", _show_settings)
+	_focus_first()
+
+
+func _select_wifi(ssid: String, security: String) -> void:
+	if security == "" or security == "--":
+		_submit_wifi(ssid, "")
+	else:
+		_show_wifi_password(ssid)
+
+
+func _show_wifi_password(ssid: String, message: String = "") -> void:
+	_clear()
+	_screen = "wifi-password"
+	_input_mode = "wifi_password"
+	_wifi_ssid = ssid
+	_auth_field = ""
+	_title = _add_title("WI-FI PASSWORD", 40)
+	_add_label(ssid, 0.8)
+	if message != "":
+		_add_label(message, 0.9)
+	_auth_label = _add_label("", 1.0)
+	_build_keyboard(true)
+	_add_button("Back", _show_wifi.bind(""))
+	_focus_first()
+
+
+func _submit_wifi(ssid: String, password: String) -> void:
+	var result := _cli(["wifi", "connect", "--ssid", ssid, "--password", password])
+	if result.get("ok", false):
+		_refresh_status()
+		_show_wifi("Connected to %s" % ssid)
+	elif password == "":
+		_show_wifi("Could not connect: %s" % str(result.get("error", "unknown error")))
+	else:
+		_show_wifi_password(ssid, str(result.get("error", "Could not connect.")))
 
 
 func _show_update() -> void:
@@ -660,6 +740,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_net_back()
 		"auth":
 			_back_from_auth()
+		"wifi":
+			_show_settings()
+		"wifi-password":
+			_show_wifi("")
 		"login-setup", "setup", "settings", "update", "account":
 			_stop_net()
 			_show_menu()

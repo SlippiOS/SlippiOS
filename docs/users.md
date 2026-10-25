@@ -29,6 +29,15 @@ Use the whole device, not a partition. This erases the USB.
 3. Add a Melee ISO.
 4. Sign in to Slippi, or skip for offline play.
 
+## Connect Wi-Fi
+
+1. **Settings → Wi-Fi network**.
+2. Select a network.
+3. Enter the password with the on-screen keyboard.
+4. Wait for the confirmation.
+
+The console uses NetworkManager. Ethernet works automatically.
+
 ## Add a Melee ISO
 
 ### Network

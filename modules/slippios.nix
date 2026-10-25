@@ -49,6 +49,7 @@ in {
     openbox
     pulseaudio
     qrencode
+    networkmanager
     slippiosPackages.appimage-runner
     slippiosPackages.session
     slippiosPackages.cli

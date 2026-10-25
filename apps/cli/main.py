@@ -14,6 +14,7 @@ import auth
 import osupdate
 import settings as settings_lib
 import update
+import wifi
 
 RUNNER = "slippi-appimage-run"
 
@@ -149,6 +150,20 @@ def cmd_os(args) -> dict:
     return {"ok": False, "error": "unknown os action"}
 
 
+def cmd_wifi(args) -> dict:
+    try:
+        if args.action == "scan":
+            return {"ok": True, "networks": wifi.scan()}
+        if args.action == "status":
+            return {"ok": True, **wifi.status()}
+        if args.action == "connect":
+            result = wifi.connect(args.ssid, args.password or "")
+            return {"ok": True, **result}
+    except wifi.WifiError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": False, "error": "unknown wifi action"}
+
+
 def cmd_play(args) -> dict:
     login_ok, _detail = settings_lib.install_login(settings_lib.defaults())
     if not login_ok and args.require_login:
@@ -272,6 +287,26 @@ def human_update(payload: dict) -> None:
         print(f"Path:      {payload.get('path')}")
 
 
+def human_wifi(payload: dict) -> None:
+    if "networks" in payload:
+        networks = payload["networks"]
+        if not networks:
+            print("No Wi-Fi networks found.")
+            return
+        for network in networks:
+            active = "*" if network.get("active") else " "
+            security = network.get("security") or "open"
+            print(f"{active} {network['ssid']}  {network['signal']}%  {security}")
+        return
+    if "ssid" in payload and "connected" in payload:
+        if payload.get("connected"):
+            print(f"Wi-Fi: connected to {payload['ssid']}")
+        else:
+            print("Wi-Fi: not connected")
+        return
+    print(f"Wi-Fi: connected to {payload.get('ssid')}")
+
+
 def human_os(payload: dict) -> None:
     if "phase" not in payload and "update_available" in payload:
         print(f"Current:   {payload.get('current')}")
@@ -373,6 +408,15 @@ def build_parser() -> argparse.ArgumentParser:
     os_sub.add_parser("update", parents=[common])
     os_sub.add_parser("reboot", parents=[common])
 
+    wifi_parser = sub.add_parser("wifi", parents=[common],
+                                 help="scan, connect, or inspect Wi-Fi")
+    wifi_sub = wifi_parser.add_subparsers(dest="action", required=True)
+    wifi_sub.add_parser("scan", parents=[common])
+    wifi_sub.add_parser("status", parents=[common])
+    wifi_connect = wifi_sub.add_parser("connect", parents=[common])
+    wifi_connect.add_argument("--ssid", required=True)
+    wifi_connect.add_argument("--password", default="")
+
     play = sub.add_parser("play", parents=[common],
                           help="launch Dolphin with the configured game")
     play.add_argument("--require-login", action="store_true")
@@ -406,6 +450,7 @@ def main() -> int:
         "login": cmd_login,
         "update": cmd_update,
         "os": cmd_os,
+        "wifi": cmd_wifi,
         "play": cmd_play,
         "adapter": cmd_adapter,
         "isos": cmd_isos,
@@ -417,6 +462,7 @@ def main() -> int:
         "login": human_login,
         "update": human_update,
         "os": human_os,
+        "wifi": human_wifi,
         "play": human_play,
         "adapter": human_adapter,
         "isos": human_isos,

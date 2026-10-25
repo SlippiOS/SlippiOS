@@ -118,6 +118,17 @@ scripts/fetch-image        release downloader
 scripts/flash-usb          legacy ISO + data partition flasher
 ```
 
+## Wi-Fi
+
+```sh
+slippios wifi scan
+slippios wifi status
+slippios wifi connect --ssid "Network" --password "secret"
+```
+
+The shell wraps this in **Settings → Wi-Fi network**. `nmcli` comes from the
+NetworkManager package; the `player` account is in the `networkmanager` group.
+
 ## System updates
 
 ```sh
@@ -166,6 +177,5 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 ## Known work
 
 - GameCube-adapter virtual pad.
-- Wi-Fi setup in the shell.
 - Backup/restore for larger USB migration.
 - End-to-end update validation on real hardware.
