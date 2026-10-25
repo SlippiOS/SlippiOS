@@ -6,10 +6,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 DOMAIN="${SLIPPI_DOMAIN:-slippios-iso}"
 DEST="${SLIPPI_IMAGE:-/var/lib/libvirt/images/slippios.iso}"
 RESTART=0
+ASSUME_YES=0
+DRY_RUN=0
 
 usage() {
   cat <<'USAGE'
-usage: scripts/sync-iso [--restart] [--domain NAME] [--dest PATH]
+usage: scripts/sync-iso [--restart] [--yes] [--dry-run] [--domain NAME] [--dest PATH]
 
 Downloads the ISO from the newest successful "Build ISO" run, verifies its
 SHA-256, and installs it at the libvirt image path. With --restart it also
@@ -20,6 +22,8 @@ USAGE
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --restart) RESTART=1 ;;
+    -y|--yes) ASSUME_YES=1 ;;
+    --dry-run) DRY_RUN=1 ;;
     --domain) DOMAIN="${2:?missing domain}"; shift ;;
     --dest) DEST="${2:?missing destination}"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -32,15 +36,55 @@ command -v gh >/dev/null || { echo "gh is required" >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
 
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-read -r run_id commit created <<<"$(
-  gh run list --repo "$repo" --workflow "Build ISO" --status success --limit 1 \
-    --json databaseId,headSha,createdAt \
-    -q '.[0] | "\(.databaseId) \(.headSha) \(.createdAt)"'
-)"
+fields='databaseId,headSha,status,conclusion,createdAt'
 
-if [[ -z "${run_id:-}" || "$run_id" == "null" ]]; then
-  echo "no successful Build ISO run found" >&2
+latest_row=$(
+  gh run list --repo "$repo" --workflow "Build ISO" --limit 1 \
+    --json "$fields" \
+    -q '.[0] | [.databaseId, .headSha, .status, (.conclusion | if . == "" then "none" else . end), .createdAt] | @tsv'
+)
+IFS=$'\t' read -r latest_id latest_sha latest_status latest_conclusion latest_created <<<"$latest_row"
+
+success_row=$(
+  gh run list --repo "$repo" --workflow "Build ISO" --status success --limit 1 \
+    --json "$fields" \
+    -q '.[0] | [.databaseId, .headSha, .status, .conclusion, .createdAt] | @tsv'
+)
+IFS=$'\t' read -r success_id success_sha _success_status _success_conclusion success_created <<<"$success_row"
+
+if [[ -z "${latest_id:-}" || "$latest_id" == "null" ]]; then
+  echo "no Build ISO runs found" >&2
   exit 1
+fi
+
+if [[ "$latest_status" == "completed" && "$latest_conclusion" == "success" ]]; then
+  run_id=$latest_id
+  commit=$latest_sha
+  created=$latest_created
+else
+  note=""
+  [[ "$latest_conclusion" != "none" ]] && note=" ($latest_conclusion)"
+  echo "Newest run $latest_id is ${latest_status}${note}." >&2
+  echo "  commit ${latest_sha:0:7}, started $latest_created" >&2
+
+  if [[ -z "${success_id:-}" || "$success_id" == "null" ]]; then
+    echo "No successful Build ISO run is available yet." >&2
+    exit 1
+  fi
+
+  echo "Most recent successful run: $success_id (commit ${success_sha:0:7}, $success_created)" >&2
+
+  if [[ "$ASSUME_YES" -eq 0 && -t 0 ]]; then
+    read -r -p "Use that run? [Y/n] " answer
+    case "${answer:-y}" in
+      y|Y|yes|YES) ;;
+      *) echo "aborted" >&2; exit 1 ;;
+    esac
+  fi
+
+  run_id=$success_id
+  commit=$success_sha
+  created=$success_created
 fi
 
 echo "Run:    $run_id"
@@ -54,6 +98,12 @@ hash=$(grep -o 'SHA256: [0-9a-f]\{64\}' <<<"$log" | head -1 | awk '{print $2}' |
 if [[ -z "${url:-}" ]]; then
   echo "no download URL in run $run_id (upload may have failed)" >&2
   exit 1
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "URL:    $url"
+  echo "dry run: not downloading"
+  exit 0
 fi
 
 tmp=$(mktemp --suffix=.iso)
