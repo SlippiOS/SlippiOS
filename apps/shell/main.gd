@@ -1,6 +1,6 @@
 extends Control
 
-const CLI := "slippios-cli"
+const CLI := "slippios-ctl"
 
 var _status: Dictionary = {}
 var _play_pid := -1

@@ -3,6 +3,6 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
+nix build .#nixosConfigurations.slippios-live.config.system.build.isoImage
 
 ls -lh result/iso/*.iso

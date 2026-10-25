@@ -12,7 +12,7 @@ OFFLINE=0
 
 usage() {
   cat <<'USAGE'
-usage: scripts/sync-iso [--restart] [--yes] [--offline] [--dry-run] [--domain NAME] [--dest PATH]
+usage: scripts/fetch-iso [--restart] [--yes] [--offline] [--dry-run] [--domain NAME] [--dest PATH]
 
 Downloads the ISO from the newest successful "Build ISO" run, verifies its
 SHA-256, and installs it at the libvirt image path. With --restart it also

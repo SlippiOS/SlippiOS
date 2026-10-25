@@ -1,95 +1,85 @@
 # SlippiOS
 
-SlippiOS is a console-style NixOS appliance for booting directly into Slippi
-Melee. This repository contains the NixOS configuration and ISO build
-pipeline; virtual machines are run externally with virt-manager.
+A console-style NixOS appliance for Slippi Melee. The live ISO boots straight
+into a fullscreen Godot shell with no desktop environment.
 
-## Build the ISO locally
+## Layout
 
-Local builds are the fast path: Nix caches every dependency, so only the
-changed parts rebuild. One-time setup on a non-NixOS host:
+```text
+hosts/        NixOS configurations (live ISO today)
+modules/      shared NixOS modules
+pkgs/         Nix package definitions
+apps/
+  session/    Python boot/session logic (settings, auth, updates, launch)
+  shell/      Godot UI
+  ctl/        slippios-ctl, the JSON control CLI
+assets/       controller profiles and branding
+scripts/      host tooling (build, fetch, run)
+docs/         notes
+```
+
+Runtime pieces:
+
+- `slippios-shell` — fullscreen Godot menu (the console UI)
+- `slippios-session` — headless fallback and boot flow (Python)
+- `slippios-ctl` — state/actions consumed by the shell, human-first with
+  automatic JSON when piped
+
+## Build
+
+Pushes to `main` build the ISO in GitHub Actions and upload it to the
+transfer.sh mirror; the download link and SHA-256 are in the run summary.
+
+Local builds need Nix once:
 
 ```sh
 sh <(curl -L https://nixos.org/nix/install) --daemon
-```
-
-After logging back in, enable flakes:
-
-```sh
-mkdir -p ~/.config/nix
-echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
-```
-
-Then:
-
-```sh
 ./scripts/build-iso
 ```
 
-The ISO lands in `result/iso/`. A GitHub Actions workflow still exists as a
-fallback, but it is not needed for normal iteration.
+`boot.loader.timeout` is 1 second, so the ISO boots automatically; GRUB treats
+`0` as “wait forever”.
 
-## Development loop
-
-`./scripts/dev` builds the ISO and deploys it into libvirt in one step:
+## Deploy to libvirt
 
 ```sh
-./scripts/dev
+./scripts/fetch-iso --restart
 ```
 
-It installs the ISO at `/var/lib/libvirt/images/slippios.iso`, updates the
-domain's CD-ROM if `slippios-iso` exists, and reboots or starts it. Override
-the defaults with `SLIPPI_DOMAIN`, `SLIPPI_IMAGE`, or `LIBVIRT_URI`.
+Downloads the newest successful ISO into `~/.cache/slippios/`, verifies its
+SHA-256, installs it to `/var/lib/libvirt/images/slippios.iso`, then cold-boots
+the domain (a warm reboot can keep the old CD image open). Use `--offline` to
+reuse a verified cached ISO, `--dry-run` to preview, and `--yes` to skip the
+prompt when the newest run has not succeeded.
 
-First run downloads the full closure (a few minutes). Later runs are much
-faster because the Nix store is already populated.
-
-The live ISO must contain its full system closure. It cannot install packages
-at runtime, so build time is dominated by compressing that closure. SlippiOS
-uses `zstd -Xcompression-level 6` instead of nixpkgs' `-19` default to keep CI
-builds practical while remaining bootable.
-
-## Quick test without libvirt
-
-libvirt is only useful later, for persistent VMs and USB passthrough. To just
-boot the ISO:
+For a direct QEMU test without libvirt:
 
 ```sh
 ./scripts/run-vm /path/to/slippios.iso
 ```
 
-That runs plain QEMU with KVM as your user — no daemon, no sudo.
-
-The ISO auto-logs into a minimal X11/Openbox session and starts the IPL
-(Initial Program Loader). The real GameCube adapter requires exclusive USB
-access and should be tested later with USB passthrough from virt-manager.
-
-## Data, settings, and game images
+## Data and settings
 
 Everything user-owned lives on a partition labelled `SLIPPI`, mounted at
-`/slippi` when present. Without that partition the live ISO falls back to a
-temporary `/slippi` on the root filesystem, so nothing persists.
+`/slippi`. Without it the live ISO uses a temporary `/slippi`, so nothing
+persists.
 
 ```text
 /slippi
-├── settings.toml     hand-editable; written by first-time setup
-├── slippi-user.json  optional Slippi login export (playKey)
-├── isos/             Melee 1.02 and derivative builds (*.iso)
-├── dolphin-app/      downloaded Slippi Dolphin releases
-│   ├── versions/<tag>/Slippi_Netplay_Mainline-x86_64.AppImage
-│   └── current       → newest verified release
-├── dolphin/          Dolphin user dir (accounts, config, saves)
+├── settings.toml
+├── slippi-user.json
+├── isos/
+├── dolphin-app/
+├── dolphin/
 ├── replays/
 └── logs/
 ```
-
-`settings.toml` references a single game image for now:
 
 ```toml
 schema_version = 1
 
 [game]
-iso = "melee.iso"
+iso = "melee.iso"          # relative to /slippi/isos
 
 [display]
 refresh_hz = 120
@@ -106,54 +96,36 @@ psk = "plaintext-for-now"
 user_json = "slippi-user.json"
 ```
 
-SlippiOS never stores a Slippi password. On first run it prompts for the Slippi
-email and password, authenticates against the same public web endpoints used by
-slippi.gg, fetches the account's `playKey`, and writes `slippi-user.json` into
-Dolphin's user directory. The password is only held in memory for that request.
+The session opens the configured game, prompts for Slippi credentials on first
+run, downloads the newest Dolphin release, and verifies it. Passwords are held
+in memory only; the saved `user.json` is bound to the machine's DMI UUID and is
+removed if the cartridge moves to different hardware.
 
-On boot the IPL behaves as follows:
+## Controllers
 
-- settings **and** a valid image present → launches Slippi Dolphin
-- neither present → first-time setup
-- only one present, or the image is invalid → alert, then setup
+The shell reads standard SDL gamepads (Glyph, Xbox, DualSense) and the raw
+GameCube adapter in parallel. Linux controller profiles are seeded into
+`/slippi/dolphin/Config/Profiles/GCPad/` on first boot. See
+[`docs/controllers.md`](docs/controllers.md).
 
-Game images are validated by their GameCube ID (`GALE01`/`GALJ01`/`GALP01`).
-SlippiOS never downloads or ships Melee.
+## slippios-ctl
 
-Dolphin is not baked into the image. On boot the IPL checks the newest Slippi
-Mainline release, downloads it to `/slippi/dolphin-app/versions/<tag>/`,
-verifies GitHub's SHA-256 digest, and points `current` at it. Netplay requires
-matching Dolphin versions, so the appliance always follows upstream. If a
-check or download fails, the current build keeps working.
+```sh
+slippios-ctl status
+slippios-ctl update --check
+slippios-ctl login --stdin
+slippios-ctl play
+slippios-ctl adapter
+```
 
-`slippi-iso` is the current hardware-independent target. GPU drivers, adapter
-rules, persistence, and the installed-PC target will be added as separate NixOS
-modules rather than tied to a VM.
+Human-readable on a TTY, JSON when piped; `--json`/`--human` override. The
+shell calls it and parses stdout.
 
 ## Roadmap
 
-1. Bootable ISO and IPL state machine (current milestone).
-2. Controller-driven config UI using keyboard input in virt-manager and raw
-   adapter input on hardware.
-3. USB hand-off tests: IPL releases `057e:0337` before Dolphin starts.
-4. Package/pin the mainline Slippi Dolphin beta.
-5. Persistent USB image and install-to-disk flow.
-
-## slippios-cli
-
-The graphical IPL talks to system logic through a JSON CLI rather than
-importing Python:
-
-```sh
-slippios-cli status            # settings, login, Dolphin version, adapter
-slippios-cli update --check    # current vs newest upstream release
-slippios-cli update            # download and verify the newest release
-slippios-cli login --stdin     # {"email": "...", "password": "..."}
-slippios-cli play              # install login, update, launch Dolphin
-slippios-cli adapter           # adapter presence and A-button state
-```
-
-Output follows the terminal: human-readable on a TTY, JSON when piped (which is
-what the graphical IPL gets). `--json` and `--human` override the detection.
-Long-running commands stream progress to stderr, and passwords are read from
-stdin, never argv.
+1. Shell polish: boot animation, account and settings screens.
+2. Adapter helper: expose the GameCube adapter as a virtual SDL pad, then
+   release it before Dolphin starts.
+3. Live/install boot entries in the same ISO: one entry boots the kiosk, one
+   runs the installer.
+4. Persistent USB and install-to-disk image.

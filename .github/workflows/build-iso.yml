@@ -27,11 +27,11 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Validate Godot project
-        run: nix shell nixpkgs#godot_4 -c godot --headless --path programs/ipl-ui --quit
+      - name: Validate shell project
+        run: nix shell nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
 
       - name: Build SlippiOS ISO
-        run: nix build .#nixosConfigurations.slippi-iso.config.system.build.isoImage
+        run: nix build .#nixosConfigurations.slippios-live.config.system.build.isoImage
 
       - name: Upload ISO
         id: upload

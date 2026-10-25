@@ -1,6 +1,6 @@
 # Controller support
 
-The IPL reads standard SDL gamepads (Glyph, Xbox, DualSense, ...) and the raw
+The shell reads standard SDL gamepads (Glyph, Xbox, DualSense, ...) and the raw
 GameCube adapter in parallel.
 
 ## Glyph profile (from the user's Slippi install)

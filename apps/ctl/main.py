@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""slippios-cli: human-first system control, JSON for the graphical IPL."""
+"""slippios-ctl: human-first system control, JSON for the graphical shell."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import slippi_auth
-import slippi_settings as settings_lib
-import slippi_update
+import auth
+import settings as settings_lib
+import update
 
 RUNNER = "slippi-appimage-run"
 
@@ -44,8 +44,8 @@ def cmd_status(_args) -> dict:
 
     current = None
     try:
-        if slippi_update.current_path():
-            current = slippi_update.current_tag()
+        if update.current_path():
+            current = update.current_tag()
     except OSError:
         current = None
 
@@ -81,8 +81,8 @@ def cmd_login(args) -> dict:
         return {"ok": False, "error": "email and password are required"}
 
     try:
-        user = slippi_auth.login(email, password)
-    except slippi_auth.AuthError as exc:
+        user = auth.login(email, password)
+    except auth.AuthError as exc:
         return {"ok": False, "error": str(exc)}
 
     target = settings_lib.SLIPPI_DIR / settings_lib.DEFAULT_USER_JSON
@@ -103,19 +103,19 @@ def cmd_login(args) -> dict:
 def cmd_update(args) -> dict:
     if args.check:
         try:
-            tag, _asset = slippi_update._latest_release()
+            tag, _asset = update._latest_release()
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
         return {"ok": True, "check": True,
-                "current": slippi_update.current_tag(), "latest": tag}
+                "current": update.current_tag(), "latest": tag}
 
     try:
-        path = slippi_update.ensure(log=lambda message: print(message, file=sys.stderr))
-    except slippi_update.UpdateError as exc:
+        path = update.ensure(log=lambda message: print(message, file=sys.stderr))
+    except update.UpdateError as exc:
         return {"ok": False, "error": str(exc)}
 
     return {"ok": True, "check": False,
-            "current": slippi_update.current_tag(), "path": str(path)}
+            "current": update.current_tag(), "path": str(path)}
 
 
 def cmd_play(args) -> dict:
@@ -124,10 +124,10 @@ def cmd_play(args) -> dict:
         return {"ok": False, "error": "not signed in"}
 
     try:
-        appimage = slippi_update.ensure(
+        appimage = update.ensure(
             log=lambda message: print(message, file=sys.stderr)
         )
-    except slippi_update.UpdateError as exc:
+    except update.UpdateError as exc:
         return {"ok": False, "error": str(exc)}
 
     summary, settings = _settings_summary()
@@ -154,8 +154,8 @@ def cmd_play(args) -> dict:
 
 def cmd_adapter(args) -> dict:
     try:
-        import slippi_adapter
-        held = slippi_adapter.a_held(args.seconds)
+        import adapter
+        held = adapter.a_held(args.seconds)
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     return {"ok": True, "present": held is not None, "a_held": held}
@@ -213,7 +213,7 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
     common.add_argument("--human", action="store_true", default=argparse.SUPPRESS)
 
-    parser = argparse.ArgumentParser(prog="slippios-cli")
+    parser = argparse.ArgumentParser(prog="slippios-ctl")
     parser.add_argument("--json", action="store_true",
                         help="force machine-readable output")
     parser.add_argument("--human", action="store_true",

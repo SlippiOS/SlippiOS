@@ -1,46 +1,16 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, slippiosPackages, ... }:
 
 let
-  python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
-
-  iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
-    mkdir -p $out
-    cp ${../programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
-    cp ${../programs/ipl/slippi_settings.py} $out/slippi_settings.py
-    cp ${../programs/ipl/slippi_update.py} $out/slippi_update.py
-    cp ${../programs/ipl/slippi_auth.py} $out/slippi_auth.py
-    cp ${../programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
-    cp ${../programs/cli/slippios_cli.py} $out/slippios_cli.py
-    cp ${../programs/ipl/slippi_input.py} $out/slippi_input.py
-  '';
-
-  ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
-    exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
-  '';
-
-  slippi-runner = pkgs.callPackage ../packages/slippi-runner.nix { };
-
-  ipl-ui-src = pkgs.runCommand "slippios-ipl-ui" { } ''
-    mkdir -p $out
-    cp -r ${../programs/ipl-ui}/. $out/
-  '';
-
-  ipl-ui = pkgs.writeShellScriptBin "slippios-ipl-ui" ''
-    runtime=$(${pkgs.coreutils}/bin/mktemp -d)
-    ${pkgs.coreutils}/bin/cp -r ${ipl-ui-src}/. "$runtime"/
-    exec ${pkgs.godot_4}/bin/godot --path "$runtime"       --fullscreen --rendering-driver opengl3
-  '';
-
-  slippios-cli = pkgs.writeShellScriptBin "slippios-cli" ''
-    exec ${python}/bin/python3 ${iplSrc}/slippios_cli.py "$@"
-  '';
+  session = slippiosPackages.session;
+  ctl = slippiosPackages.ctl;
+  shell = slippiosPackages.shell;
 
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
-  autostart = pkgs.writeText "slippi-openbox-autostart" ''
+  autostart = pkgs.writeText "slippios-openbox-autostart" ''
     ${pkgs.xorg.xset}/bin/xset s off -dpms
-    ${ipl-ui}/bin/slippios-ipl-ui || \
-      exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${ipl}/bin/slippi-ipl
+    ${shell}/bin/slippios-shell || \
+      exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${session}/bin/slippios-session
   '';
 in {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -73,19 +43,19 @@ in {
   environment.systemPackages = with pkgs; [
     bash
     coreutils
-    ipl
     openbox
     pulseaudio
-    slippi-runner
-    slippios-cli
+    slippiosPackages.appimage-runner
+    slippiosPackages.session
+    slippiosPackages.ctl
+    slippiosPackages.shell
     xterm
     xorg.xrandr
     xorg.xset
   ];
 
-  environment.etc."slippi-os/README".text = ''
+  environment.etc."slippios/README".text = ''
     Settings live in /slippi/settings.toml. Game images live in /slippi/isos/.
-    The next milestone is the runtime Slippi updater.
   '';
 
   # SlippiOS stores user data on a partition labelled SLIPPI. Mount it when
@@ -108,8 +78,15 @@ in {
       fi
       ${pkgs.coreutils}/bin/mkdir -p \
         /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs
-      ${pkgs.coreutils}/bin/chown melee:users         /slippi /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs || true
+      ${pkgs.coreutils}/bin/chown melee:users \
+        /slippi /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /slippi || true
+
+      # Seed community controller profiles without overwriting user edits.
+      profile_dir=/slippi/dolphin/Config/Profiles/GCPad
+      ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
+      ${pkgs.coreutils}/bin/cp -n ${../assets/controller-profiles}/*.ini "$profile_dir"/ || true
+      ${pkgs.coreutils}/bin/chown -R melee:users "$profile_dir" || true
     '';
   };
 

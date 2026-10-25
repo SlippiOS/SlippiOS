@@ -7,42 +7,43 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      common = ./modules/common.nix;
+
+      python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
+
+      appSrc = pkgs.runCommand "slippios-apps" { } ''
+        mkdir -p $out
+        cp ${./apps/session}/*.py $out/
+        cp ${./apps/ctl}/main.py $out/ctl.py
+      '';
     in {
-      nixosConfigurations = {
-        slippi-iso = nixpkgs.lib.nixosSystem {
-          inherit system;
-          modules = [
-            ({ modulesPath, ... }: {
-              imports = [ (modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix") ];
-            })
-            common
-            ./hosts/slippi-iso.nix
-          ];
-        };
+      nixosConfigurations.slippios-live = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { slippiosPackages = self.packages.${system}; };
+        modules = [
+          ({ modulesPath, ... }: {
+            imports = [ (modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix") ];
+          })
+          ./modules/slippios.nix
+          ./hosts/live.nix
+        ];
       };
 
-      packages.${system} = let
-        python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
-        iplSrc = pkgs.runCommand "slippi-ipl-src" { } ''
-          mkdir -p $out
-          cp ${./programs/ipl/slippi-ipl.py} $out/slippi-ipl.py
-          cp ${./programs/ipl/slippi_settings.py} $out/slippi_settings.py
-          cp ${./programs/ipl/slippi_update.py} $out/slippi_update.py
-          cp ${./programs/ipl/slippi_auth.py} $out/slippi_auth.py
-          cp ${./programs/ipl/slippi_adapter.py} $out/slippi_adapter.py
-          cp ${./programs/cli/slippios_cli.py} $out/slippios_cli.py
-          cp ${./programs/ipl/slippi_input.py} $out/slippi_input.py
-        '';
-      in {
-        slippi-runner = pkgs.callPackage ./packages/slippi-runner.nix { };
+      packages.${system} = {
+        appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
 
-        ipl = pkgs.writeShellScriptBin "slippi-ipl" ''
-          exec ${python}/bin/python3 ${iplSrc}/slippi-ipl.py "$@"
+        session = pkgs.writeShellScriptBin "slippios-session" ''
+          exec ${python}/bin/python3 ${appSrc}/main.py "$@"
         '';
 
-        slippios-cli = pkgs.writeShellScriptBin "slippios-cli" ''
-          exec ${python}/bin/python3 ${iplSrc}/slippios_cli.py "$@"
+        ctl = pkgs.writeShellScriptBin "slippios-ctl" ''
+          exec ${python}/bin/python3 ${appSrc}/ctl.py "$@"
+        '';
+
+        shell = pkgs.writeShellScriptBin "slippios-shell" ''
+          runtime=$(${pkgs.coreutils}/bin/mktemp -d)
+          ${pkgs.coreutils}/bin/cp -r ${./apps/shell}/. "$runtime"/
+          exec ${pkgs.godot_4}/bin/godot --path "$runtime" \
+            --fullscreen --rendering-driver opengl3
         '';
       };
     };

@@ -1,4 +1,4 @@
-"""SDL gamepad input shared by the IPL (Glyph, Xbox, DualSense, ...)."""
+"""SDL gamepad input shared by the session and shell (Glyph, Xbox, DualSense, ...)."""
 
 from __future__ import annotations
 

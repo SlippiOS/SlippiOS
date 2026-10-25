@@ -18,11 +18,11 @@ import sys
 import time
 from pathlib import Path
 
-import slippi_adapter
-import slippi_auth
-import slippi_input
-import slippi_settings as settings_lib
-import slippi_update
+import adapter
+import auth
+import gamepads
+import settings as settings_lib
+import update
 
 
 def clear() -> None:
@@ -196,8 +196,8 @@ def ensure_login(settings: dict) -> tuple[bool, str]:
             return False, "skipped"
         password = getpass.getpass("                 Password: ")
         try:
-            user = slippi_auth.login(email, password)
-        except slippi_auth.AuthError as exc:
+            user = auth.login(email, password)
+        except auth.AuthError as exc:
             print(f"\n                 {exc}")
             time.sleep(2)
             continue
@@ -215,10 +215,10 @@ def ensure_dolphin() -> Path | None:
     clear()
     print("\n\n                 Checking for Slippi Dolphin updates…\n")
     try:
-        appimage = slippi_update.ensure(
+        appimage = update.ensure(
             log=lambda message: print("                 " + message, flush=True)
         )
-    except slippi_update.UpdateError as exc:
+    except update.UpdateError as exc:
         alert(["Could not prepare Slippi Dolphin.", str(exc)])
         return None
     return appimage
@@ -271,9 +271,9 @@ def launch(settings: dict, appimage: Path) -> None:
 def main() -> None:
     boot_animation()
 
-    pads = slippi_input.Gamepads()
+    pads = gamepads.Gamepads()
     try:
-        held = slippi_adapter.a_held(1.5)
+        held = adapter.a_held(1.5)
     except Exception:
         held = None
     held = bool(held) or pads.any_south_held()

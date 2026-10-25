@@ -1,8 +1,8 @@
-; SlippiOS graphical IPL
+; SlippiOS shell
 config_version=5
 
 [application]
-config/name="SlippiOS IPL"
+config/name="SlippiOS Shell"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 
