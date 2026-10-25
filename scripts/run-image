@@ -90,6 +90,11 @@ if [[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then
   cpu="host"
 fi
 
+serial_args=()
+if [[ -n "${SLIPPI_SERIAL:-}" ]]; then
+  serial_args=(-serial "file:${SLIPPI_SERIAL}")
+fi
+
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
 echo "Display: $DISPLAY_MODE"
@@ -105,4 +110,5 @@ exec qemu-system-x86_64 \
   -device usb-storage,drive=usbstick,bootindex=0 \
   -nic user,model=virtio-net-pci,hostfwd=tcp::8080-:8080 \
   -vga std \
+  "${serial_args[@]}" \
   -display "$DISPLAY_MODE"
