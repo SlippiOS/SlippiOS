@@ -12,7 +12,7 @@ pkgs/         Nix package definitions
 apps/
   session/    Python boot/session logic (settings, auth, updates, launch)
   shell/      Godot UI
-  ctl/        slippios-ctl, the JSON control CLI
+  cli/        slippios, the JSON control CLI
 assets/       controller profiles and branding
 scripts/      host tooling (build, fetch, run)
 docs/         notes
@@ -22,7 +22,7 @@ Runtime pieces:
 
 - `slippios-shell` — fullscreen Godot menu (the console UI)
 - `slippios-session` — headless fallback and boot flow (Python)
-- `slippios-ctl` — state/actions consumed by the shell, human-first with
+- `slippios` — state/actions consumed by the shell, human-first with
   automatic JSON when piped
 
 ## Build
@@ -108,14 +108,14 @@ GameCube adapter in parallel. Linux controller profiles are seeded into
 `/slippi/dolphin/Config/Profiles/GCPad/` on first boot. See
 [`docs/controllers.md`](docs/controllers.md).
 
-## slippios-ctl
+## slippios
 
 ```sh
-slippios-ctl status
-slippios-ctl update --check
-slippios-ctl login --stdin
-slippios-ctl play
-slippios-ctl adapter
+slippios status
+slippios update --check
+slippios login --stdin
+slippios play
+slippios adapter
 ```
 
 Human-readable on a TTY, JSON when piped; `--json`/`--human` override. The

@@ -1,6 +1,6 @@
 # SlippiOS shell
 
-Godot 4 project for the console UI. It calls `slippios-ctl` for all system work;
+Godot 4 project for the console UI. It calls `slippios` for all system work;
 JSON output is automatic when stdout is piped.
 
 Run during development:

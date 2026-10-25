@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""slippios-ctl: human-first system control, JSON for the graphical shell."""
+"""slippios: human-first system control, JSON for the graphical shell."""
 
 from __future__ import annotations
 
@@ -213,7 +213,7 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
     common.add_argument("--human", action="store_true", default=argparse.SUPPRESS)
 
-    parser = argparse.ArgumentParser(prog="slippios-ctl")
+    parser = argparse.ArgumentParser(prog="slippios")
     parser.add_argument("--json", action="store_true",
                         help="force machine-readable output")
     parser.add_argument("--human", action="store_true",

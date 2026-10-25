@@ -2,7 +2,7 @@
 
 let
   session = slippiosPackages.session;
-  ctl = slippiosPackages.ctl;
+  cli = slippiosPackages.cli;
   shell = slippiosPackages.shell;
 
   # openbox-autostart only reads its own built-in global file and
@@ -47,7 +47,7 @@ in {
     pulseaudio
     slippiosPackages.appimage-runner
     slippiosPackages.session
-    slippiosPackages.ctl
+    slippiosPackages.cli
     slippiosPackages.shell
     xterm
     xorg.xrandr

@@ -13,7 +13,7 @@
       appSrc = pkgs.runCommand "slippios-apps" { } ''
         mkdir -p $out
         cp ${./apps/session}/*.py $out/
-        cp ${./apps/ctl}/main.py $out/ctl.py
+        cp ${./apps/cli}/main.py $out/cli.py
       '';
     in {
       nixosConfigurations.slippios-live = nixpkgs.lib.nixosSystem {
@@ -35,8 +35,8 @@
           exec ${python}/bin/python3 ${appSrc}/main.py "$@"
         '';
 
-        ctl = pkgs.writeShellScriptBin "slippios-ctl" ''
-          exec ${python}/bin/python3 ${appSrc}/ctl.py "$@"
+        cli = pkgs.writeShellScriptBin "slippios" ''
+          exec ${python}/bin/python3 ${appSrc}/cli.py "$@"
         '';
 
         shell = pkgs.writeShellScriptBin "slippios-shell" ''
