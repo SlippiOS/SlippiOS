@@ -48,6 +48,7 @@
 
       packages.${system} = {
         appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
+        slippios-go = pkgs.callPackage ./pkgs/slippios-go.nix { };
 
         session = pkgs.writeShellScriptBin "slippios-session" ''
           exec env PYTHONPATH=${appSrc}/session \

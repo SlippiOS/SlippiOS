@@ -51,6 +51,7 @@ in {
     qrencode
     networkmanager
     slippiosPackages.appimage-runner
+    slippiosPackages.slippios-go
     slippiosPackages.session
     slippiosPackages.cli
     slippiosPackages.shell

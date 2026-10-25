@@ -1,6 +1,7 @@
 [tools]
 python = "3.13"
 jq = "latest"
+go = "1.27"
 
 [settings]
 auto_install = true
@@ -35,7 +36,15 @@ run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless -
 
 [tasks.test]
 description = "Run the fast checks"
-depends = ["test:python", "test:shell"]
+depends = ["test:python", "test:shell", "go:test"]
+
+[tasks."go:build"]
+description = "Build the Go CLI spike"
+run = "cd backend && go build ./cmd/slippios"
+
+[tasks."go:test"]
+description = "Run Go tests"
+run = "cd backend && go test ./..."
 
 [tasks."nix"]
 description = "Open a Nix shell with the project's tools"
