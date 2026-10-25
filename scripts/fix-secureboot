@@ -32,15 +32,8 @@ if os_element is None:
 os_element.attrib.pop("firmware", None)
 
 firmware = os_element.find("firmware")
-if firmware is None:
-    firmware = ET.SubElement(os_element, "firmware")
-
-for name in ("secure-boot", "enrolled-keys"):
-    feature = firmware.find(f"feature[@name='{name}']")
-    if feature is None:
-        feature = ET.SubElement(firmware, "feature")
-        feature.set("name", name)
-    feature.set("enabled", "no")
+if firmware is not None:
+    os_element.remove(firmware)
 
 loader = os_element.find("loader")
 if loader is not None:
