@@ -93,6 +93,7 @@ fi
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
 echo "Display: $DISPLAY_MODE"
+echo "Network: host port 8080 is forwarded; from this PC use http://localhost:8080/<token>/"
 exec qemu-system-x86_64 \
   -machine "q35,accel=$accel" \
   -cpu "$cpu" \
@@ -102,6 +103,6 @@ exec qemu-system-x86_64 \
   -device qemu-xhci \
   -drive if=none,id=usbstick,file="$overlay",format=qcow2 \
   -device usb-storage,drive=usbstick,bootindex=0 \
-  -nic user,model=virtio-net-pci \
+  -nic user,model=virtio-net-pci,hostfwd=tcp::8080-:8080 \
   -vga std \
   -display "$DISPLAY_MODE"

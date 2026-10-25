@@ -532,6 +532,10 @@ func _local_ip() -> String:
 
 func _start_net(mode: String) -> void:
 	_stop_net()
+	var system_dir := DirAccess.open("/data/system")
+	if system_dir != null:
+		system_dir.remove("net-upload.json")
+		system_dir.remove("net-status.json")
 	var token := Crypto.new().generate_random_bytes(8).hex_encode()
 	_net_url = "http://%s:8080/%s/" % [_local_ip(), token]
 	_net_mode = mode
@@ -598,25 +602,36 @@ func _net_back() -> void:
 		_show_account()
 
 
+func _read_json_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
 func _poll_net() -> void:
 	if _net_pid == -1:
 		return
 	if not OS.is_process_running(_net_pid):
 		_net_pid = -1
 		_update_process()
+		var status := _read_json_file("/data/system/net-status.json")
 		if is_instance_valid(_net_status):
-			_net_status.text = "Network page stopped."
+			if not status.get("ok", true):
+				_net_status.text = "Network page stopped: %s" % str(status.get("error", "unknown error"))
+			else:
+				_net_status.text = "Network page stopped."
 		return
 
 	if _net_mode == "iso":
-		var result := _cli(["isos"])
-		var isos: Array = result.get("isos", [])
-		for entry in isos:
-			if entry.get("valid", false):
-				_stop_net()
-				_refresh_status()
-				_show_setup("Game image added.")
-				return
+		var marker := _read_json_file("/data/system/net-upload.json")
+		if marker.get("name", "") != "":
+			_stop_net()
+			_refresh_status()
+			_show_setup("Game image added.")
+			return
+		if is_instance_valid(_net_status):
+			_net_status.text = "Waiting for upload…"
 	else:
 		var result := _cli(["status"])
 		var login: Dictionary = result.get("login", {})

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 import html
 import json
 import os
 import socket
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,6 +16,19 @@ import auth
 import settings
 
 MAX_UPLOAD = 8 * 1024 * 1024 * 1024
+SYSTEM_DIR = settings.DATA_DIR / "system"
+STATUS_FILE = SYSTEM_DIR / "net-status.json"
+UPLOAD_MARKER = SYSTEM_DIR / "net-upload.json"
+
+
+def _write_status(ok: bool, **extra) -> None:
+    try:
+        STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = STATUS_FILE.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"ok": ok, **extra}) + "\n")
+        os.replace(temporary, STATUS_FILE)
+    except OSError:
+        pass
 
 
 def local_address() -> str:
@@ -171,14 +186,49 @@ def serve(token: str, port: int = 8080) -> None:
 
             os.replace(partial, destination)
             destination.chmod(0o444)
+            try:
+                UPLOAD_MARKER.parent.mkdir(parents=True, exist_ok=True)
+                UPLOAD_MARKER.write_text(json.dumps({
+                    "name": name,
+                    "path": str(destination),
+                    "at": int(time.time()),
+                }) + "\n")
+                UPLOAD_MARKER.chmod(0o644)
+            except OSError:
+                pass
             self._send(200, f"Added {name}. Return to the console.", "text/plain")
 
         def log_message(self, *_args) -> None:
             pass
 
-    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
-    print(json.dumps({"ok": True, "url": f"http://{local_address()}:{port}/{token}/"}), flush=True)
+    SYSTEM_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOAD_MARKER.unlink(missing_ok=True)
+
+    server = None
+    last_error: OSError | None = None
+    for attempt in range(10):
+        try:
+            server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+            break
+        except OSError as exc:
+            last_error = exc
+            if exc.errno == errno.EADDRINUSE and attempt < 9:
+                time.sleep(0.5)
+                continue
+            _write_status(False, error=str(exc))
+            raise
+
+    assert server is not None
+    url = f"http://{local_address()}:{port}/{token}/"
+    _write_status(True, url=url)
+    try:
+        print(json.dumps({"ok": True, "url": url}), flush=True)
+    except OSError:
+        pass
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.server_close()
+        _write_status(False, error="network page stopped")
