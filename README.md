@@ -1,12 +1,55 @@
 # SlippiOS
 
-A console-style NixOS appliance for Slippi Melee. The live ISO boots straight
-into a fullscreen Godot shell with no desktop environment.
+A console-style NixOS appliance for Slippi Melee. It boots straight into a
+fullscreen Godot shell and keeps games, settings, the Slippi login, Dolphin,
+and replays on a persistent data partition.
+
+## Download and flash
+
+The product artifact is `slippios-usb-<version>.img.xz` from the latest
+[GitHub release](https://github.com/SlippiOS/SlippiOS/releases/latest). Free
+GitHub Releases hosting is deliberate: no paid server, no expiring transfer
+link.
+
+```sh
+# Etcher: select the .img.xz and flash it.
+# Rufus: select the .img.xz and use DD mode.
+sudo dd if=slippios-usb-<version>.img.xz of=/dev/sdX bs=4M status=progress conv=fsync
+```
+
+Boot with UEFI. Secure Boot must be off. The image is self-contained; there is
+no installer, no partitioning step, and no scripts to run. The data partition
+grows to fill the stick on first boot.
+
+The ISO build remains available for VM testing and recovery. A plain ISO flash
+is ephemeral unless a `SLIPPIOS` partition is attached.
+
+## Disk layout
+
+```text
+GPT
+├── ESP            512M   systemd-boot + per-slot UKIs
+├── nix-store-A    1.8G   read-only squashfs system store
+├── nix-store-B    1.8G   empty until the first update
+├── root            1G    ext4: /etc, /var, /home
+└── SLIPPIOS        grow  ext4: /data
+```
+
+The system store is immutable and A/B. An update writes the inactive store and
+its matching UKI, then reboots; if the new system fails to boot three times,
+systemd-boot falls back to the previous good UKI. User data on `/data` is never
+touched by a system update.
+
+Updates use [`zsync`](https://zsync.moria.org.uk/) against the running store
+partition, so only changed blocks are downloaded. `systemd-sysupdate` installs
+the staged image and manages the slot labels and boot counting. The update
+manifest and assets live on GitHub Releases; no chunk server or paid object
+storage is required.
 
 ## Layout
 
 ```text
-hosts/        NixOS configurations (live ISO today)
+hosts/        NixOS configurations (live ISO and USB image)
 modules/      shared NixOS modules
 pkgs/         Nix package definitions
 apps/
@@ -14,7 +57,7 @@ apps/
   shell/      Godot UI
   cli/        slippios, the JSON control CLI
 assets/       controller profiles and branding
-scripts/      host tooling (build, fetch, run)
+scripts/      host tooling (fetch, flash, run)
 docs/         notes
 ```
 
@@ -27,20 +70,36 @@ Runtime pieces:
 
 ## Build
 
-Pushes to `main` build the ISO in GitHub Actions and upload it to the
-transfer.sh mirror; the download link and SHA-256 are in the run summary.
+Pushes to `main` run two GitHub Actions workflows:
+
+- **Build Image** builds `nixosConfigurations.slippios-usb`, publishes the
+  full `.img.xz`, the A/B update slot, its `.zsync`, the UKI, and
+  `manifest.json` as a GitHub release.
+- **Build ISO** builds the development/recovery ISO and uploads it to the
+  transfer.sh mirror.
 
 Local builds need Nix once:
 
 ```sh
 sh <(curl -L https://nixos.org/nix/install) --daemon
-./scripts/build-iso
+nix build .#nixosConfigurations.slippios-usb.config.system.build.image
 ```
 
-`boot.loader.timeout` is 1 second, so the ISO boots automatically; GRUB treats
+`boot.loader.timeout` is 1 second, so the image boots automatically; GRUB treats
 `0` as “wait forever”.
 
-## Deploy to libvirt
+## Test in a VM
+
+```sh
+./scripts/fetch-image
+```
+
+Downloads the newest successful USB image, verifies it, creates a 16 GB qcow2
+overlay, and boots it under OVMF (UEFI). The overlay leaves room for the data
+partition to grow, exactly as it would on a larger USB stick. `--offline`
+reuses the cache and `--no-run` only downloads.
+
+For the development ISO:
 
 ```sh
 ./scripts/fetch-iso --restart
@@ -48,26 +107,18 @@ sh <(curl -L https://nixos.org/nix/install) --daemon
 
 Downloads the newest successful ISO into `~/.cache/slippios/`, verifies its
 SHA-256, installs it to `/var/lib/libvirt/images/slippios.iso`, then cold-boots
-the domain (a warm reboot can keep the old CD image open). Use `--offline` to
-reuse a verified cached ISO, `--dry-run` to preview, and `--yes` to skip the
-prompt when the newest run has not succeeded.
-
-For a direct QEMU test without libvirt:
-
-```sh
-./scripts/run-vm /path/to/slippios.iso
-```
+the domain. Use `--offline` to reuse a verified cached ISO, `--dry-run` to
+preview, and `--yes` to skip the prompt when the newest run has not succeeded.
 
 ## Flashing a USB
 
-```sh
-./scripts/flash-usb /dev/sdX
-```
+Use the `.img.xz` from the latest release as described above. The image already
+contains the ESP, A/B system store, root, and growable `SLIPPIOS` data
+partition.
 
-This **erases the device**: it writes the newest ISO, then adds an ext4
-partition labelled `SLIPPIOS` in the remaining space. That partition becomes
-`/data` at boot, so settings, the Slippi login, ISOs, replays, and Dolphin
-survive reboots. Use `--iso PATH`, `--yes`, or `--dry-run` as needed.
+`scripts/flash-usb` remains for the development ISO: it writes the ISO and adds
+an ext4 partition labelled `SLIPPIOS` in the remaining space. That makes a live
+ISO persistent, but it is not the product image and cannot update in place.
 
 ## Data and settings
 
@@ -119,6 +170,18 @@ GameCube adapter in parallel. Linux controller profiles are seeded into
 `/data/users/default/dolphin/Config/Profiles/GCPad/` on first boot. See
 [`docs/controllers.md`](docs/controllers.md).
 
+## Updates
+
+The image is set up for in-place updates: `systemd-sysupdate` is configured to
+install a staged store image and UKI from `/data/system/update`, and the CI
+release contains the store image, its `.zsync`, the UKI, and `manifest.json`.
+The remaining on-device piece is the updater that fetches the manifest, zsyncs
+the new store image against the active slot, verifies it, and triggers
+`updatectl`. That is the next shell/CLI milestone.
+
+System updates never write to `/data`. Dolphin updates remain a separate,
+smaller runtime download under `/data/system/dolphin`.
+
 ## slippios
 
 ```sh
@@ -136,8 +199,10 @@ shell calls it and parses stdout.
 
 1. Shell polish: boot animation and richer settings screens (onboarding and
    account sign-in are implemented).
-2. Adapter helper: expose the GameCube adapter as a virtual SDL pad, then
+2. Wire the shell's update button to the zsync/sysupdate flow and add a
+   progress/reboot screen.
+3. Adapter helper: expose the GameCube adapter as a virtual SDL pad, then
    release it before Dolphin starts.
-3. Live/install boot entries in the same ISO: one entry boots the kiosk, one
-   runs the installer.
-4. Persistent USB and install-to-disk image.
+4. Wi-Fi setup in the shell.
+5. Move the flake from NixOS 25.05 to a supported release; 25.05 is past its
+   end-of-support date.

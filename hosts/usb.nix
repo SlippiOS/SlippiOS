@@ -75,17 +75,37 @@ in {
     };
   };
 
-  # Grow the data partition into the unused space on the stick. This runs
-  # from the initrd, before the root and data filesystems are mounted.
-  systemd.repart.partitions."50-data" = {
-    Type = "linux-generic";
-    Label = "SLIPPIOS";
-    Format = "ext4";
-    SizeMinBytes = "1G";
-    SizeMaxBytes = "100%";
-    GrowFileSystem = "yes";
+  # Grow the data partition into the unused space on the stick before the
+  # root is mounted. systemd-repart cannot parse a percentage as a maximum
+  # size on this systemd version, and it does not repair the GPT backup
+  # header after flashing to a larger stick. parted -f does both; resize2fs
+  # then grows the ext4 filesystem inside the last partition.
+  boot.initrd.systemd.storePaths = [
+    pkgs.coreutils
+    pkgs.e2fsprogs
+    pkgs.parted
+    pkgs.util-linux
+  ];
+  boot.initrd.systemd.services.slippios-grow-data = {
+    description = "Grow the SLIPPIOS data partition";
+    wantedBy = [ "initrd-root-fs.target" ];
+    after = [ "sysroot.mount" ];
+    before = [ "initrd-switch-root.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      set -eu
+      root=$(${pkgs.coreutils}/bin/readlink -f /dev/disk/by-partlabel/root) || exit 0
+      data=$(${pkgs.coreutils}/bin/readlink -f /dev/disk/by-partlabel/SLIPPIOS) || exit 0
+      disk=/dev/$(${pkgs.coreutils}/bin/basename "$(${pkgs.coreutils}/bin/readlink -f "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$root")/..")")
+      partnum=$(${pkgs.coreutils}/bin/cat "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$data")/partition")
+      ${pkgs.parted}/bin/parted -s -f "$disk" unit s resizepart "$partnum" 100% || true
+      ${pkgs.util-linux}/bin/partx -u "$data" || true
+      ${pkgs.e2fsprogs}/bin/resize2fs "$data" || true
+    '';
   };
-  boot.initrd.systemd.repart.enable = true;
 
   image.repart = {
     name = imageId;
