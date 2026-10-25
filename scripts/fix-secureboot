@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Disable Secure Boot on the SlippiOS libvirt domain and start it.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+DOMAIN="${SLIPPI_DOMAIN:-slippios-iso}"
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+if ! sudo virsh -c qemu:///system dominfo "$DOMAIN" >/dev/null 2>&1; then
+  echo "domain '$DOMAIN' not found" >&2
+  exit 1
+fi
+
+sudo virsh -c qemu:///system destroy "$DOMAIN" 2>/dev/null || true
+sudo virsh -c qemu:///system dumpxml "$DOMAIN" > "$tmp"
+
+python3 - "$tmp" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+xml = path.read_text()
+xml = xml.replace('<feature enabled="yes" name="enrolled-keys"/>',
+                  '<feature enabled="no" name="enrolled-keys"/>')
+xml = xml.replace('<feature enabled="yes" name="secure-boot"/>',
+                  '<feature enabled="no" name="secure-boot"/>')
+xml = xml.replace(
+    'secure="yes" type="pflash" format="qcow2">/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2',
+    'secure="no" type="pflash" format="qcow2">/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2')
+xml = xml.replace(
+    'template="/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2"',
+    'template="/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2"')
+path.write_text(xml)
+PY
+
+if grep -q 'name="secure-boot"' "$tmp"; then
+  echo "error: Secure Boot is still enabled in the generated XML" >&2
+  exit 1
+fi
+
+nvram=$(python3 - "$tmp" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+element = root.find("./os/nvram")
+print(element.text if element is not None and element.text else "")
+PY
+)
+
+if [[ -n "$nvram" ]]; then
+  sudo rm -f "$nvram"
+fi
+
+sudo virsh -c qemu:///system define "$tmp"
+sudo virsh -c qemu:///system start "$DOMAIN"
