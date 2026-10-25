@@ -10,7 +10,7 @@ let
   # Keep every published partition image below GitHub's 2 GiB per-asset
   # limit. The squashfs is compressed, so this is also enough room for a
   # substantially larger uncompressed Nix store.
-  storeSize = "1800M";
+  storeSize = "1900M";
 in {
   imports = [
     (modulesPath + "/image/repart.nix")
@@ -113,7 +113,11 @@ in {
     compression = {
       enable = true;
       algorithm = "xz";
-      level = 3;
+      # Most of the outer image is either zeros (the empty slot and the
+      # growable data partition) or an already-compressed squashfs. Level 1
+      # is dramatically faster than level 3 and still keeps the image under
+      # GitHub's 2 GiB asset limit.
+      level = 1;
     };
 
     # The default mksquashfs compression is gzip. xz with the x86 BCJ
@@ -150,7 +154,7 @@ in {
       # partition, which systemd-sysupdate fills on the first update.
       nix-store = {
         storePaths = [ config.system.build.toplevel ];
-        stripNixStorePrefix = true;
+        nixStorePrefix = "/";
         repartConfig = {
           Type = "linux-generic";
           Label = "nix-store_${version}";
@@ -252,11 +256,59 @@ in {
   # payload at an arbitrary time.
   systemd.timers.systemd-sysupdate.wantedBy = lib.mkForce [ ];
 
+  # A staged payload is installed by the updater writing
+  # /data/system/update/request. This keeps the downloader (and the shell)
+  # unprivileged; only this oneshot runs as root.
+  systemd.services.slippios-os-update = {
+    description = "Install a staged SlippiOS system update";
+    after = [ "slippi-data.service" ];
+    requires = [ "slippi-data.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      TimeoutStartSec = "30min";
+      ExecStart = pkgs.writeShellScript "slippios-os-update" ''
+        set -eu
+        export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
+        rm -f /data/system/update/request
+        mkdir -p /data/system/update
+        if ${config.systemd.package}/bin/systemd-sysupdate update; then
+          printf '{"ok":true,"phase":"installed"}\n' > /data/system/update/status.json
+          rm -f /data/system/update/slippios_*.nix-store.raw \
+                /data/system/update/slippios_*.nix-store.raw.part \
+                /data/system/update/slippios_*.efi
+        else
+          printf '{"ok":false,"phase":"failed","error":"systemd-sysupdate failed"}\n' \
+            > /data/system/update/status.json
+        fi
+        chown player:users /data/system/update/status.json || true
+      '';
+    };
+  };
+  systemd.paths.slippios-os-update = {
+    wantedBy = [ "paths.target" ];
+    after = [ "slippi-data.service" ];
+    pathConfig.PathExists = "/data/system/update/request";
+  };
+
+  systemd.services.slippios-os-reboot = {
+    description = "Restart after a SlippiOS update";
+    serviceConfig.Type = "oneshot";
+    serviceConfig.ExecStart = pkgs.writeShellScript "slippios-os-reboot" ''
+      set -eu
+      rm -f /data/system/update/reboot
+      ${config.systemd.package}/bin/systemctl reboot --no-block
+    '';
+  };
+  systemd.paths.slippios-os-reboot = {
+    wantedBy = [ "paths.target" ];
+    after = [ "slippi-data.service" ];
+    pathConfig.PathExists = "/data/system/update/reboot";
+  };
+
   # Automatic boot assessment. A newly written UKI gets three attempts;
   # systemd-bless-boot clears the counter once the boot completes, and
   # systemd-boot falls back to the previous good UKI otherwise.
   systemd.additionalUpstreamSystemUnits = [
-    "systemd-bless-boot.service"
     "systemd-boot-check-no-failures.service"
   ];
   systemd.services.systemd-boot-check-no-failures.wantedBy =

@@ -1,0 +1,32 @@
+name: Validate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "flake.nix"
+      - "flake.lock"
+      - "modules/**"
+      - "hosts/**"
+      - "pkgs/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Validate Python
+        run: python3 -m py_compile apps/session/*.py apps/cli/*.py
+
+      - name: Validate Godot shell
+        run: nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit

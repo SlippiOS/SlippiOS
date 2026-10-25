@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Build the SlippiOS USB image locally.
+#
+# Prefers a normal Nix installation. If Nix is not installed, uses
+# nix-portable with bubblewrap. The latter needs a real-disk TMPDIR because
+# the raw image is ~6 GB and /tmp is often a small tmpfs.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+BUILD_TMP="${SLIPPI_TMPDIR:-$CACHE/build-tmp}"
+OUT="${SLIPPI_RESULT:-result-local-image}"
+JOBS="${SLIPPI_JOBS:-$(( $(nproc 2>/dev/null || echo 4) > 8 ? 8 : $(nproc 2>/dev/null || echo 4) ))}"
+
+mkdir -p "$BUILD_TMP"
+export TMPDIR="$BUILD_TMP"
+
+build() {
+  local nix_cmd=("$@")
+  "${nix_cmd[@]}" build \
+    --print-build-logs \
+    --cores "$JOBS" \
+    --max-jobs 1 \
+    .#nixosConfigurations.slippios-usb.config.system.build.image \
+    -o "$OUT"
+}
+
+if command -v nix >/dev/null 2>&1; then
+  echo "Building with system Nix ($JOBS cores)..."
+  build nix
+else
+  portable="${NIX_PORTABLE:-$CACHE/nix-portable}"
+  if [[ ! -x "$portable" ]]; then
+    echo "Nix is not installed; downloading nix-portable to $portable" >&2
+    curl --fail --location --progress-bar \
+      -o "$portable" \
+      "https://github.com/DavHau/nix-portable/releases/download/v012/nix-portable-x86_64"
+    chmod +x "$portable"
+  fi
+
+  echo "Building with nix-portable/bwrap ($JOBS cores)..."
+  echo "  TMPDIR: $BUILD_TMP"
+  # systemd-repart uses an unprivileged user namespace inside the build.
+  # proot cannot nest that; bubblewrap can.
+  NP_RUNTIME=bwrap "$portable" nix build \
+    --option sandbox false \
+    --option build-dir "$BUILD_TMP" \
+    --print-build-logs \
+    --cores "$JOBS" \
+    --max-jobs 1 \
+    .#nixosConfigurations.slippios-usb.config.system.build.image \
+    -o "$OUT"
+fi
+
+echo
+# nix-portable maps the store to ~/.nix-portable but writes result
+# symlinks using the in-container /nix/store path. Rewrite them so the
+# artifacts are usable from the host.
+target=$(readlink "$OUT" 2>/dev/null || true)
+if [[ "$target" == /nix/store/* && ! -e "$target" && -d "$HOME/.nix-portable$target" ]]; then
+  ln -sfn "$HOME/.nix-portable$target" "$OUT"
+fi
+
+echo "Artifacts:"
+find -L "$OUT" -maxdepth 1 -type f -printf '  %f  %s bytes\n' | sort

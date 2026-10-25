@@ -29,8 +29,8 @@ is ephemeral unless a `SLIPPIOS` partition is attached.
 ```text
 GPT
 ├── ESP            512M   systemd-boot + per-slot UKIs
-├── nix-store-A    1.8G   read-only squashfs system store
-├── nix-store-B    1.8G   empty until the first update
+├── nix-store-A    1.9G   read-only squashfs system store
+├── nix-store-B    1.9G   empty until the first update
 ├── root            1G    ext4: /etc, /var, /home
 └── SLIPPIOS        grow  ext4: /data
 ```
@@ -46,6 +46,13 @@ the staged image and manages the slot labels and boot counting. The update
 manifest and assets live on GitHub Releases; no chunk server or paid object
 storage is required.
 
+From the console: **Update → Install system update**. The downloader runs as
+`player`, writes the verified raw store image and UKI to
+`/data/system/update`, then asks a root oneshot to install them. Reboot when
+prompted. The previous slot remains available if the new system fails.
+
+The ISO is a local development/recovery artifact only. CI does not publish it.
+
 ## Layout
 
 ```text
@@ -57,8 +64,9 @@ apps/
   shell/      Godot UI
   cli/        slippios, the JSON control CLI
 assets/       controller profiles and branding
-scripts/      host tooling (fetch, flash, run)
+scripts/      host tooling (build, fetch, flash, run)
 docs/         notes
+mise.toml     local development tasks
 ```
 
 Runtime pieces:
@@ -68,47 +76,54 @@ Runtime pieces:
 - `slippios` — state/actions consumed by the shell, human-first with
   automatic JSON when piped
 
-## Build
+## Development environment
 
-Pushes to `main` run two GitHub Actions workflows:
-
-- **Build Image** builds `nixosConfigurations.slippios-usb`, publishes the
-  full `.img.xz`, the A/B update slot, its `.zsync`, the UKI, and
-  `manifest.json` as a GitHub release.
-- **Build ISO** builds the development/recovery ISO and uploads it to the
-  transfer.sh mirror.
-
-Local builds need Nix once:
+You do not need Docker or a system-wide Nix install.
 
 ```sh
-sh <(curl -L https://nixos.org/nix/install) --daemon
-nix build .#nixosConfigurations.slippios-usb.config.system.build.image
+mise trust            # one-time, if mise asks
+mise install          # Python 3.13 and jq
+mise run build:image  # system Nix, or nix-portable downloaded automatically
+mise run run:image    # boot the local image under OVMF/QEMU
+mise run test         # Python byte-compile + headless Godot parse
 ```
 
-`boot.loader.timeout` is 1 second, so the image boots automatically; GRUB treats
-`0` as “wait forever”.
+`scripts/build-image` uses system Nix when available and otherwise downloads
+[nix-portable](https://github.com/DavHau/nix-portable). nix-portable runs under
+bubblewrap and keeps the Nix store in `~/.nix-portable`. The build needs about
+12 GB of free space for the raw image and a real-disk `TMPDIR`; the script uses
+`~/.cache/slippios/build-tmp`.
+
+The first build downloads the closure and takes a while; later builds reuse the
+local Nix store. Local builds are much faster than the 2-vCPU private CI runner.
+
+`mise run build:iso` builds the development ISO locally. It is never published.
+
+## CI and releases
+
+- **Validate** runs on pushes: Python byte-compile and a headless Godot parse.
+- **Build Image** runs on `v*`/`os-*` tags and manual dispatch only. It builds
+  `nixosConfigurations.slippios-usb`, publishes the full `.img.xz`, the A/B
+  update slot, its `.zsync`, the UKI, and `manifest.json` as a GitHub release.
+- The ISO is not built or published by CI.
 
 ## Test in a VM
 
 ```sh
-./scripts/fetch-image
+mise run fetch:image    # download the newest published release
+mise run run:image      # boot the newest local build
 ```
 
-Downloads the newest successful USB image, verifies it, creates a 16 GB qcow2
-overlay, and boots it under OVMF (UEFI). The overlay leaves room for the data
-partition to grow, exactly as it would on a larger USB stick. `--offline`
-reuses the cache and `--no-run` only downloads.
+`run-image` accepts a `.raw` or `.raw.xz`, creates a writable 16 GB qcow2
+overlay, and boots under OVMF with the image attached as a USB stick. This lets
+the `SLIPPIOS` partition grow exactly as it would on a larger USB stick.
 
 For the development ISO:
 
 ```sh
-./scripts/fetch-iso --restart
+mise run build:iso
+mise run run:iso
 ```
-
-Downloads the newest successful ISO into `~/.cache/slippios/`, verifies its
-SHA-256, installs it to `/var/lib/libvirt/images/slippios.iso`, then cold-boots
-the domain. Use `--offline` to reuse a verified cached ISO, `--dry-run` to
-preview, and `--yes` to skip the prompt when the newest run has not succeeded.
 
 ## Flashing a USB
 
@@ -172,20 +187,29 @@ GameCube adapter in parallel. Linux controller profiles are seeded into
 
 ## Updates
 
-The image is set up for in-place updates: `systemd-sysupdate` is configured to
-install a staged store image and UKI from `/data/system/update`, and the CI
-release contains the store image, its `.zsync`, the UKI, and `manifest.json`.
-The remaining on-device piece is the updater that fetches the manifest, zsyncs
-the new store image against the active slot, verifies it, and triggers
-`updatectl`. That is the next shell/CLI milestone.
+`slippios os check`, `slippios os update`, and the shell's Update screen fetch
+`manifest.json` from the latest GitHub release. The updater zsyncs the new
+store image against the active `nix-store` partition, falls back to a full
+download if needed, verifies SHA-256, downloads the matching UKI, and stages
+both in `/data/system/update`. A root oneshot then runs `systemd-sysupdate`;
+the shell offers a restart. A failed boot is rolled back by boot counting.
 
 System updates never write to `/data`. Dolphin updates remain a separate,
 smaller runtime download under `/data/system/dolphin`.
+
+For development, a private release can be served from a local HTTP server by
+writing `/data/system/update-source.json`:
+
+```json
+{ "base": "http://192.168.1.10:8000/" }
+```
 
 ## slippios
 
 ```sh
 slippios status
+slippios os check
+slippios os update
 slippios update --check
 slippios login --stdin
 slippios play
@@ -199,10 +223,9 @@ shell calls it and parses stdout.
 
 1. Shell polish: boot animation and richer settings screens (onboarding and
    account sign-in are implemented).
-2. Wire the shell's update button to the zsync/sysupdate flow and add a
-   progress/reboot screen.
+2. Measure real zsync deltas and add update progress/resume polish.
 3. Adapter helper: expose the GameCube adapter as a virtual SDL pad, then
    release it before Dolphin starts.
 4. Wi-Fi setup in the shell.
-5. Move the flake from NixOS 25.05 to a supported release; 25.05 is past its
-   end-of-support date.
+5. Optional backup/restore for migrating to a larger USB or recovering data.
+6. Move the image build to release-only CI and keep local builds fast.

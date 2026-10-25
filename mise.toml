@@ -1,0 +1,42 @@
+[tools]
+python = "3.13"
+jq = "latest"
+
+[settings]
+auto_install = true
+
+[tasks."build:image"]
+description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
+run = "./scripts/build-image"
+
+[tasks."build:iso"]
+description = "Build the development ISO locally (not published)"
+run = "./scripts/build-iso"
+
+[tasks."run:image"]
+description = "Boot the newest local USB image in QEMU/UEFI"
+run = "./scripts/run-image"
+
+[tasks."run:iso"]
+description = "Boot the newest local development ISO in QEMU"
+run = "./scripts/run-vm result/iso/*.iso"
+
+[tasks."fetch:image"]
+description = "Download and verify the newest published USB image"
+run = "./scripts/fetch-image"
+
+[tasks."test:python"]
+description = "Byte-compile the Python session and CLI"
+run = "python3 -m py_compile apps/session/*.py apps/cli/*.py"
+
+[tasks."test:shell"]
+description = "Parse the Godot project headlessly"
+run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit"
+
+[tasks.test]
+description = "Run the fast checks"
+depends = ["test:python", "test:shell"]
+
+[tasks."nix"]
+description = "Open a Nix shell with the project's tools"
+run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 nixpkgs#qemu nixpkgs#zsync nixpkgs#xz nixpkgs#jq"

@@ -8,7 +8,7 @@ let
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
   autostart = pkgs.writeText "slippios-openbox-autostart" ''
-    ${pkgs.xorg.xset}/bin/xset s off -dpms
+    ${pkgs.xset}/bin/xset s off -dpms
     ${shell}/bin/slippios-shell || \
       exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${session}/bin/slippios-session
   '';
@@ -34,11 +34,13 @@ in {
   services.xserver = {
     enable = true;
     windowManager.openbox.enable = true;
-    displayManager = {
-      autoLogin.enable = true;
-      autoLogin.user = "player";
-      defaultSession = "none+openbox";
-    };
+  };
+
+  # Renamed from services.xserver.displayManager in NixOS 25.11+.
+  services.displayManager = {
+    autoLogin.enable = true;
+    autoLogin.user = "player";
+    defaultSession = "none+openbox";
   };
 
   environment.systemPackages = with pkgs; [
@@ -52,8 +54,8 @@ in {
     slippiosPackages.cli
     slippiosPackages.shell
     xterm
-    xorg.xrandr
-    xorg.xset
+    xrandr
+    xset
   ];
 
   environment.etc."slippios/README".text = ''

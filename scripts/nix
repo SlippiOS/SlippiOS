@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run Nix, falling back to nix-portable when Nix is not installed.
+set -euo pipefail
+
+if command -v nix >/dev/null 2>&1; then
+  exec nix "$@"
+fi
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+PORTABLE="${NIX_PORTABLE:-$CACHE/nix-portable}"
+mkdir -p "$CACHE"
+
+if [[ ! -x "$PORTABLE" ]]; then
+  echo "Nix is not installed; downloading nix-portable to $PORTABLE" >&2
+  command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+  curl --fail --location --progress-bar \
+    -o "$PORTABLE" \
+    "https://github.com/DavHau/nix-portable/releases/download/v012/nix-portable-x86_64"
+  chmod +x "$PORTABLE"
+fi
+
+# systemd-repart and some test derivations need nested user namespaces.
+# proot cannot provide those; bubblewrap can.
+exec env NP_RUNTIME=bwrap "$PORTABLE" nix --option sandbox false "$@"

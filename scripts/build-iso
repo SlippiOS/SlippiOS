@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# Build the SlippiOS ISO locally. Requires Nix with flakes enabled.
+# Build the development ISO locally. The ISO is not published by CI.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-nix build .#nixosConfigurations.slippios-live.config.system.build.isoImage
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+BUILD_TMP="${SLIPPI_TMPDIR:-$CACHE/build-tmp}"
+mkdir -p "$BUILD_TMP"
+export TMPDIR="$BUILD_TMP"
+
+./scripts/nix build \
+  --print-build-logs \
+  --cores "$(nproc 2>/dev/null || echo 4)" \
+  .#nixosConfigurations.slippios-live.config.system.build.isoImage
 
 ls -lh result/iso/*.iso

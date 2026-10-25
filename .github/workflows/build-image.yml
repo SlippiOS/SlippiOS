@@ -3,7 +3,9 @@ name: Build Image
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    tags:
+      - "v*"
+      - "os-*"
 
 jobs:
   image:
@@ -33,7 +35,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Validate shell project
-        run: nix shell nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
+        run: nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
 
       - name: Measure system closure
         run: |
@@ -99,33 +101,6 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload image for testing
-        id: upload
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
-            ! -name '*.nix-store.raw.xz' -print -quit)
-          name="slippios-usb-${GITHUB_SHA::7}.raw.xz"
-          url=$(curl --fail --silent --show-error --retry 3 --retry-delay 5 \
-                 --max-time 3600 --upload-file "$image" \
-                 "https://transfer.archivete.am/$name")
-          test -n "$url"
-          sha=$(sha256sum "$image" | cut -d' ' -f1)
-          size=$(du -h "$image" | cut -f1)
-          {
-            echo ""
-            echo "### Download"
-            echo ""
-            echo "- Size: $size"
-            echo "- SHA-256: \`$sha\`"
-            echo "- Image: [$name]($url)"
-            echo ""
-            echo "Links expire; releases will be the permanent host."
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "IMAGE_SHA256: $sha"
-          echo "Image-Download: $url"
-
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -138,7 +113,11 @@ jobs:
           uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
 
           version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
-          tag="os-${version}-${GITHUB_RUN_ID}"
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="os-${version}-${GITHUB_RUN_ID}"
+          fi
 
           raw_name=$(basename "$raw")
           uki_name=$(basename "$uki")
@@ -198,6 +177,7 @@ jobs:
 
           gh release create "$tag" \
             --draft \
+            --target "$GITHUB_SHA" \
             --title "SlippiOS ${version}" \
             --notes "SlippiOS USB image ${version}.
 

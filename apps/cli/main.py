@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import auth
+import osupdate
 import settings as settings_lib
 import update
 
@@ -123,6 +124,29 @@ def cmd_update(args) -> dict:
 
     return {"ok": True, "check": False,
             "current": update.current_tag(), "path": str(path)}
+
+
+def cmd_os(args) -> dict:
+    try:
+        if args.action == "check":
+            result = osupdate.check()
+            return {
+                "ok": True,
+                "current": result["current"],
+                "latest": result["latest"],
+                "update_available": result["update_available"],
+            }
+        if args.action == "status":
+            return osupdate.status()
+        if args.action == "update":
+            return osupdate.stage(
+                log=lambda message: print(message, file=sys.stderr)
+            )
+        if args.action == "reboot":
+            return osupdate.request_reboot()
+    except osupdate.OSUpdateError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": False, "error": "unknown os action"}
 
 
 def cmd_play(args) -> dict:
@@ -248,6 +272,33 @@ def human_update(payload: dict) -> None:
         print(f"Path:      {payload.get('path')}")
 
 
+def human_os(payload: dict) -> None:
+    if "phase" not in payload and "update_available" in payload:
+        print(f"Current:   {payload.get('current')}")
+        print(f"Latest:    {payload.get('latest') or 'unknown'}")
+        print("Update:    available" if payload.get("update_available")
+              else "Update:    up to date")
+        return
+    phase = payload.get("phase", "idle")
+    if phase == "downloading":
+        done = int(payload.get("done") or 0)
+        total = int(payload.get("total") or 0)
+        if total:
+            print(f"Download:  {done * 100 // total}% ({done >> 20} / {total >> 20} MB)")
+        else:
+            print("Download:  in progress")
+    elif phase == "installing":
+        print("Installing system update…")
+    elif phase == "installed":
+        print("Installed. Restart to boot the new system.")
+    elif phase == "failed":
+        print("System update failed.")
+    else:
+        print(f"System:    {payload.get('current')}")
+        if payload.get("latest"):
+            print(f"Latest:    {payload.get('latest')}")
+
+
 def human_login(payload: dict) -> None:
     name = payload.get("display_name") or "player"
     print(f"Signed in as {name} ({payload.get('connect_code')})")
@@ -314,6 +365,14 @@ def build_parser() -> argparse.ArgumentParser:
                             help="check or apply a Dolphin update")
     update.add_argument("--check", action="store_true")
 
+    os_parser = sub.add_parser("os", parents=[common],
+                               help="check, install, or reboot a system update")
+    os_sub = os_parser.add_subparsers(dest="action", required=True)
+    os_sub.add_parser("check", parents=[common])
+    os_sub.add_parser("status", parents=[common])
+    os_sub.add_parser("update", parents=[common])
+    os_sub.add_parser("reboot", parents=[common])
+
     play = sub.add_parser("play", parents=[common],
                           help="launch Dolphin with the configured game")
     play.add_argument("--require-login", action="store_true")
@@ -346,6 +405,7 @@ def main() -> int:
         "status": cmd_status,
         "login": cmd_login,
         "update": cmd_update,
+        "os": cmd_os,
         "play": cmd_play,
         "adapter": cmd_adapter,
         "isos": cmd_isos,
@@ -356,6 +416,7 @@ def main() -> int:
         "status": human_status,
         "login": human_login,
         "update": human_update,
+        "os": human_os,
         "play": human_play,
         "adapter": human_adapter,
         "isos": human_isos,

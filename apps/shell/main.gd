@@ -22,6 +22,10 @@ var _net_mode := ""
 var _net_url := ""
 var _net_timer := 0.0
 var _net_status: Label
+var _os_pid := -1
+var _os_waiting := false
+var _os_timer := 0.0
+var _os_status: Label
 
 
 func _ready() -> void:
@@ -364,14 +368,121 @@ func _show_update() -> void:
 	_screen = "update"
 	_clear()
 	_title = _add_title("UPDATE", 44)
-	var result := _cli(["update", "--check"])
-	if result.get("ok", false):
-		_add_label("Current: %s" % str(result.get("current") or "not installed"), 0.8)
-		_add_label("Latest: %s" % str(result.get("latest")), 0.8)
+
+	var os_check := _cli(["os", "check"])
+	var os_status := _cli(["os", "status"])
+	var dolphin := _cli(["update", "--check"])
+
+	if os_check.get("ok", false):
+		var current := str(os_check.get("current") or "unknown")
+		var latest := str(os_check.get("latest") or "unknown")
+		_add_label("System: %s" % current, 0.8)
+		if os_check.get("update_available", false):
+			_add_label("Available: %s" % latest, 0.8)
+			_add_button("Install system update", _start_os_update)
+		else:
+			_add_label("System is up to date.", 0.65)
+	elif os_status.get("phase") == "failed":
+		_add_label("Last system update failed.", 0.9)
 	else:
-		_add_label(str(result.get("error", "Update check failed.")), 0.9)
+		_add_label(str(os_check.get("error", "System update check failed.")), 0.9)
+
+	if os_status.get("phase") == "installed":
+		_add_button("Restart to finish update", _request_reboot)
+
+	if dolphin.get("ok", false):
+		_add_label("Dolphin: %s" % str(dolphin.get("current") or "not installed"), 0.65)
+		if dolphin.get("current") != dolphin.get("latest"):
+			_add_label("Latest Dolphin: %s" % str(dolphin.get("latest")), 0.65)
+	else:
+		_add_label(str(dolphin.get("error", "Dolphin update check failed.")), 0.8)
+
 	_add_button("Back", _show_menu)
 	_focus_first()
+
+
+func _start_os_update() -> void:
+	if _os_pid != -1 or _os_waiting:
+		return
+	_screen = "os-update"
+	_clear()
+	_title = _add_title("UPDATING SYSTEM", 44)
+	_add_label("Downloading the system update. This can take a while.", 0.7)
+	_os_status = _add_label("Starting…", 0.8)
+	_os_pid = OS.create_process("slippios", PackedStringArray(["os", "update"]))
+	_os_waiting = true
+	_os_timer = 0.0
+	_update_process()
+
+
+func _poll_os_update() -> void:
+	var result := _cli(["os", "status"])
+	if not result.get("ok", false):
+		if is_instance_valid(_os_status):
+			_os_status.text = str(result.get("error", "Update status unavailable."))
+		return
+
+	var phase := str(result.get("phase", "idle"))
+	var done := int(result.get("done", 0))
+	var total := int(result.get("total", 0))
+	if phase == "downloading":
+		var text := "Downloading"
+		if total > 0:
+			text += " %d%%" % (done * 100 / total)
+		if is_instance_valid(_os_status):
+			_os_status.text = text + "…"
+	elif phase == "installing":
+		if is_instance_valid(_os_status):
+			_os_status.text = "Installing to the inactive system slot…"
+	elif phase == "installed":
+		_os_waiting = false
+		_os_pid = -1
+		_update_process()
+		_show_os_result()
+		return
+	elif phase == "failed":
+		_os_waiting = false
+		_os_pid = -1
+		_update_process()
+		_clear()
+		_title = _add_title("UPDATE FAILED", 44)
+		_add_label(str(result.get("error", "The system update could not be installed.")), 0.9)
+		_add_button("Back", _show_update)
+		_focus_first()
+		return
+
+	if _os_pid != -1 and not OS.is_process_running(_os_pid):
+		_os_pid = -1
+
+	if _os_pid == -1 and phase == "idle" and _os_waiting:
+		# The staging command finished without finding a newer version.
+		_os_waiting = false
+		_update_process()
+		_show_update()
+
+
+func _show_os_result() -> void:
+	_screen = "os-update"
+	_clear()
+	_title = _add_title("UPDATE INSTALLED", 44)
+	_add_label("Restart to boot the new system. The previous system is kept for rollback.", 0.75)
+	_add_button("Restart now", _request_reboot)
+	_add_button("Later", _show_menu)
+	_focus_first()
+
+
+func _request_reboot() -> void:
+	var result := _cli(["os", "reboot"])
+	if not result.get("ok", false):
+		_clear()
+		_title = _add_title("RESTART FAILED", 44)
+		_add_label(str(result.get("error", "Could not request a restart.")), 0.9)
+		_add_button("Back", _show_update)
+		_focus_first()
+		return
+	_clear()
+	_title = _add_title("RESTARTING", 44)
+	_add_label("The console will reboot into the new system.", 0.75)
 
 
 func _on_play() -> void:
@@ -395,6 +506,12 @@ func _process(delta: float) -> void:
 			_net_timer = 0.0
 			_poll_net()
 
+	if _os_pid != -1 or _os_waiting:
+		_os_timer += delta
+		if _os_timer >= 1.0:
+			_os_timer = 0.0
+			_poll_os_update()
+
 	if _play_pid != -1 and not OS.is_process_running(_play_pid):
 		_play_pid = -1
 		_busy = false
@@ -403,7 +520,7 @@ func _process(delta: float) -> void:
 
 
 func _update_process() -> void:
-	set_process(_play_pid != -1 or _net_pid != -1)
+	set_process(_play_pid != -1 or _net_pid != -1 or _os_pid != -1 or _os_waiting)
 
 
 func _local_ip() -> String:
