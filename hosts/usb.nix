@@ -151,7 +151,7 @@ in {
         SplitName = "-";
       };
 
-      data.repartConfig = {
+      z-data.repartConfig = {
         Type = "linux-generic";
         Format = "ext4";
         Label = "SLIPPIOS";
