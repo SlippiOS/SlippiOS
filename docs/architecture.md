@@ -80,6 +80,7 @@ blocks require it. Hosting is free GitHub Releases, limited to 2 GiB per asset.
 ├── system/
 │   ├── dolphin/            runtime Dolphin builds
 │   ├── hardware-id
+│   ├── setup.json          first-boot phone wizard state
 │   └── update/             staging, status, request files
 └── users/default/
     ├── settings.toml
@@ -95,6 +96,7 @@ The profile layout is multi-user ready; the shell currently uses `default`.
 
 - `slippios-shell` — Godot kiosk UI; reads controllers through SDL3 and exits
   before Dolphin claims the GameCube adapter.
+- `slippios net --mode setup` — first-boot phone wizard for game and account.
 - `slippios-session` — terminal fallback/session launch.
 - `slippios` — Go CLI; human output on a TTY, JSON when piped.
 - `slippios-os-update.service` — root installer for staged updates.

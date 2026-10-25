@@ -238,6 +238,159 @@ func TestUploadLengthErrors(t *testing.T) {
 	}
 }
 
+func TestSetupFlow(t *testing.T) {
+	paths := settings.PathsFor(t.TempDir())
+	if err := os.MkdirAll(paths.ISODir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	isoPath := filepath.Join(paths.ISODir, "melee.iso")
+	if err := os.WriteFile(isoPath, append([]byte("GALE01"), make([]byte, 64)...), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	server := New("abc123", 0, paths)
+	server.Mode = "setup"
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+
+	response, err := http.Get(httpServer.URL + "/abc123/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if !strings.Contains(string(body), "Add your game") ||
+		!strings.Contains(string(body), "melee.iso") {
+		t.Fatalf("game step = %s", body)
+	}
+
+	response, err = client.PostForm(httpServer.URL+"/abc123/select", url.Values{
+		"path": {isoPath},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusSeeOther {
+		t.Fatalf("select status = %d", response.StatusCode)
+	}
+	if values, err := paths.Load(); err != nil || values["game"].(map[string]any)["iso"] != "melee.iso" {
+		t.Fatalf("settings = %#v, %v", values, err)
+	}
+	state := readSetupFile(server.Setup)
+	if !state.GameReady || state.AccountReady || state.Done {
+		t.Fatalf("state after game = %#v", state)
+	}
+
+	response, err = http.Get(httpServer.URL + "/abc123/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(response.Body)
+	response.Body.Close()
+	if !strings.Contains(string(body), "Sign in to Slippi") ||
+		!strings.Contains(string(body), "Skip for offline play") {
+		t.Fatalf("account step = %s", body)
+	}
+
+	response, err = client.PostForm(httpServer.URL+"/abc123/skip", url.Values{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusSeeOther {
+		t.Fatalf("skip status = %d", response.StatusCode)
+	}
+	state = readSetupFile(server.Setup)
+	if !state.Done || state.Account != "offline" {
+		t.Fatalf("state after skip = %#v", state)
+	}
+
+	response, err = http.Get(httpServer.URL + "/abc123/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(response.Body)
+	response.Body.Close()
+	if !strings.Contains(string(body), "Melee is starting on your TV") {
+		t.Fatalf("done step = %s", body)
+	}
+}
+
+func TestSetupUploadAndLogin(t *testing.T) {
+	server := New("abc123", 0, settings.PathsFor(t.TempDir()))
+	server.Mode = "setup"
+	server.Login = func(email, password string) (auth.User, error) {
+		return auth.User{
+			UID: "u", DisplayName: "Player One", ConnectCode: "PLR#1", PlayKey: "key",
+		}, nil
+	}
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+
+	image := append([]byte("GALE01"), make([]byte, 128)...)
+	response, err := http.Post(
+		httpServer.URL+"/abc123/iso?name=melee.iso",
+		"application/octet-stream", bytes.NewReader(image),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", response.StatusCode, body)
+	}
+	state := readSetupFile(server.Setup)
+	if !state.GameReady || state.AccountReady {
+		t.Fatalf("state after upload = %#v", state)
+	}
+
+	response, err = client.PostForm(httpServer.URL+"/abc123/auth", url.Values{
+		"email": {"player@example.com"}, "password": {"secret"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusSeeOther {
+		t.Fatalf("auth status = %d", response.StatusCode)
+	}
+	state = readSetupFile(server.Setup)
+	if !state.Done || state.Account != "PLR#1" {
+		t.Fatalf("state after auth = %#v", state)
+	}
+	if _, err := os.Stat(server.Paths.DolphinUserFile); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetupRejectsUnknownGame(t *testing.T) {
+	server := New("abc123", 0, settings.PathsFor(t.TempDir()))
+	server.Mode = "setup"
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+
+	response, err := http.PostForm(httpServer.URL+"/abc123/select", url.Values{
+		"path": {"/etc/passwd"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if state := readSetupFile(server.Setup); state.GameReady {
+		t.Fatalf("state = %#v", state)
+	}
+}
+
 func TestStartPublishesStatus(t *testing.T) {
 	server := New("abc123", 0, settings.PathsFor(t.TempDir()))
 	url, err := server.Start()

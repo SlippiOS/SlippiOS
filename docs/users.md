@@ -25,9 +25,15 @@ Use the whole device, not a partition. This erases the USB.
 ## First boot
 
 1. Boot from the USB in UEFI mode.
-2. Wait for Setup. The data partition grows to fill the stick.
-3. Add a Melee ISO.
-4. Sign in to Slippi, or skip for offline play.
+2. Wait for the setup QR. The data partition grows to fill the stick.
+3. Scan the QR with a phone or open the shown address.
+4. **Step 1 — Game:** upload a Melee 1.02 ISO, or pick one already on the stick.
+5. **Step 2 — Account:** sign in to Slippi, or choose **Skip for offline play**.
+6. The console starts Melee automatically. Keep the phone on the same network
+   until the page says setup is complete.
+
+The setup page is a two-step wizard. You do not need to choose anything on the
+TV during first boot.
 
 ## Connect Wi-Fi
 
@@ -40,24 +46,19 @@ The console uses NetworkManager. Ethernet works automatically.
 
 ## Add a Melee ISO
 
-### Network
+On first boot, the setup wizard handles this on your phone. You can also put an
+ISO on the stick directly:
 
-1. **Setup → Add game over network**.
-2. Open the shown URL/QR on a phone or computer on the same network.
-3. Select the ISO and upload.
+1. Mount the ext4 partition labelled `SLIPPIOS`.
+2. Copy the ISO into `isos/`.
+3. Reboot without a valid game image, or open setup again.
 
-The console checks the GameCube ID and returns to Setup when the upload is
-complete.
-
-### Linux PC
-
-Mount the ext4 partition labelled `SLIPPIOS`, copy the ISO into `isos/`, then
-press **Rescan**. Windows and macOS cannot read ext4 without extra drivers.
+Windows and macOS cannot read ext4 without extra drivers.
 
 ## Sign in
 
-- **Console:** enter the email and password on screen.
-- **Phone:** choose **Sign in on phone**, scan the QR, and enter them there.
+First boot signs you in on the phone setup page. Later, use **Account → Sign in**
+on the console or **Sign in on phone**.
 
 Passwords are not stored. `slippi-user.json` is an auth token, readable only by
 the appliance user, and bound to the current PC. Moving the USB to another PC
@@ -106,15 +107,14 @@ yet.
 ## Troubleshooting
 
 **“Network page stopped”** — the local page exited. The console shows the
-reason. Press **Back** and reopen **Add game over network**. Only one page can
-run at a time.
+reason. Press **Restart setup page**. Only one page can run at a time.
 
 **Phone page does not load** — phone and console must be on the same network.
 Disable VPN/client isolation. In the QEMU VM, use
 `http://localhost:8080/<token>/` from the host.
 
 **No game image** — the file must be a Melee 1.02 `.iso` with ID `GALE01`,
-`GALJ01`, or `GALP01`. Press **Rescan** after copying.
+`GALJ01`, or `GALP01`. Copy it into `isos/` and press **Restart setup page**.
 
 **Nothing persists** — use the USB `.img.xz` release, not the development ISO.
 

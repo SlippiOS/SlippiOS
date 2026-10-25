@@ -17,7 +17,6 @@ var _auth_stage := ""
 var _auth_email := ""
 var _auth_field := ""
 var _auth_label: Label
-var _auth_origin := "setup"
 var _input_mode := "auth"
 var _wifi_ssid := ""
 var _net_pid := -1
@@ -86,6 +85,13 @@ func _add_label(text: String, alpha: float = 0.65) -> Label:
 	label.modulate = Color(1, 1, 1, alpha)
 	_content.add_child(label)
 	return label
+
+
+func _text(value: Variant, fallback: String) -> String:
+	if value == null:
+		return fallback
+	var text := str(value)
+	return fallback if text == "" else text
 
 
 func _add_button(text: String, callback: Callable, height: int = 50) -> Button:
@@ -160,7 +166,7 @@ func _status_text() -> String:
 	var dolphin: Dictionary = _status.get("dolphin", {})
 	var game: String = "ready" if settings.get("iso_valid", false) else str(settings.get("iso_reason", "not configured"))
 	var account: String = "signed in" if login.get("signed_in", false) else "not signed in"
-	var version: String = str(dolphin.get("current") or "not installed")
+	var version: String = _text(dolphin.get("current"), "not installed")
 	return "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
 
 
@@ -193,55 +199,7 @@ func _show_menu() -> void:
 
 
 func _show_setup(message: String = "") -> void:
-	_stop_net()
-	_screen = "setup"
-	_clear()
-	_title = _add_title("SETUP", 48)
-	_add_label("Choose your Melee image (NTSC 1.02).", 0.7)
-	if message != "":
-		_add_label(message, 0.9)
-
-	var result := _cli(["isos"])
-	var found := false
-	var isos: Array = result.get("isos", [])
-	for entry in isos:
-		if entry.get("valid", false):
-			found = true
-			var path: String = str(entry.get("path", ""))
-			var name: String = str(entry.get("name", path))
-			_add_button(name, _select_iso.bind(path))
-
-	if not found:
-		_add_label("Put an ISO in /data/isos, then press Rescan.", 0.7)
-
-	_add_button("Add game over network", _start_net.bind("iso"))
-	_add_button("Rescan", _show_setup.bind(""))
-	_add_button("Back", _show_menu)
-	_focus_first()
-
-
-func _select_iso(path: String) -> void:
-	var result := _cli(["settings", "set", "game.iso", path])
-	if result.get("ok", false):
-		_refresh_status()
-		_show_login_setup()
-	else:
-		_show_setup(str(result.get("error", "could not save the game image")))
-
-
-func _show_login_setup(message: String = "") -> void:
-	_stop_net()
-	_screen = "login-setup"
-	_clear()
-	_title = _add_title("SLIPPI ACCOUNT", 44)
-	_add_label("Sign in to play online, or skip for offline play.", 0.7)
-	if message != "":
-		_add_label(message, 0.9)
-	_add_button("Sign in", _start_login.bind("setup"))
-	_add_button("Sign in on phone", _start_net.bind("login"))
-	_add_button("Skip", _show_menu)
-	_add_button("Back", _show_setup.bind(""))
-	_focus_first()
+	_start_net("setup", message)
 
 
 func _show_account() -> void:
@@ -254,14 +212,13 @@ func _show_account() -> void:
 		_add_label("Signed in: %s" % str(login.get("detail", "unknown")), 0.9)
 	else:
 		_add_label("Not signed in.", 0.8)
-		_add_button("Sign in", _start_login.bind("account"))
+		_add_button("Sign in", _start_login)
 		_add_button("Sign in on phone", _start_net.bind("login"))
 	_add_button("Back", _show_menu)
 	_focus_first()
 
 
-func _start_login(origin: String = "setup") -> void:
-	_auth_origin = origin
+func _start_login() -> void:
 	_auth_email = ""
 	_show_auth_field("email", "")
 
@@ -392,7 +349,7 @@ func _show_settings() -> void:
 	_add_label("Refresh: %s Hz" % str(display.get("refresh_hz", "auto")), 0.8)
 	_add_label("Resolution: %s" % str(display.get("resolution", "auto")), 0.8)
 	_add_label("Audio: %s" % str(audio.get("sink", "auto")), 0.8)
-	_add_label("Network: %s" % str(network.get("ssid") or "(none)"), 0.8)
+	_add_label("Network: %s" % _text(network.get("ssid"), "(none)"), 0.8)
 	_add_button("Wi-Fi network", _show_wifi)
 	_add_button("Back", _show_menu)
 	_focus_first()
@@ -482,8 +439,8 @@ func _show_update() -> void:
 	var dolphin := _cli(["update", "--check"])
 
 	if os_check.get("ok", false):
-		var current := str(os_check.get("current") or "unknown")
-		var latest := str(os_check.get("latest") or "unknown")
+		var current := _text(os_check.get("current"), "unknown")
+		var latest := _text(os_check.get("latest"), "unknown")
 		_add_label("System: %s" % current, 0.8)
 		if os_check.get("update_available", false):
 			_add_label("Available: %s" % latest, 0.8)
@@ -499,7 +456,7 @@ func _show_update() -> void:
 		_add_button("Restart to finish update", _request_reboot)
 
 	if dolphin.get("ok", false):
-		_add_label("Dolphin: %s" % str(dolphin.get("current") or "not installed"), 0.65)
+		_add_label("Dolphin: %s" % _text(dolphin.get("current"), "not installed"), 0.65)
 		if dolphin.get("current") != dolphin.get("latest"):
 			_add_label("Latest Dolphin: %s" % str(dolphin.get("latest")), 0.65)
 	else:
@@ -649,7 +606,7 @@ func _local_ip() -> String:
 	return "127.0.0.1"
 
 
-func _start_net(mode: String) -> void:
+func _start_net(mode: String, message: String = "") -> void:
 	_stop_net()
 	var system_dir := DirAccess.open("/data/system")
 	if system_dir != null:
@@ -660,10 +617,10 @@ func _start_net(mode: String) -> void:
 	_net_mode = mode
 	_net_timer = 0.0
 	_net_pid = OS.create_process("slippios", PackedStringArray([
-		"net", "--token", token, "--port", "8080",
+		"net", "--token", token, "--port", "8080", "--mode", mode,
 	]))
 	_update_process()
-	_show_net_screen(mode)
+	_show_net_screen(mode, message)
 
 
 func _stop_net() -> void:
@@ -673,11 +630,14 @@ func _stop_net() -> void:
 	_update_process()
 
 
-func _show_net_screen(mode: String) -> void:
+func _show_net_screen(mode: String, message: String = "") -> void:
 	_screen = "net"
 	_net_mode = mode
 	_clear()
-	if mode == "iso":
+	if mode == "setup":
+		_title = _add_title("SET UP ON YOUR PHONE", 40)
+		_add_label("Scan this code and follow two steps: game, then account.", 0.75)
+	elif mode == "iso":
 		_title = _add_title("ADD A GAME", 44)
 		_add_label("Open this address on a phone or computer:", 0.8)
 	else:
@@ -688,9 +648,14 @@ func _show_net_screen(mode: String) -> void:
 	var qr := _make_qr(_net_url)
 	if qr != null:
 		_content.add_child(qr)
-	_add_label("Upload a Melee ISO." if mode == "iso" else "Enter your Slippi email and password.", 0.7)
-	_net_status = _add_label("Waiting…", 0.7)
-	_add_button("Back", _net_back)
+	if mode == "setup":
+		_add_label("Step 1: add Melee. Step 2: sign in or skip.", 0.65)
+		_net_status = _add_label(message if message != "" else "Waiting for setup…", 0.75)
+		_add_button("Restart setup page", _show_setup)
+	else:
+		_add_label("Upload a Melee ISO." if mode == "iso" else "Enter your Slippi email and password.", 0.7)
+		_net_status = _add_label("Waiting…", 0.7)
+		_add_button("Back", _net_back)
 	_focus_first()
 
 
@@ -715,10 +680,12 @@ func _make_qr(url: String) -> TextureRect:
 func _net_back() -> void:
 	var mode := _net_mode
 	_stop_net()
-	if mode == "iso":
-		_show_setup()
-	else:
+	if mode == "login":
 		_show_account()
+	elif mode == "setup":
+		_show_menu()
+	else:
+		_show_setup()
 
 
 func _read_json_file(path: String) -> Dictionary:
@@ -740,6 +707,28 @@ func _poll_net() -> void:
 				_net_status.text = "Network page stopped: %s" % str(status.get("error", "unknown error"))
 			else:
 				_net_status.text = "Network page stopped."
+		return
+
+	if _net_mode == "setup":
+		var setup := _read_json_file("/data/system/setup.json")
+		if setup.get("done", false):
+			_stop_net()
+			_refresh_status()
+			if _needs_setup():
+				_show_setup("Setup finished, but the console profile is incomplete.")
+				return
+			_launch_game()
+			return
+		if is_instance_valid(_net_status):
+			var problem := str(setup.get("error", ""))
+			if problem != "":
+				_net_status.text = problem
+			elif not setup.get("game_ready", false):
+				_net_status.text = "Waiting for a game image…"
+			elif not setup.get("account_ready", false):
+				_net_status.text = "Game added. Finish sign-in or skip on your phone."
+			else:
+				_net_status.text = "Finishing setup…"
 		return
 
 	if _net_mode == "iso":
@@ -765,10 +754,7 @@ func _poll_net() -> void:
 
 func _back_from_auth() -> void:
 	_stop_net()
-	if _auth_origin == "account":
-		_show_account()
-	else:
-		_show_login_setup()
+	_show_account()
 
 
 func _unhandled_input(event: InputEvent) -> void:

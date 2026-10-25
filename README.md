@@ -15,7 +15,7 @@ Requirements: 16 GB USB, UEFI boot, Secure Boot off.
    [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
 2. Flash with Etcher, Rufus (DD mode), or `dd`.
 3. Boot the stick.
-4. In Setup, add a Melee 1.02 ISO and sign in to Slippi.
+4. Scan the setup QR with a phone, add a Melee 1.02 ISO, then sign in or skip.
 
 Updates: **Update → Install system update → Restart**. Games, settings, login,
 Dolphin, and replays are preserved.

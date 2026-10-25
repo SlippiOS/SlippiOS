@@ -363,13 +363,20 @@ func netCommand(args []string) {
 	flags.SetOutput(io.Discard)
 	token := flags.String("token", "", "URL token")
 	port := flags.Int("port", 8080, "listen port")
+	mode := flags.String("mode", "setup", "setup, iso, or login")
 	if err := flags.Parse(args); err != nil {
 		fail(err.Error())
 	}
 	if *token == "" {
 		fail("--token is required")
 	}
+	switch *mode {
+	case "setup", "iso", "login":
+	default:
+		fail("unknown net mode: " + *mode)
+	}
 	server := netpages.New(*token, *port, settings.DefaultPaths())
+	server.Mode = *mode
 	url, err := server.Start()
 	if err != nil {
 		fail(err.Error())

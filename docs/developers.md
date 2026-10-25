@@ -170,12 +170,19 @@ Range requests for zsync.
 
 ## Network pages
 
+The first-boot setup page is a two-step wizard served by `slippios net --mode
+setup`: game image, then Slippi account or offline. The shell shows only the QR
+and progress; the phone writes the normal `settings.toml` and login files.
+
 The shell reads:
 
 - `/data/system/net-status.json` — server URL or startup error.
-- `/data/system/net-upload.json` — written after a complete validated ISO.
+- `/data/system/setup.json` — `game_ready`, `account_ready`, `done`, and error.
+- `/data/system/net-upload.json` — written after a validated upload.
 
-Port 8080 is retried for five seconds.
+When `setup.json` reports `done`, the shell stops the server and launches Melee.
+Port 8080 is retried for five seconds. `--mode iso` and `--mode login` remain for
+the older single-purpose pages used by tests/account flows.
 
 ## Debugging
 
