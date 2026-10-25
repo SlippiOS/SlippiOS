@@ -8,10 +8,11 @@ DEST="${SLIPPI_IMAGE:-/var/lib/libvirt/images/slippios.iso}"
 RESTART=0
 ASSUME_YES=0
 DRY_RUN=0
+OFFLINE=0
 
 usage() {
   cat <<'USAGE'
-usage: scripts/sync-iso [--restart] [--yes] [--dry-run] [--domain NAME] [--dest PATH]
+usage: scripts/sync-iso [--restart] [--yes] [--offline] [--dry-run] [--domain NAME] [--dest PATH]
 
 Downloads the ISO from the newest successful "Build ISO" run, verifies its
 SHA-256, and installs it at the libvirt image path. With --restart it also
@@ -24,6 +25,7 @@ while [[ $# -gt 0 ]]; do
     --restart) RESTART=1 ;;
     -y|--yes) ASSUME_YES=1 ;;
     --dry-run) DRY_RUN=1 ;;
+    --offline) OFFLINE=1 ;;
     --domain) DOMAIN="${2:?missing domain}"; shift ;;
     --dest) DEST="${2:?missing destination}"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -110,27 +112,46 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
 mkdir -p "$cache"
 partial="$cache/$(basename "$url")"
 
-avail_kb=$(df -Pk "$cache" | awk 'NR == 2 { print $4 }')
-if (( avail_kb < 3500000 )); then
-  echo "not enough space in $cache (need ~3.5 GB, have $((avail_kb / 1024)) MB)" >&2
-  exit 1
-fi
-
 echo "URL:    $url"
 echo "Cache:  $partial"
-if ! curl --fail --location --progress-bar --continue-at - -o "$partial" "$url"; then
-  echo "download failed; partial file kept for resume: $partial" >&2
-  exit 1
+
+cached_ok=0
+if [[ -f "$partial" && -n "${hash:-}" ]] && \
+   echo "$hash  $partial" | sha256sum --check - >/dev/null 2>&1; then
+  cached_ok=1
+  echo "Using cached ISO."
 fi
 
-if [[ -n "${hash:-}" ]]; then
-  echo "$hash  $partial" | sha256sum --check -
-else
-  echo "warning: no SHA-256 in the run log; skipping verification" >&2
+if [[ "$cached_ok" -eq 0 ]]; then
+  if [[ -f "$partial" && -n "${hash:-}" ]]; then
+    echo "Cached file is incomplete or corrupt; starting over." >&2
+    rm -f "$partial"
+  fi
+
+  if [[ "$OFFLINE" -eq 1 ]]; then
+    echo "offline: no verified cached ISO for this run" >&2
+    exit 1
+  fi
+
+  avail_kb=$(df -Pk "$cache" | awk 'NR == 2 { print $4 }')
+  if (( avail_kb < 3500000 )); then
+    echo "not enough space in $cache (need ~3.5 GB, have $((avail_kb / 1024)) MB)" >&2
+    exit 1
+  fi
+
+  if ! curl --fail --location --progress-bar --continue-at - -o "$partial" "$url"; then
+    echo "download failed; partial file kept for resume: $partial" >&2
+    exit 1
+  fi
+
+  if [[ -n "${hash:-}" ]]; then
+    echo "$hash  $partial" | sha256sum --check -
+  else
+    echo "warning: no SHA-256 in the run log; skipping verification" >&2
+  fi
 fi
 
 sudo install -m 0444 "$partial" "$DEST"
-rm -f "$partial"
 if command -v restorecon >/dev/null 2>&1; then
   sudo restorecon -v "$DEST" || true
 fi
