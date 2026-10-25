@@ -27,6 +27,11 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      # systemd-repart builds the image in an unprivileged user namespace.
+      # Ubuntu 24.04 restricts those by default, even on GitHub runners.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Validate shell project
         run: nix shell nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
 
