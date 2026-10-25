@@ -21,8 +21,8 @@
   # packages at runtime, so keep the closure minimal instead of adding more.
   isoImage.squashfsCompression = "zstd -Xcompression-level 6";
 
-  # Boot straight into the kiosk; the menu is still reachable with a keypress.
-  boot.loader.timeout = 1;
+  # Boot straight into the kiosk without showing the boot menu.
+  boot.loader.timeout = 0;
 
   # Avoid waiting for a network connection during the live boot.
   boot.initrd.network.enable = false;
