@@ -11,13 +11,15 @@ from pathlib import Path
 
 import tomli_w
 
-SLIPPI_DIR = Path("/slippi")
-SETTINGS_FILE = SLIPPI_DIR / "settings.toml"
-ISO_DIR = SLIPPI_DIR / "isos"
-DOLPHIN_DIR = SLIPPI_DIR / "dolphin"
+DATA_DIR = Path("/data")
+USERS_DIR = DATA_DIR / "users"
+PROFILE_DIR = USERS_DIR / "melee"  # TODO: select the profile at login
+SETTINGS_FILE = PROFILE_DIR / "settings.toml"
+ISO_DIR = DATA_DIR / "isos"
+DOLPHIN_DIR = PROFILE_DIR / "dolphin"
 DOLPHIN_USER_FILE = DOLPHIN_DIR / "Slippi" / "user.json"
 DEFAULT_USER_JSON = "slippi-user.json"
-HARDWARE_FILE = SLIPPI_DIR / "hardware-id"
+HARDWARE_FILE = DATA_DIR / "system" / "hardware-id"
 
 _PLACEHOLDER_IDS = {
     "",
@@ -50,7 +52,7 @@ def check_hardware_binding() -> bool:
     except OSError:
         stored = ""
     if stored and stored != current:
-        (SLIPPI_DIR / DEFAULT_USER_JSON).unlink(missing_ok=True)
+        (PROFILE_DIR / DEFAULT_USER_JSON).unlink(missing_ok=True)
         DOLPHIN_USER_FILE.unlink(missing_ok=True)
         HARDWARE_FILE.unlink(missing_ok=True)
         return True
@@ -83,7 +85,7 @@ def iso_path(value: str | Path) -> Path:
 
 def resolve_path(value: str | Path) -> Path:
     path = Path(value)
-    return path if path.is_absolute() else SLIPPI_DIR / path
+    return path if path.is_absolute() else PROFILE_DIR / path
 
 
 def login_status(path: str | Path) -> tuple[bool, str]:
@@ -106,7 +108,7 @@ def login_status(path: str | Path) -> tuple[bool, str]:
 def install_login(settings: dict) -> tuple[bool, str]:
     """Copy an imported user.json into Dolphin's user directory."""
     configured = settings.get("slippi", {}).get("user_json", DEFAULT_USER_JSON)
-    candidates = [resolve_path(configured), SLIPPI_DIR / "user.json"]
+    candidates = [resolve_path(configured), PROFILE_DIR / "user.json", DATA_DIR / "user.json"]
     for candidate in candidates:
         ok, detail = login_status(candidate)
         if not ok:
@@ -116,6 +118,7 @@ def install_login(settings: dict) -> tuple[bool, str]:
         os.chmod(DOLPHIN_USER_FILE, 0o600)
         current = hardware_id()
         if current:
+            HARDWARE_FILE.parent.mkdir(parents=True, exist_ok=True)
             HARDWARE_FILE.write_text(current + "\n")
         return True, detail
     return False, f"no Slippi login file at {resolve_path(configured)}"
@@ -146,7 +149,7 @@ def load() -> tuple[dict | None, str | None]:
 
 
 def save(settings: dict) -> None:
-    SLIPPI_DIR.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS_FILE.write_text(tomli_w.dumps(settings), encoding="utf-8")
 
 

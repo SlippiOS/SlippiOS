@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flash the SlippiOS ISO to a USB device and add a persistent SLIPPI partition.
+# Flash the SlippiOS ISO to a USB device and add a persistent SLIPPIOS partition.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -13,7 +13,7 @@ usage() {
 usage: scripts/flash-usb [--iso PATH] [--yes] [--dry-run] /dev/sdX
 
 Writes the SlippiOS ISO to a USB device with dd, then adds and formats an
-ext4 partition labelled SLIPPI in the remaining space. THIS ERASES THE DEVICE.
+ext4 partition labelled SLIPPIOS in the remaining space. THIS ERASES THE DEVICE.
 
 Without --iso, the newest ISO in ~/.cache/slippios or result/iso is used.
 USAGE
@@ -64,17 +64,17 @@ if [[ "$ASSUME_YES" -eq 0 ]]; then
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "dry run: dd, sgdisk, mkfs.ext4 -L SLIPPI would run"
+  echo "dry run: dd, sgdisk, mkfs.ext4 -L SLIPPIOS would run"
   exit 0
 fi
 
 sudo dd if="$ISO" of="$DEVICE" bs=4M conv=fsync oflag=direct status=progress
 sudo sgdisk --move-second-header "$DEVICE"
-sudo sgdisk --new=0:0:0 --typecode=0:8300 --change-name=0:SLIPPI "$DEVICE"
+sudo sgdisk --new=0:0:0 --typecode=0:8300 --change-name=0:SLIPPIOS "$DEVICE"
 sudo partprobe "$DEVICE" || true
 
 partition=$(lsblk -lnpo PATH,TYPE "$DEVICE" | awk '$2 == "part" { p = $1 } END { print p }')
-[[ -n "$partition" ]] || { echo "could not find the SLIPPI partition" >&2; exit 1; }
+[[ -n "$partition" ]] || { echo "could not find the SLIPPIOS partition" >&2; exit 1; }
 
-sudo mkfs.ext4 -F -L SLIPPI "$partition"
-echo "Done. $partition is mounted at /slippi when the USB boots."
+sudo mkfs.ext4 -F -L SLIPPIOS "$partition"
+echo "Done. $partition is mounted at /data when the USB boots."

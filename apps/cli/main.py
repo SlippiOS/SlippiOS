@@ -92,7 +92,7 @@ def cmd_login(args) -> dict:
     except auth.AuthError as exc:
         return {"ok": False, "error": str(exc)}
 
-    target = settings_lib.SLIPPI_DIR / settings_lib.DEFAULT_USER_JSON
+    target = settings_lib.PROFILE_DIR / settings_lib.DEFAULT_USER_JSON
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(user, indent=2))
     target.chmod(0o600)
@@ -264,7 +264,7 @@ def human_adapter(payload: dict) -> None:
 
 def human_isos(payload: dict) -> None:
     if not payload["isos"]:
-        print("No game images found in /slippi/isos.")
+        print("No game images found in /data/isos.")
         return
     for entry in payload["isos"]:
         state = "ok" if entry["valid"] else entry["reason"]

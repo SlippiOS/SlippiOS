@@ -55,11 +55,12 @@ in {
   ];
 
   environment.etc."slippios/README".text = ''
-    Settings live in /slippi/settings.toml. Game images live in /slippi/isos/.
+    Settings live in /data/users/melee/settings.toml.
+    Game images live in /data/isos/.
   '';
 
-  # SlippiOS stores user data on a partition labelled SLIPPI. Mount it when
-  # present; otherwise /slippi lives on the (ephemeral) root filesystem so the
+  # SlippiOS stores user data on a partition labelled SLIPPIOS. Mount it when
+  # present; otherwise /data lives on the (ephemeral) root filesystem so the
   # live ISO still works.
   systemd.services.slippi-data = {
     description = "Prepare SlippiOS data directory";
@@ -71,19 +72,22 @@ in {
       RemainAfterExit = true;
     };
     script = ''
-      ${pkgs.coreutils}/bin/mkdir -p /slippi
-      if [ -b /dev/disk/by-label/SLIPPI ]; then
-        ${pkgs.util-linux}/bin/mountpoint -q /slippi || \
-          ${pkgs.util-linux}/bin/mount -L SLIPPI /slippi || true
+      ${pkgs.coreutils}/bin/mkdir -p /data
+      if [ -b /dev/disk/by-label/SLIPPIOS ]; then
+        ${pkgs.util-linux}/bin/mountpoint -q /data || \
+          ${pkgs.util-linux}/bin/mount -L SLIPPIOS /data || true
       fi
       ${pkgs.coreutils}/bin/mkdir -p \
-        /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs
+        /data/isos /data/system /data/users/melee/dolphin \
+        /data/users/melee/replays /data/users/melee/logs
       ${pkgs.coreutils}/bin/chown melee:users \
-        /slippi /slippi/isos /slippi/dolphin /slippi/replays /slippi/logs || true
-      ${pkgs.coreutils}/bin/chmod 0775 /slippi || true
+        /data /data/isos /data/system /data/users /data/users/melee \
+        /data/users/melee/dolphin /data/users/melee/replays \
+        /data/users/melee/logs || true
+      ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
       # Seed community controller profiles without overwriting user edits.
-      profile_dir=/slippi/dolphin/Config/Profiles/GCPad
+      profile_dir=/data/users/melee/dolphin/Config/Profiles/GCPad
       ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
       ${pkgs.coreutils}/bin/cp -n ${../assets/controller-profiles}/*.ini "$profile_dir"/ || true
       ${pkgs.coreutils}/bin/chown -R melee:users "$profile_dir" || true

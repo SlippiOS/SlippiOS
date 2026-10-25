@@ -65,32 +65,32 @@ For a direct QEMU test without libvirt:
 ```
 
 This **erases the device**: it writes the newest ISO, then adds an ext4
-partition labelled `SLIPPI` in the remaining space. That partition becomes
-`/slippi` at boot, so settings, the Slippi login, ISOs, replays, and Dolphin
+partition labelled `SLIPPIOS` in the remaining space. That partition becomes
+`/data` at boot, so settings, the Slippi login, ISOs, replays, and Dolphin
 survive reboots. Use `--iso PATH`, `--yes`, or `--dry-run` as needed.
 
 ## Data and settings
 
-Everything user-owned lives on a partition labelled `SLIPPI`, mounted at
-`/slippi`. Without it the live ISO uses a temporary `/slippi`, so nothing
-persists.
+Everything user-owned lives on a partition labelled `SLIPPIOS`, mounted at
+`/data`. Without it the live ISO uses a temporary `/data`, so nothing persists.
 
 ```text
-/slippi
-├── settings.toml
-├── slippi-user.json
-├── isos/
-├── dolphin-app/
-├── dolphin/
-├── replays/
-└── logs/
+/data
+├── isos/                    shared game images
+├── system/                  Dolphin builds, hardware binding, updates
+└── users/melee/             per-user profile
+    ├── settings.toml
+    ├── slippi-user.json
+    ├── dolphin/
+    ├── replays/
+    └── logs/
 ```
 
 ```toml
 schema_version = 1
 
 [game]
-iso = "melee.iso"          # relative to /slippi/isos
+iso = "melee.iso"          # relative to /data/isos
 
 [display]
 refresh_hz = 120
@@ -116,7 +116,7 @@ removed if the cartridge moves to different hardware.
 
 The shell reads standard SDL gamepads (Glyph, Xbox, DualSense) and the raw
 GameCube adapter in parallel. Linux controller profiles are seeded into
-`/slippi/dolphin/Config/Profiles/GCPad/` on first boot. See
+`/data/users/melee/dolphin/Config/Profiles/GCPad/` on first boot. See
 [`docs/controllers.md`](docs/controllers.md).
 
 ## slippios

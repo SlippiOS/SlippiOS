@@ -170,7 +170,7 @@ func _show_setup(message: String = "") -> void:
 			_add_button(name, _select_iso.bind(path))
 
 	if not found:
-		_add_label("Put an ISO in /slippi/isos, then press Rescan.", 0.7)
+		_add_label("Put an ISO in /data/isos, then press Rescan.", 0.7)
 
 	_add_button("Rescan", _show_setup.bind(""))
 	_add_button("Skip for now", _show_menu)

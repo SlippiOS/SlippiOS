@@ -202,7 +202,7 @@ def ensure_login(settings: dict) -> tuple[bool, str]:
             time.sleep(2)
             continue
 
-        target = settings_lib.SLIPPI_DIR / settings_lib.DEFAULT_USER_JSON
+        target = settings_lib.PROFILE_DIR / settings_lib.DEFAULT_USER_JSON
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(user, indent=2))
         target.chmod(0o600)
@@ -239,7 +239,7 @@ def launch(settings: dict, appimage: Path) -> None:
         "-e", iso,
     ]
 
-    log_path = settings_lib.SLIPPI_DIR / "logs" / "dolphin.log"
+    log_path = settings_lib.PROFILE_DIR / "logs" / "dolphin.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     environment = os.environ.copy()

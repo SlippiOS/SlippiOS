@@ -15,7 +15,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-BASE = Path("/slippi/dolphin-app")
+BASE = Path("/data/system/dolphin")
 VERSIONS = BASE / "versions"
 CURRENT = BASE / "current"
 STATE = BASE / "state.json"
