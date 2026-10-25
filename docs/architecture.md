@@ -93,11 +93,10 @@ The profile layout is multi-user ready; the shell currently uses `default`.
 
 ## Components
 
-- `slippios-shell` — Godot kiosk UI.
+- `slippios-shell` — Godot kiosk UI; reads controllers through SDL3 and exits
+  before Dolphin claims the GameCube adapter.
 - `slippios-session` — terminal fallback/session launch.
 - `slippios` — Go CLI; human output on a TTY, JSON when piped.
-- `joybusd` — Rust GameCube-adapter daemon (protocol and mapping implemented;
-  USB/uinput pending).
 - `slippios-os-update.service` — root installer for staged updates.
 - `slippios-os-reboot.path` — root reboot request.
 - `slippios-data.service` — mounts/creates `/data`, seeds controller profiles.

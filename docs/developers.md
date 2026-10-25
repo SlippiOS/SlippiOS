@@ -22,12 +22,10 @@ mise run build:iso      # development ISO (not published)
 mise run run:image      # boot the local USB image
 mise run run:iso        # boot the local ISO
 mise run fetch:image    # download the latest published USB image
-mise run test           # Go + Rust tests + headless Godot parse
+mise run test           # Go tests + headless Godot parse
 mise run test:shell
 mise run go:test
 mise run go:build
-mise run rust:test
-mise run rust:build
 mise run nix            # shell with Godot, QEMU, zsync, xz, jq
 ```
 
@@ -87,7 +85,7 @@ partition to a physical stick; it cannot update in place.
 
 ## CI
 
-- **Validate** — pushes to `main`; Go and Rust tests, headless Godot.
+- **Validate** — pushes to `main`; Go tests and headless Godot.
 - **Build Image** — `v*`/`os-*` tags and manual dispatch only.
 
 Release assets:
@@ -118,7 +116,6 @@ hosts/live.nix             development ISO
 hosts/usb.nix              A/B USB image, sysupdate, data growth
 modules/slippios.nix       kiosk, user, data mount, boot hooks
 backend/                   Go CLI, session fallback, auth, updates, LAN pages
-drivers/joybusd/           Rust GameCube-adapter daemon
 apps/shell/                Godot UI
 pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
@@ -129,16 +126,13 @@ scripts/fetch-image        release downloader
 scripts/flash-usb          legacy ISO + data partition flasher
 ```
 
-## GameCube adapter
+## Boot and game handoff
 
-`drivers/joybusd` parses the adapter's 37-byte report and maps it to a virtual
-gamepad. Current scope is the protocol parser and mapping; USB and uinput come
-next. Decode a captured report without hardware:
-
-```sh
-cd drivers/joybusd
-cargo run -- --decode "21 10 01 00 80 80 80 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
-```
+The shell waits 1.5 seconds for A/Enter, then exits with code 42. The
+`slippios-shell` wrapper runs `slippios play` only after Godot has exited, then
+starts Godot again with `SLIPPIOS_AUTOPLAY=0`. This releases the GameCube adapter
+for Dolphin instead of leaving it claimed by SDL. The same loop reopens the
+shell when Dolphin is closed or crashes.
 
 ## Wi-Fi
 
@@ -198,6 +192,5 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 
 ## Known work
 
-- GameCube-adapter virtual pad.
 - Backup/restore for larger USB migration.
 - End-to-end update validation on real hardware.

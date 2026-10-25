@@ -1,6 +1,8 @@
 extends Control
 
 const CLI := "slippios"
+const GAME_EXIT := 42
+const BOOT_HOLD_MS := 1500
 const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@", "!@#$%^&*()", "+=[]{};:'\",.<>/?"]
 const MASK := "•"
 
@@ -9,7 +11,6 @@ var _screen := ""
 var _content: VBoxContainer
 var _title: Label
 var _status_label: Label
-var _play_pid := -1
 var _busy := false
 
 var _auth_stage := ""
@@ -37,9 +38,12 @@ func _ready() -> void:
 	_refresh_status()
 	if _needs_setup():
 		_show_setup()
-	else:
+		_animate_boot()
+	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		_show_menu()
-	_animate_boot()
+		_animate_boot()
+	else:
+		_boot_to_game()
 
 
 func _build_base() -> void:
@@ -117,6 +121,30 @@ func _animate_boot() -> void:
 	tween.tween_property(_title, "modulate:a", 1.0, 0.7)
 
 
+func _boot_to_game() -> void:
+	_screen = "boot"
+	_clear()
+	_title = _add_title("SLIPPIOS", 64)
+	_add_label("Hold A for settings", 0.65)
+	_animate_boot()
+
+	var deadline := Time.get_ticks_msec() + BOOT_HOLD_MS
+	while Time.get_ticks_msec() < deadline:
+		if _settings_held():
+			_show_menu()
+			return
+		await get_tree().process_frame
+	_launch_game()
+
+
+func _settings_held() -> bool:
+	for device in Input.get_connected_joypads():
+		if Input.is_joy_button_pressed(device, JOY_BUTTON_A):
+			return true
+	# Keep the menu reachable on a keyboard-only machine.
+	return Input.is_physical_key_pressed(KEY_ENTER)
+
+
 func _needs_setup() -> bool:
 	var settings: Dictionary = _status.get("settings", {})
 	return not settings.get("exists", false) or not settings.get("iso_valid", false)
@@ -136,9 +164,9 @@ func _status_text() -> String:
 	return "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
 
 
-func _cli(args: Array) -> Dictionary:
+func _cli(args: Array, read_stderr: bool = true) -> Dictionary:
 	var output: Array = []
-	var code := OS.execute(CLI, PackedStringArray(args), output, true)
+	var code := OS.execute(CLI, PackedStringArray(args), output, read_stderr)
 	var text := ""
 	for line in output:
 		text += str(line)
@@ -566,6 +594,10 @@ func _request_reboot() -> void:
 
 
 func _on_play() -> void:
+	_launch_game()
+
+
+func _launch_game() -> void:
 	if _busy:
 		return
 	if _needs_setup():
@@ -574,9 +606,22 @@ func _on_play() -> void:
 	_busy = true
 	_clear()
 	_title = _add_title("LAUNCHING", 44)
-	_add_label("Starting Slippi Dolphin…", 0.8)
-	_play_pid = OS.create_process(CLI, PackedStringArray(["play"]))
-	set_process(true)
+	_add_label("Preparing Slippi Dolphin…", 0.8)
+	await get_tree().process_frame
+
+	# Fetch/verify Dolphin while this screen is still visible. The wrapper
+	# starts the game after Godot exits, releasing the adapter for Dolphin.
+	# Keep stderr out of the captured output: download progress is not JSON.
+	var result := _cli(["update"], false)
+	if not result.get("ok", false):
+		_busy = false
+		_clear()
+		_title = _add_title("COULD NOT START", 44)
+		_add_label(str(result.get("error", "Could not prepare Slippi Dolphin.")), 0.9)
+		_add_button("Back", _show_menu)
+		_focus_first()
+		return
+	get_tree().quit(GAME_EXIT)
 
 
 func _process(delta: float) -> void:
@@ -592,15 +637,9 @@ func _process(delta: float) -> void:
 			_os_timer = 0.0
 			_poll_os_update()
 
-	if _play_pid != -1 and not OS.is_process_running(_play_pid):
-		_play_pid = -1
-		_busy = false
-		_update_process()
-		_show_menu()
-
 
 func _update_process() -> void:
-	set_process(_play_pid != -1 or _net_pid != -1 or _os_pid != -1 or _os_waiting)
+	set_process(_net_pid != -1 or _os_pid != -1 or _os_waiting)
 
 
 func _local_ip() -> String:

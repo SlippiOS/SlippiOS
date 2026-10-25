@@ -1,7 +1,6 @@
 [tools]
 jq = "latest"
 go = "1.27"
-rust = "1.99"
 
 [settings]
 auto_install = true
@@ -32,7 +31,7 @@ run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless -
 
 [tasks.test]
 description = "Run the fast checks"
-depends = ["test:shell", "go:test", "rust:test"]
+depends = ["test:shell", "go:test"]
 
 [tasks."go:build"]
 description = "Build the Go control CLI and session fallback"
@@ -41,14 +40,6 @@ run = "cd backend && go build ./cmd/slippios ./cmd/slippios-session"
 [tasks."go:test"]
 description = "Run Go tests"
 run = "cd backend && go test ./..."
-
-[tasks."rust:build"]
-description = "Build the GameCube adapter daemon"
-run = "cd drivers/joybusd && cargo build"
-
-[tasks."rust:test"]
-description = "Run adapter protocol and mapping tests"
-run = "cd drivers/joybusd && cargo test"
 
 [tasks."nix"]
 description = "Open a Nix shell with the project's tools"

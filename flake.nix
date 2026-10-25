@@ -49,8 +49,23 @@
         shell = pkgs.writeShellScriptBin "slippios-shell" ''
           runtime=$(${pkgs.coreutils}/bin/mktemp -d)
           ${pkgs.coreutils}/bin/cp -r ${./apps/shell}/. "$runtime"/
-          exec ${pkgs.godot_4}/bin/godot --path "$runtime" \
-            --fullscreen --rendering-driver opengl3
+          autoplay=1
+          while true; do
+            code=0
+            SLIPPIOS_AUTOPLAY="$autoplay" \
+            SDL_JOYSTICK_HIDAPI_GAMECUBE=1 \
+            SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
+              ${pkgs.godot_4}/bin/godot --path "$runtime" \
+                --fullscreen --rendering-driver opengl3 || code=$?
+            if [ "$code" -ne 42 ]; then
+              exit "$code"
+            fi
+
+            # Godot must be gone before Dolphin opens the adapter: USB access
+            # is exclusive, and the shell's SDL driver claims it.
+            ${cliPackage}/bin/slippios play || true
+            autoplay=0
+          done
         '';
       };
     };

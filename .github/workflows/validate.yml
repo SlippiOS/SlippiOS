@@ -7,7 +7,6 @@ on:
     paths:
       - "apps/**"
       - "backend/**"
-      - "drivers/**"
       - "flake.nix"
       - "flake.lock"
       - "modules/**"
@@ -30,10 +29,6 @@ jobs:
       - name: Test Go backend
         working-directory: backend
         run: nix shell --inputs-from . nixpkgs#go -c go test ./...
-
-      - name: Test Rust adapter
-        working-directory: drivers/joybusd
-        run: nix shell --inputs-from . nixpkgs#cargo nixpkgs#rustc -c cargo test
 
       - name: Validate Godot shell
         run: nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit

@@ -1,7 +1,8 @@
 # Controller support
 
-The shell reads standard SDL gamepads (Glyph, Xbox, DualSense, ...) and the raw
-GameCube adapter in parallel.
+The Godot shell reads controllers through SDL3, including the GameCube adapter.
+SDL3 has a native HIDAPI driver for the Wii U/Mayflash adapter, so no separate
+uinput daemon is needed.
 
 ## Glyph profile (from the user's Slippi install)
 
@@ -18,15 +19,18 @@ GameCube adapter in parallel.
 | Stick / C-stick | `Left X/Y`, `Right X/Y` | left / right sticks |
 | D-Pad | `Pad N/S/W/E` | dpad |
 
-Boot-time "hold A" maps to the SDL south face. The shell currently has no
-controller navigation; that arrives with the virtual pad.
+Hold A during the boot screen to open the menu instead of launching Melee.
+Keyboard Enter does the same for testing.
 
 ## GameCube adapter
 
-`057e:0337` is the official Wii U/Mayflash adapter. `joybusd` is the planned
-Rust daemon that will expose its four ports as virtual SDL pads through uinput.
-It will release the adapter before Dolphin starts so Dolphin can claim it with
-libusb. The Go CLI only reports adapter presence today.
+`057e:0337` is the official Wii U/Mayflash adapter. The adapter switch must be
+in **Wii U** mode.
+
+While the shell is running, SDL3 reads the four controller ports directly.
+Dolphin also supports the adapter natively through libusb. USB access is
+exclusive, so the shell wrapper quits Godot before starting Dolphin and starts
+Godot again after Dolphin exits. Do not run a uinput bridge at the same time.
 
 ## Bundled profiles
 
