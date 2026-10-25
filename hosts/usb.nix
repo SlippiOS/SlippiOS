@@ -232,6 +232,11 @@ in {
   systemd.services.systemd-boot-check-no-failures.wantedBy =
     [ "boot-complete.target" ];
 
+  # The appliance auto-logs in as `player`; there is no interactive
+  # password login. NixOS otherwise refuses to evaluate a system with no
+  # password on root or a wheel user.
+  users.allowNoPasswordLogin = true;
+
   # NetworkManager owns Wi-Fi; systemd-networkd is not needed here.
   networking.useNetworkd = lib.mkForce false;
 
