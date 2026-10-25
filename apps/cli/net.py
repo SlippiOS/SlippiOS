@@ -105,6 +105,9 @@ def serve(token: str, port: int = 8080) -> None:
             else:
                 self.send_error(404)
 
+        def do_PUT(self) -> None:  # noqa: N802
+            self._upload()
+
         def _authenticate(self) -> None:
             length = int(self.headers.get("Content-Length", "0") or 0)
             body = self.rfile.read(length).decode(errors="replace")
