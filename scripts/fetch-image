@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# Download the newest successful SlippiOS USB image and boot it in QEMU.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+DRY_RUN=0
+OFFLINE=0
+RUN=1
+DISK_SIZE="${SLIPPI_DISK_SIZE:-16G}"
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/fetch-image [--offline] [--dry-run] [--no-run] [--disk-size SIZE]
+
+Downloads the newest successful "Build Image" run, verifies its SHA-256,
+decompresses it, and boots a writable qcow2 overlay in QEMU with OVMF.
+
+The overlay starts at 16G by default so the SLIPPIOS partition can grow on
+first boot. Use --disk-size to change it.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --offline) OFFLINE=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --no-run) RUN=0 ;;
+    --disk-size) DISK_SIZE="${2:?missing size}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+command -v gh >/dev/null || { echo "gh is required" >&2; exit 1; }
+command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+command -v xz >/dev/null || { echo "xz is required" >&2; exit 1; }
+command -v qemu-img >/dev/null || { echo "qemu-img is required" >&2; exit 1; }
+
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+run_id=$(gh run list --repo "$repo" --workflow "Build Image" --status success \
+  --limit 1 --json databaseId -q '.[0].databaseId')
+if [[ -z "${run_id:-}" || "$run_id" == "null" ]]; then
+  echo "no successful Build Image runs found" >&2
+  exit 1
+fi
+
+log=$(gh run view "$run_id" --repo "$repo" --log)
+url=$(grep -o 'Image-Download: https://[^[:space:]]*' <<<"$log" | head -1 \
+      | sed -E 's/^Image-Download: //; s/\x1b\[[0-9;]*m//g' | tr -d '\r' || true)
+hash=$(grep -o 'IMAGE_SHA256: [0-9a-f]\{64\}' <<<"$log" | head -1 | awk '{print $2}' || true)
+
+if [[ -z "${url:-}" || -z "${hash:-}" ]]; then
+  echo "no image URL/hash in run $run_id" >&2
+  exit 1
+fi
+
+echo "Run:    $run_id"
+echo "URL:    $url"
+echo "SHA256: $hash"
+
+mkdir -p "$CACHE"
+compressed="$CACHE/$(basename "$url")"
+raw="${compressed%.xz}"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "dry run: not downloading"
+  exit 0
+fi
+
+if [[ -f "$compressed" ]] && echo "$hash  $compressed" | sha256sum --check - >/dev/null 2>&1; then
+  echo "Using cached image."
+elif [[ "$OFFLINE" -eq 1 ]]; then
+  echo "offline: no verified cached image" >&2
+  exit 1
+else
+  if [[ -f "$compressed" ]]; then
+    echo "Cached file is incomplete or corrupt; starting over." >&2
+    rm -f "$compressed"
+  fi
+  avail_kb=$(df -Pk "$CACHE" | awk 'NR == 2 { print $4 }')
+  if (( avail_kb < 12000000 )); then
+    echo "not enough space in $CACHE (need ~12 GB, have $((avail_kb / 1024)) MB)" >&2
+    exit 1
+  fi
+  if ! curl --fail --location --progress-bar --continue-at - -o "$compressed" "$url"; then
+    echo "download failed; partial file kept for resume: $compressed" >&2
+    exit 1
+  fi
+  echo "$hash  $compressed" | sha256sum --check -
+fi
+
+if [[ ! -f "$raw" || "$raw" -ot "$compressed" ]]; then
+  echo "Decompressing image..."
+  xz -d -k -f "$compressed"
+fi
+
+if [[ "$RUN" -eq 0 ]]; then
+  echo "Image: $raw"
+  exit 0
+fi
+
+overlay="$CACHE/slippios-usb-${hash:0:12}.qcow2"
+if [[ ! -f "$overlay" ]]; then
+  qemu-img create -f qcow2 -F raw -b "$raw" "$overlay" "$DISK_SIZE"
+fi
+
+code=/usr/share/OVMF/OVMF_CODE.fd
+vars=/usr/share/OVMF/OVMF_VARS.fd
+if [[ ! -f "$code" || ! -f "$vars" ]]; then
+  code=/usr/share/edk2/ovmf/OVMF_CODE.fd
+  vars=/usr/share/edk2/ovmf/OVMF_VARS.fd
+fi
+if [[ ! -f "$code" || ! -f "$vars" ]]; then
+  echo "OVMF firmware not found; install edk2-ovmf" >&2
+  exit 1
+fi
+
+vars_copy="$CACHE/OVMF_VARS-${hash:0:12}.fd"
+if [[ ! -f "$vars_copy" ]]; then
+  cp "$vars" "$vars_copy"
+fi
+
+echo "Booting $overlay ($DISK_SIZE)"
+exec qemu-system-x86_64 \
+  -machine q35,accel=kvm \
+  -cpu host \
+  -m 4096 -smp 4 \
+  -drive if=pflash,format=raw,readonly=on,file="$code" \
+  -drive if=pflash,format=raw,file="$vars_copy" \
+  -device qemu-xhci \
+  -drive if=none,id=usbstick,file="$overlay",format=qcow2 \
+  -device usb-storage,drive=usbstick \
+  -nic user,model=virtio-net-pci \
+  -vga std \
+  -display gtk

@@ -9,7 +9,7 @@ jobs:
   image:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Check out source
@@ -101,6 +101,7 @@ jobs:
 
       - name: Upload image for testing
         id: upload
+        continue-on-error: true
         run: |
           set -euo pipefail
           image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
@@ -124,3 +125,94 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "IMAGE_SHA256: $sha"
           echo "Image-Download: $url"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
+            ! -name '*.nix-store.raw.xz' -print -quit)
+          raw=$(find artifacts -maxdepth 1 -name '*.nix-store.raw' -print -quit)
+          uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
+
+          version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
+          tag="os-${version}-${GITHUB_RUN_ID}"
+
+          raw_name=$(basename "$raw")
+          uki_name=$(basename "$uki")
+          full_name="slippios-usb-${version}.img.xz"
+
+          mkdir -p release
+          ln "$image" "release/$full_name" 2>/dev/null || cp "$image" "release/$full_name"
+          ln "$raw" "release/$raw_name" 2>/dev/null || cp "$raw" "release/$raw_name"
+          ln "$uki" "release/$uki_name" 2>/dev/null || cp "$uki" "release/$uki_name"
+
+          # The .zsync asset contains only block checksums; zsync is given the
+          # actual release URL at update time.
+          nix shell nixpkgs#zsync -c zsyncmake \
+            -o "release/${raw_name}.zsync" "release/${raw_name}"
+
+          full_sha=$(sha256sum "release/$full_name" | cut -d' ' -f1)
+          raw_sha=$(sha256sum "release/$raw_name" | cut -d' ' -f1)
+          uki_sha=$(sha256sum "release/$uki_name" | cut -d' ' -f1)
+          full_size=$(stat -c '%s' "release/$full_name")
+          raw_size=$(stat -c '%s' "release/$raw_name")
+          uki_size=$(stat -c '%s' "release/$uki_name")
+
+          limit=$((2 * 1024 * 1024 * 1024))
+          for size in "$full_size" "$raw_size"; do
+            if (( size >= limit )); then
+              echo "asset is at or above GitHub's 2 GiB limit" >&2
+              exit 1
+            fi
+          done
+
+          jq -n \
+            --arg version "$version" \
+            --arg tag "$tag" \
+            --arg full_name "$full_name" \
+            --arg full_sha "$full_sha" \
+            --argjson full_size "$full_size" \
+            --arg raw_name "$raw_name" \
+            --arg raw_sha "$raw_sha" \
+            --argjson raw_size "$raw_size" \
+            --arg uki_name "$uki_name" \
+            --arg uki_sha "$uki_sha" \
+            --argjson uki_size "$uki_size" \
+            '{
+              version: $version,
+              tag: $tag,
+              full_image: { name: $full_name, sha256: $full_sha, size: $full_size },
+              nix_store: {
+                name: $raw_name,
+                sha256: $raw_sha,
+                size: $raw_size,
+                zsync: ($raw_name + ".zsync")
+              },
+              uki: { name: $uki_name, sha256: $uki_sha, size: $uki_size }
+            }' > release/manifest.json
+
+          (cd release && sha256sum $(ls | grep -v '^SHA256SUMS$') > SHA256SUMS)
+
+          gh release create "$tag" \
+            --draft \
+            --title "SlippiOS ${version}" \
+            --notes "SlippiOS USB image ${version}.
+
+          Flash \`${full_name}\` with Etcher, Rufus (DD mode), or \`dd\`. Boot with UEFI; Secure Boot must be off.
+
+          The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data."
+
+          gh release upload "$tag" release/* --clobber
+          gh release edit "$tag" --draft=false --latest
+
+          {
+            echo ""
+            echo "### Release"
+            echo ""
+            echo "- Tag: \`$tag\`"
+            echo "- Image: [$full_name](https://github.com/${GITHUB_REPOSITORY}/releases/download/$tag/$full_name)"
+            echo "- Manifest: [manifest.json](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/manifest.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
