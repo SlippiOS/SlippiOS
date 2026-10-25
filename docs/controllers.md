@@ -30,7 +30,7 @@ before Dolphin starts, so Dolphin can claim it with libusb.
 ## Bundled profiles
 
 SlippiOS seeds these community profiles into
-`/data/users/melee/dolphin/Config/Profiles/GCPad/` on first boot (existing files are not
+`/data/users/default/dolphin/Config/Profiles/GCPad/` on first boot (existing files are not
 overwritten):
 
 B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux, HayBox_XInput_Linux.

@@ -78,7 +78,7 @@ Everything user-owned lives on a partition labelled `SLIPPIOS`, mounted at
 /data
 ├── isos/                    shared game images
 ├── system/                  Dolphin builds, hardware binding, updates
-└── users/melee/             per-user profile
+└── users/default/           per-user profile
     ├── settings.toml
     ├── slippi-user.json
     ├── dolphin/
@@ -116,7 +116,7 @@ removed if the cartridge moves to different hardware.
 
 The shell reads standard SDL gamepads (Glyph, Xbox, DualSense) and the raw
 GameCube adapter in parallel. Linux controller profiles are seeded into
-`/data/users/melee/dolphin/Config/Profiles/GCPad/` on first boot. See
+`/data/users/default/dolphin/Config/Profiles/GCPad/` on first boot. See
 [`docs/controllers.md`](docs/controllers.md).
 
 ## slippios

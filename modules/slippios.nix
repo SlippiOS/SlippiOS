@@ -55,7 +55,7 @@ in {
   ];
 
   environment.etc."slippios/README".text = ''
-    Settings live in /data/users/melee/settings.toml.
+    Settings live in /data/users/default/settings.toml.
     Game images live in /data/isos/.
   '';
 
@@ -78,16 +78,16 @@ in {
           ${pkgs.util-linux}/bin/mount -L SLIPPIOS /data || true
       fi
       ${pkgs.coreutils}/bin/mkdir -p \
-        /data/isos /data/system /data/users/melee/dolphin \
-        /data/users/melee/replays /data/users/melee/logs
+        /data/isos /data/system /data/users/default/dolphin \
+        /data/users/default/replays /data/users/default/logs
       ${pkgs.coreutils}/bin/chown melee:users \
-        /data /data/isos /data/system /data/users /data/users/melee \
-        /data/users/melee/dolphin /data/users/melee/replays \
-        /data/users/melee/logs || true
+        /data /data/isos /data/system /data/users /data/users/default \
+        /data/users/default/dolphin /data/users/default/replays \
+        /data/users/default/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
       # Seed community controller profiles without overwriting user edits.
-      profile_dir=/data/users/melee/dolphin/Config/Profiles/GCPad
+      profile_dir=/data/users/default/dolphin/Config/Profiles/GCPad
       ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
       ${pkgs.coreutils}/bin/cp -n ${../assets/controller-profiles}/*.ini "$profile_dir"/ || true
       ${pkgs.coreutils}/bin/chown -R melee:users "$profile_dir" || true

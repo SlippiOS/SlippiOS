@@ -13,7 +13,7 @@ import tomli_w
 
 DATA_DIR = Path("/data")
 USERS_DIR = DATA_DIR / "users"
-PROFILE_DIR = USERS_DIR / "melee"  # TODO: select the profile at login
+PROFILE_DIR = USERS_DIR / "default"  # TODO: select the profile at login
 SETTINGS_FILE = PROFILE_DIR / "settings.toml"
 ISO_DIR = DATA_DIR / "isos"
 DOLPHIN_DIR = PROFILE_DIR / "dolphin"
