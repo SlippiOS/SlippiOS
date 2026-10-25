@@ -25,7 +25,7 @@ in {
   networking.networkmanager.enable = true;
   time.timeZone = "UTC";
 
-  users.users.melee = {
+  users.users.player = {
     isNormalUser = true;
     extraGroups = [ "audio" "input" "video" "networkmanager" ];
   };
@@ -35,7 +35,7 @@ in {
     windowManager.openbox.enable = true;
     displayManager = {
       autoLogin.enable = true;
-      autoLogin.user = "melee";
+      autoLogin.user = "player";
       defaultSession = "none+openbox";
     };
   };
@@ -80,7 +80,7 @@ in {
       ${pkgs.coreutils}/bin/mkdir -p \
         /data/isos /data/system /data/users/default/dolphin \
         /data/users/default/replays /data/users/default/logs
-      ${pkgs.coreutils}/bin/chown melee:users \
+      ${pkgs.coreutils}/bin/chown player:users \
         /data /data/isos /data/system /data/users /data/users/default \
         /data/users/default/dolphin /data/users/default/replays \
         /data/users/default/logs || true
@@ -95,10 +95,10 @@ in {
   };
 
   systemd.tmpfiles.rules = [
-    "d /home/melee 0755 melee users -"
-    "d /home/melee/.config 0755 melee users -"
-    "d /home/melee/.config/openbox 0755 melee users -"
-    "L+ /home/melee/.config/openbox/autostart - - - - ${autostart}"
+    "d /home/player 0755 melee users -"
+    "d /home/player/.config 0755 melee users -"
+    "d /home/player/.config/openbox 0755 melee users -"
+    "L+ /home/player/.config/openbox/autostart - - - - ${autostart}"
   ];
 
   system.stateVersion = "25.05";
