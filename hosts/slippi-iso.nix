@@ -21,9 +21,9 @@
   # packages at runtime, so keep the closure minimal instead of adding more.
   isoImage.squashfsCompression = "zstd -Xcompression-level 6";
 
-  # Boot straight into the kiosk without showing the boot menu. The installer
-  # module sets its own timeout, so this has to win.
-  boot.loader.timeout = lib.mkForce 0;
+  # Boot automatically. GRUB treats 0 as "wait forever", so use 1 second.
+  # The installer module sets its own timeout, so this has to win.
+  boot.loader.timeout = lib.mkForce 1;
 
   # Avoid waiting for a network connection during the live boot.
   boot.initrd.network.enable = false;

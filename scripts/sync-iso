@@ -172,13 +172,8 @@ if [[ "$RESTART" -eq 1 ]]; then
     fi
   fi
 
-  if sudo virsh -c qemu:///system domstate "$DOMAIN" | grep -q running; then
-    sudo virsh -c qemu:///system reboot "$DOMAIN" || {
-      sudo virsh -c qemu:///system destroy "$DOMAIN"
-      sudo virsh -c qemu:///system start "$DOMAIN"
-    }
-  else
-    sudo virsh -c qemu:///system start "$DOMAIN"
-  fi
+  # Cold boot, never reboot: a warm reboot can keep the old CD image open.
+  sudo virsh -c qemu:///system destroy "$DOMAIN" 2>/dev/null || true
+  sudo virsh -c qemu:///system start "$DOMAIN"
   echo "Domain '$DOMAIN' restarted with the new ISO"
 fi
