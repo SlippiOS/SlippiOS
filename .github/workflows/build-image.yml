@@ -1,0 +1,106 @@
+name: Build Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/chromium
+          sudo apt-get clean
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Validate shell project
+        run: nix shell nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
+
+      - name: Build USB image
+        run: |
+          nix build --print-build-logs \
+            .#nixosConfigurations.slippios-usb.config.system.build.image \
+            -o result-image
+          nix build --print-build-logs \
+            .#nixosConfigurations.slippios-usb.config.system.build.sysupdate-package \
+            -o result-update
+
+      - name: Inspect artifacts
+        run: |
+          set -euo pipefail
+          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' -print -quit)
+          raw=$(find -L result-update -maxdepth 1 -name '*.nix-store.raw' -print -quit)
+          uki=$(find -L result-update -maxdepth 1 -name '*.efi' -print -quit)
+
+          test -n "$image"
+          test -n "$raw"
+          test -n "$uki"
+
+          echo "image=$image"
+          echo "raw=$raw"
+          echo "uki=$uki"
+          ls -lh "$image" "$raw" "$uki"
+
+          image_bytes=$(stat -c '%s' "$image")
+          raw_bytes=$(stat -c '%s' "$raw")
+          uki_bytes=$(stat -c '%s' "$uki")
+          limit=$((2 * 1024 * 1024 * 1024))
+
+          {
+            echo "### SlippiOS USB image"
+            echo ""
+            echo "- Version: \`$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)\`"
+            echo "- Full image: \`$(basename "$image")\` — $((image_bytes / 1024 / 1024)) MiB"
+            echo "- Store slot: \`$(basename "$raw")\` — $((raw_bytes / 1024 / 1024)) MiB"
+            echo "- UKI: \`$(basename "$uki")\` — $((uki_bytes / 1024 / 1024)) MiB"
+            echo ""
+            if (( image_bytes >= limit )); then
+              echo "> Full image is at or above GitHub's 2 GiB release-asset limit."
+            else
+              echo "> Full image fits under GitHub's 2 GiB release-asset limit."
+            fi
+            if (( raw_bytes >= limit )); then
+              echo "> Store slot is at or above GitHub's 2 GiB release-asset limit."
+            else
+              echo "> Store slot fits under GitHub's 2 GiB release-asset limit."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload image for testing
+        id: upload
+        run: |
+          set -euo pipefail
+          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' -print -quit)
+          name="slippios-usb-${GITHUB_SHA::7}.raw.xz"
+          url=$(curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+                 --max-time 3600 --upload-file "$image" \
+                 "https://transfer.archivete.am/$name")
+          test -n "$url"
+          sha=$(sha256sum "$image" | cut -d' ' -f1)
+          size=$(du -h "$image" | cut -f1)
+          {
+            echo ""
+            echo "### Download"
+            echo ""
+            echo "- Size: $size"
+            echo "- SHA-256: \`$sha\`"
+            echo "- Image: [$name]($url)"
+            echo ""
+            echo "Links expire; releases will be the permanent host."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "IMAGE_SHA256: $sha"
+          echo "Image-Download: $url"

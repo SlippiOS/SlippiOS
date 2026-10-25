@@ -10,6 +10,13 @@
 
       python = pkgs.python3.withPackages (ps: [ ps.tomli-w ps.pyusb ps.pygame ]);
 
+      # Sortable, unique, and short enough for a GPT partition label.
+      version =
+        if self ? rev then
+          "${toString (self.lastModified or 0)}-${builtins.substring 0 7 self.rev}"
+        else
+          "dev-${toString (self.lastModified or 0)}";
+
       appSrc = pkgs.runCommand "slippios-apps" { } ''
         mkdir -p $out/session $out/cli
         cp ${./apps/session}/*.py $out/session/
@@ -25,6 +32,16 @@
           })
           ./modules/slippios.nix
           ./hosts/live.nix
+        ];
+      };
+
+      nixosConfigurations.slippios-usb = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { slippiosPackages = self.packages.${system}; };
+        modules = [
+          ./modules/slippios.nix
+          ./hosts/usb.nix
+          { system.image.version = version; }
         ];
       };
 
