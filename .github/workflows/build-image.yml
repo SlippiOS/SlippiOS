@@ -35,6 +35,15 @@ jobs:
       - name: Validate shell project
         run: nix shell nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
 
+      - name: Measure system closure
+        run: |
+          toplevel=$(nix build --print-out-paths \
+            .#nixosConfigurations.slippios-usb.config.system.build.toplevel)
+          nix-store --query --requisites "$toplevel" \
+            | xargs du -sm \
+            | sort -n \
+            | tail -40
+
       - name: Build USB image
         run: |
           nix build --print-build-logs \

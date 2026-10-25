@@ -85,6 +85,11 @@ in {
       level = 3;
     };
 
+    # The default mksquashfs compression is gzip. xz with the x86 BCJ
+    # filter gives a noticeably smaller store image for this binary-heavy
+    # closure, which keeps the update asset under the free-host size limit.
+    mkfsOptions.squashfs = [ "-comp" "xz" "-Xbcj" "x86" ];
+
     partitions = {
       esp = {
         contents = {
@@ -236,6 +241,11 @@ in {
   # password login. NixOS otherwise refuses to evaluate a system with no
   # password on root or a wheel user.
   users.allowNoPasswordLogin = true;
+
+  # The image is a game console, not a desktop: skip the speech stack and
+  # the full locale archive. Both are large and unused here.
+  services.speechd.enable = false;
+  i18n.supportedLocales = [ "C.UTF-8/UTF-8" "en_US.UTF-8/UTF-8" ];
 
   # NetworkManager owns Wi-Fi; systemd-networkd is not needed here.
   networking.useNetworkd = lib.mkForce false;
