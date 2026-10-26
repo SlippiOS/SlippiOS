@@ -204,14 +204,30 @@ in {
       # User-visible Melee image library. It is deliberately FAT32 so the
       # stick can be plugged into any PC and ISOs can be dragged in. The
       # running system mounts it over /data/isos.
-      y-melee.repartConfig = {
-        Type = "linux-generic";
-        Format = "vfat";
-        Label = "MELEE-ROMS";
-        Minimize = "off";
-        SizeMinBytes = "5G";
-        SizeMaxBytes = "5G";
-        SplitName = "-";
+      y-melee = {
+        contents = {
+          "/README.txt".source = pkgs.writeText "melee-roms-readme" ''
+            SlippiOS Melee drive
+
+            Copy Melee .iso images here, then eject the drive and boot the
+            console. Use the console's Melee ROMs screen to choose which image
+            starts at power-on.
+
+            Keep only Melee images on this drive. Settings, login, Dolphin and
+            replays are stored on the separate SLIPPIOS data partition.
+          '';
+        };
+        repartConfig = {
+          # Microsoft basic data so Windows and macOS auto-mount the FAT32
+          # volume. A linux-generic type would be ignored by both.
+          Type = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7";
+          Format = "vfat";
+          Label = "MELEE-ROMS";
+          Minimize = "off";
+          SizeMinBytes = "5G";
+          SizeMaxBytes = "5G";
+          SplitName = "-";
+        };
       };
 
       z-data.repartConfig = {
