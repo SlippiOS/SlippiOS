@@ -73,7 +73,7 @@ func Defaults() map[string]any {
 	return map[string]any{
 		"schema_version": int64(SchemaVersion),
 		"game": map[string]any{
-			"iso": "melee.iso",
+			"iso": "",
 		},
 		"display": map[string]any{
 			"refresh_hz": int64(120),
