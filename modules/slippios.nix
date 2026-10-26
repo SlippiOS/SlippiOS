@@ -4,13 +4,40 @@ let
   cli = slippiosPackages.cli;
   shell = slippiosPackages.shell;
 
+  # Temporary branding: the Slippi mark recoloured to Slippi green. Reused by
+  # the Godot splash, the Plymouth theme, and the X root window so the handoff
+  # between them has no blank frame.
+  splashMark = ../apps/shell/assets/slippi-mark.png;
+  splashBoot = ../apps/shell/assets/slippi-boot.png;
+
+  slippiosPlymouth = pkgs.runCommand "slippios-plymouth" { } ''
+    theme=$out/share/plymouth/themes/slippios
+    mkdir -p "$theme"
+    cp ${splashMark} "$theme/mark.png"
+    cp ${../assets/plymouth/slippios.script} "$theme/slippios.script"
+    cat > "$theme/slippios.plymouth" <<EOF
+    [Plymouth Theme]
+    Name=SlippiOS
+    Description=SlippiOS boot splash
+    ModuleName=script
+
+    [script]
+    ImageDir=$theme
+    ScriptFile=$theme/slippios.script
+    EOF
+  '';
+
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
   #
-  # There is deliberately no xterm fallback: when the shell fails, the wrapper
-  # drops a flag and the recovery console takes the console instead, so users
-  # are never left on an openbox desktop with nothing to do.
+  # There is deliberately no automatic xterm fallback: when the shell fails,
+  # the wrapper drops a flag and the recovery console takes the console
+  # instead. xterm is only used by the expert-mode tools.
   autostart = pkgs.writeText "slippios-openbox-autostart" ''
+    # Paint the same mark before Godot is ready, so the X start and Godot
+    # startup never show a blank screen.
+    ${pkgs.xorg.xsetroot}/bin/xsetroot -solid '#0b0b10'
+    ${pkgs.xwallpaper}/bin/xwallpaper --center ${splashBoot}
     ${pkgs.xset}/bin/xset s off -dpms
     ${shell}/bin/slippios-shell
   '';
@@ -56,6 +83,13 @@ in {
 
   # The console is covered by the boot splash; keep systemd's service status
   # lines off it. Failures remain in the journal and the recovery console.
+  boot.plymouth = {
+    enable = true;
+    theme = "slippios";
+    themePackages = [ slippiosPlymouth ];
+    logo = splashMark;
+  };
+
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
   ];
@@ -98,6 +132,9 @@ in {
     slippiosPackages.session
     slippiosPackages.cli
     slippiosPackages.shell
+    nano
+    xterm
+    libxcvt
     xrandr
     xset
   ];

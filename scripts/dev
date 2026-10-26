@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Local development sandbox: run the CLI, setup page, or exported Godot shell
+# against a throwaday /data tree without building a USB image.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios/dev"
+DATA="$CACHE/data"
+BIN="$CACHE/bin"
+
+setup() {
+  mkdir -p "$DATA/isos" "$DATA/system" "$DATA/users/default" "$BIN"
+  if [[ ! -f "$DATA/isos/test-melee.iso" ]]; then
+    ./scripts/make-test-iso "$DATA/isos/test-melee.iso" >/dev/null
+  fi
+  if [[ ! -f "$DATA/users/default/settings.toml" ]]; then
+    cat > "$DATA/users/default/settings.toml" <<'TOML'
+schema_version = 1
+
+[game]
+iso = "test-melee.iso"
+
+[display]
+refresh_hz = 60
+resolution = "auto"
+rate = ""
+custom = ""
+
+[audio]
+sink = "auto"
+
+[network]
+ssid = ""
+psk = ""
+
+[dolphin]
+backend = "Vulkan"
+resolution = 3
+aspect = 3
+vsync = false
+msaa = 1
+audio_backend = "Cubeb"
+audio_latency = 20
+controller = "adapter"
+profile = ""
+
+[expert]
+enabled = false
+
+[slippi]
+user_json = "slippi-user.json"
+TOML
+  fi
+  ( cd backend && mise exec -- go build -o "$BIN/slippios" ./cmd/slippios )
+  export SLIPPIOS_DATA="$DATA"
+  export PATH="$BIN:$PATH"
+}
+
+case "${1:-env}" in
+  env)
+    setup
+    echo "SLIPPIOS_DATA=$DATA"
+    echo "CLI=$BIN/slippios"
+    echo
+    echo "Run:"
+    echo "  mise run dev:cli -- status"
+    echo "  mise run dev:web"
+    echo "  mise run dev:shell"
+    ;;
+  cli)
+    setup
+    shift
+    exec slippios "$@"
+    ;;
+  web)
+    setup
+    shift || true
+    exec slippios net --token dev --port 8080 --mode setup "$@"
+    ;;
+  shell)
+    setup
+    export SLIPPIOS_AUTOPLAY=0 SLIPPIOS_SKIP_SPLASH=1
+    echo "SLIPPIOS_DATA=$DATA"
+    echo "Starting the exported shell on ${DISPLAY:-the current display}."
+    echo "This needs working OpenGL; on non-NixOS hosts, use a dev image instead."
+    exec ./scripts/nix run .#shell-export -- --rendering-driver opengl3 "$@"
+    ;;
+  iso)
+    setup
+    echo "$DATA/isos/test-melee.iso"
+    ;;
+  *)
+    echo "usage: scripts/dev {env|cli|web|shell|iso} [args...]" >&2
+    exit 2
+    ;;
+esac

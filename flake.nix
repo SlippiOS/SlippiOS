@@ -82,7 +82,21 @@
               continue
             fi
             if [ "$code" -eq 43 ]; then
-              ${cliPackage}/bin/slippios dolphin-config || true
+              ${cliPackage}/bin/slippios dolphin config || true
+              autoplay=0
+              splash=1
+              continue
+            fi
+            if [ "$code" -eq 44 ]; then
+              ${pkgs.xterm}/bin/xterm -fullscreen -fa Monospace -fs 16 \
+                -e ${pkgs.bash}/bin/bash -l || true
+              autoplay=0
+              splash=1
+              continue
+            fi
+            if [ "$code" -eq 45 ]; then
+              ${pkgs.xterm}/bin/xterm -fullscreen -fa Monospace -fs 16 \
+                -e ${pkgs.nano}/bin/nano /data/users/default/settings.toml || true
               autoplay=0
               splash=1
               continue

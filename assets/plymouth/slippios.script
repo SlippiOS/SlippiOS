@@ -1,0 +1,15 @@
+// SlippiOS boot theme: pulsing mark on the shell's background colour.
+Window.SetBackgroundTopColor(0.043, 0.043, 0.063);
+Window.SetBackgroundBottomColor(0.043, 0.043, 0.063);
+
+mark = Image("mark.png");
+mark_sprite = Sprite(mark);
+mark_sprite.SetX((Window.GetWidth() - mark.GetWidth()) / 2);
+mark_sprite.SetY((Window.GetHeight() - mark.GetHeight()) / 2);
+
+frame = 0;
+fun pulse() {
+  frame++;
+  mark_sprite.SetOpacity(0.62 + 0.38 * (0.5 + 0.5 * Math.Sin(frame * 0.09)));
+}
+Plymouth.SetRefreshFunction(pulse);

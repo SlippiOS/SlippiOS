@@ -223,18 +223,38 @@ func settingsCommand(args []string, mode modes) {
 			value = path
 		}
 	}
-	if name == "refresh_hz" {
-		if value == "auto" {
-			valuesSection[name] = int64(0)
-		} else {
-			number, err := strconv.Atoi(value)
-			if err != nil {
-				fail("refresh_hz must be a number or auto")
-			}
-			valuesSection[name] = int64(number)
-		}
-	} else {
+	if section == "display" && name == "resolution" {
 		valuesSection[name] = value
+		valuesSection["custom"] = ""
+	} else if section == "display" && name == "refresh_hz" && value == "auto" {
+		valuesSection[name] = int64(0)
+	} else {
+		// Use the schema type, not the current value: older files may have
+		// stored a number as a string, and should still heal.
+		schema := settings.Defaults()
+		schemaSection, _ := schema[section].(map[string]any)
+		kind := valuesSection[name]
+		if schemaSection != nil {
+			if expected, ok := schemaSection[name]; ok {
+				kind = expected
+			}
+		}
+		switch kind.(type) {
+		case bool:
+			parsed, err := strconv.ParseBool(value)
+			if err != nil {
+				fail(key + " must be true or false")
+			}
+			valuesSection[name] = parsed
+		case int64:
+			number, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				fail(key + " must be a number")
+			}
+			valuesSection[name] = number
+		default:
+			valuesSection[name] = value
+		}
 	}
 	if err := paths.Save(values); err != nil {
 		fail(err.Error())
@@ -528,11 +548,9 @@ func playCommand(args []string, mode modes) {
 	}
 	iso := paths.ISOPath(raw)
 
-	returncode, err := runDolphin(paths, appimage, []string{
-		"-C", "Dolphin.Display.Fullscreen=True",
-		"-C", "Graphics.Hardware.VSync=False",
-		"-b", "-e", iso,
-	})
+	arguments := dolphinArgs(values)
+	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=True", "-b", "-e", iso)
+	returncode, err := runDolphin(paths, appimage, arguments)
 	if err != nil {
 		fail(err.Error())
 	}
@@ -545,6 +563,61 @@ func playCommand(args []string, mode modes) {
 			fmt.Printf("Dolphin exited with status %d.\n", returncode)
 		}
 	})
+}
+
+// dolphinArgs maps the curated Dolphin settings onto Dolphin's command-line
+// config layer. Enum values are the integers Dolphin stores in its INIs.
+func dolphinArgs(values map[string]any) []string {
+	dolphin, _ := values["dolphin"].(map[string]any)
+	text := func(key, fallback string) string {
+		value, _ := dolphin[key].(string)
+		if value == "" {
+			return fallback
+		}
+		return value
+	}
+	number := func(key string, fallback int64) int64 {
+		switch value := dolphin[key].(type) {
+		case int64:
+			return value
+		case int:
+			return int64(value)
+		}
+		return fallback
+	}
+	flag := func(key string) bool {
+		value, _ := dolphin[key].(bool)
+		return value
+	}
+	boolText := func(value bool) string {
+		if value {
+			return "True"
+		}
+		return "False"
+	}
+
+	arguments := []string{
+		"-C", "Dolphin.Core.GFXBackend=" + text("backend", "Vulkan"),
+		"-C", "Graphics.Settings.InternalResolution=" + strconv.FormatInt(number("resolution", 3), 10),
+		"-C", "Graphics.Settings.AspectRatio=" + strconv.FormatInt(number("aspect", 3), 10),
+		"-C", "Graphics.Settings.MSAA=" + strconv.FormatInt(number("msaa", 1), 10),
+		"-C", "Graphics.Hardware.VSync=" + boolText(flag("vsync")),
+		"-C", "Dolphin.DSP.Backend=" + text("audio_backend", "Cubeb"),
+		"-C", "Dolphin.Core.AudioLatency=" + strconv.FormatInt(number("audio_latency", 20), 10),
+	}
+	switch text("controller", "adapter") {
+	case "adapter":
+		// The Wii U adapter provides all four ports.
+		for port := 0; port < 4; port++ {
+			arguments = append(arguments,
+				"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=12", port))
+		}
+	case "keyboard":
+		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=7")
+	default:
+		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=6")
+	}
+	return arguments
 }
 
 // runDolphin starts the Slippi AppImage with the shared user directory and
@@ -580,6 +653,26 @@ func runDolphin(paths settings.Paths, appimage string, arguments []string) (int,
 	return 0, nil
 }
 
+func dolphinCommand(args []string, mode modes) {
+	if len(args) == 0 {
+		fail("usage: slippios dolphin config|reset")
+	}
+	switch args[0] {
+	case "config":
+		dolphinConfigCommand(mode)
+	case "reset":
+		config := filepath.Join(settings.DefaultPaths().DolphinDir, "Config")
+		for _, name := range []string{"Dolphin.ini", "GFX.ini", "GCPadNew.ini"} {
+			_ = os.Remove(filepath.Join(config, name))
+		}
+		emit(map[string]any{"ok": true}, mode, func() {
+			fmt.Println("Dolphin configuration reset.")
+		})
+	default:
+		fail("usage: slippios dolphin config|reset")
+	}
+}
+
 // dolphinConfigCommand opens Dolphin's own settings window so users can bind
 // controllers or change graphics options.
 func dolphinConfigCommand(mode modes) {
@@ -590,9 +683,13 @@ func dolphinConfigCommand(mode modes) {
 	if err != nil {
 		fail(err.Error())
 	}
-	returncode, err := runDolphin(paths, appimage, []string{
-		"-C", "Graphics.Hardware.VSync=False",
-	})
+	values, err := settings.DefaultPaths().Load()
+	if err != nil {
+		fail(err.Error())
+	}
+	arguments := dolphinArgs(values)
+	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=False")
+	returncode, err := runDolphin(paths, appimage, arguments)
 	if err != nil {
 		fail(err.Error())
 	}
@@ -602,23 +699,95 @@ func dolphinConfigCommand(mode modes) {
 }
 
 func displayCommand(args []string, mode modes) {
-	if len(args) == 0 || args[0] != "apply" {
-		fail("usage: slippios display apply")
+	if len(args) == 0 {
+		fail("usage: slippios display apply|modes|custom <WxH[@Hz]>")
 	}
-	values, err := settings.DefaultPaths().Load()
-	if err != nil {
-		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-		return
+	paths := settings.DefaultPaths()
+	switch args[0] {
+	case "apply":
+		values, err := paths.Load()
+		if err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		if err := desktop.ApplyDisplay(values); err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		// Audio is best effort: a missing sink must not fail the display change.
+		_ = desktop.ApplyAudio(values)
+		emit(map[string]any{"ok": true}, mode, func() {
+			fmt.Println("Display settings applied.")
+		})
+	case "modes":
+		modes, err := desktop.Modes()
+		if err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		emit(map[string]any{
+			"ok":        true,
+			"output":    modes.Output,
+			"current":   modes.Current,
+			"rate":      modes.Rate,
+			"edid_name": modes.EDIDName,
+			"modes":     modes.Modes,
+		}, mode, func() {
+			fmt.Printf("Display: %s (%s)\n", modes.Output, modes.EDIDName)
+			for _, entry := range modes.Modes {
+				fmt.Printf("  %s  %v\n", entry.Resolution, entry.Rates)
+			}
+		})
+	case "mode":
+		if len(args) != 3 {
+			fail("usage: slippios display mode <WxH> <Hz>")
+		}
+		if err := desktop.SetMode(args[1], args[2]); err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		values, err := paths.Load()
+		if err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		display, _ := values["display"].(map[string]any)
+		display["resolution"] = args[1]
+		display["rate"] = args[2]
+		display["custom"] = ""
+		if err := paths.Save(values); err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		emit(map[string]any{"ok": true, "resolution": args[1], "rate": args[2]}, mode, func() {
+			fmt.Printf("Display set to %s @ %s Hz.\n", args[1], args[2])
+		})
+	case "custom":
+		if len(args) != 2 {
+			fail("usage: slippios display custom <WxH[@Hz]>")
+		}
+		if err := desktop.ApplyCustomMode(args[1]); err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		values, err := paths.Load()
+		if err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		display, _ := values["display"].(map[string]any)
+		display["resolution"] = "custom"
+		display["custom"] = args[1]
+		if err := paths.Save(values); err != nil {
+			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+			return
+		}
+		emit(map[string]any{"ok": true, "custom": args[1]}, mode, func() {
+			fmt.Println("Custom mode applied:", args[1])
+		})
+	default:
+		fail("usage: slippios display apply|modes|custom <WxH[@Hz]>")
 	}
-	if err := desktop.ApplyDisplay(values); err != nil {
-		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-		return
-	}
-	// Audio is best effort: a missing sink must not fail the display change.
-	_ = desktop.ApplyAudio(values)
-	emit(map[string]any{"ok": true}, mode, func() {
-		fmt.Println("Display settings applied.")
-	})
 }
 
 func audioCommand(args []string, mode modes) {
@@ -734,8 +903,8 @@ func main() {
 		osCommand(args[1:], mode)
 	case "play":
 		playCommand(args[1:], mode)
-	case "dolphin-config":
-		dolphinConfigCommand(mode)
+	case "dolphin":
+		dolphinCommand(args[1:], mode)
 	case "display":
 		displayCommand(args[1:], mode)
 	case "audio":

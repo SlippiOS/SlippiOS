@@ -127,15 +127,20 @@ them on a trusted network.
 ## Play
 
 **Play** launches Slippi Dolphin with the selected ISO. Standard SDL controllers
-work. **Dolphin settings** opens Dolphin's own configuration window: controller
-bindings and profiles, graphics, audio, and game paths all live there. SlippiOS
-closes its shell while Dolphin is open, then returns to the menu.
+work. **Dolphin** changes Dolphin's graphics backend, internal resolution,
+aspect ratio, VSync, anti-aliasing, audio, and controller type without leaving
+the console. SlippiOS maps these onto Dolphin's command-line config.
 
 [controllers.md](controllers.md)
 
-**Settings** changes display refresh rate, resolution, and audio output. Changes
-apply immediately and are saved for the next boot. **Wi-Fi network** scans and
-joins networks.
+**Settings** lists the display modes the monitor advertises (read from
+xrandr/EDID), the audio outputs, and Wi-Fi. Changes apply immediately and are
+saved for the next boot.
+
+**Expert mode** (inside Settings) unlocks tools for troubleshooting and
+tinkering: Dolphin's own settings window, a terminal, a text editor, and a
+custom display mode. The custom mode takes `WIDTHxHEIGHT` or
+`WIDTHxHEIGHT@HZ`; it is added with a CVT modeline and kept across reboots.
 
 **Quit** powers the console off cleanly. Wait for the screen to go dark before
 unplugging the drive.

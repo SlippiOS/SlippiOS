@@ -19,6 +19,10 @@ No Docker or system Nix required.
 ```sh
 mise run build:image    # USB image, compressed for release
 mise run build:image-dev  # uncompressed image, faster local boots
+mise run dev:env        # local sandbox under ~/.cache/slippios/dev
+mise run dev:cli -- status   # CLI against that sandbox
+mise run dev:web        # setup page against that sandbox
+mise run dev:shell      # exported shell against that sandbox (needs GL)
 mise run run:image      # boot the local USB image
 mise run stop:image     # clean ACPI power-off of that VM
 mise run fetch:image    # download the latest published USB image
@@ -51,6 +55,12 @@ improving the appliance.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
+
+`scripts/dev` builds a throwaway data tree with a tiny fake Melee image
+(`GALE01` header, not a playable disc) and a settings.toml. The CLI, ISO
+checks, web setup pages, and Dolphin runner can be exercised there without an
+image build. The Godot shell also honours `SLIPPIOS_DATA`; `dev:shell` needs a
+working OpenGL stack on the host, which non-NixOS hosts often do not provide.
 
 `test:shell` starts the shell headlessly. JSON parse errors from the missing
 `slippios` CLI are expected; GDScript parse errors are not.
@@ -134,6 +144,30 @@ desktop graphics stack, cannot initialise OpenGL on NixOS, falls back to OpenGL
 ES, and exits. The symptom is the shell dying immediately and Openbox falling
 back to the terminal session.
 
+## Dolphin configuration
+
+The shell edits a curated subset of Dolphin settings in settings.toml and maps
+them to `-C System.Section.Key=Value` at launch. The important values:
+
+- `Dolphin` is the main INI; `Graphics` is the GFX INI (not `GFX`).
+- `Dolphin.Core.SIDevice0..3`: 12 is the Wii U adapter, 6 a standard pad,
+  7 the keyboard.
+- `Graphics.Settings.InternalResolution` is the EFB scale (1 = native).
+- `Graphics.Settings.AspectRatio`: 1 widescreen, 2 4:3, 3 Melee, 4 stretch.
+- `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
+- Enums are written as integers; booleans as `True`/`False`.
+
+**Expert mode → Dolphin settings window** still opens the real Dolphin GUI for
+anything the curated list does not cover (controller bindings, profiles).
+
+## Boot splash
+
+Plymouth shows `assets/plymouth/slippios.script` with the shared mark. When the
+session starts, the openbox autostart paints `apps/shell/assets/slippi-boot.png`
+on the X root window before Godot starts, so the Plymouth → X → Godot handoff
+never shows a blank screen. The Godot splash animates the same mark; replace
+the temporary Slippi mark in `assets/branding/` when the SlippiOS mark exists.
+
 ## Dolphin AppImage
 
 `pkgs/appimage-runner.nix` is an FHS environment built from
@@ -159,7 +193,9 @@ Godot never launches Dolphin itself. It exits with a code and the
 | Exit | Wrapper action |
 | --- | --- |
 | 42 | `slippios play`, then reopen the shell |
-| 43 | `slippios dolphin-config`, then reopen the shell |
+| 43 | `slippios dolphin config` (Dolphin settings window), then reopen |
+| 44 | xterm running a login shell, then reopen |
+| 45 | xterm running nano on settings.toml, then reopen |
 | anything else | write `/data/system/shell-failed`, exit |
 
 This releases the GameCube adapter for Dolphin instead of leaving it claimed by
@@ -180,6 +216,10 @@ slippios audio sinks          # JSON list of PulseAudio outputs
 
 `backend/internal/desktop` is shared by the shell (through these commands) and
 the terminal session, so both apply the same settings.toml values.
+`slippios display modes` reads the driver's xrandr mode list (which is derived
+from EDID) plus the EDID monitor name; `slippios display mode` and
+`slippios display custom` switch or create modes. The shell applies the saved
+mode at boot, and re-adds a custom CVT mode because X forgets runtime modes.
 
 ## Wi-Fi
 

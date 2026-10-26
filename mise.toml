@@ -9,6 +9,22 @@ auto_install = true
 description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
 run = "./scripts/build-image"
 
+[tasks."dev:env"]
+description = "Create or report the local development sandbox"
+run = "./scripts/dev env"
+
+[tasks."dev:cli"]
+description = "Run the CLI against the local sandbox"
+run = "./scripts/dev cli"
+
+[tasks."dev:web"]
+description = "Run the setup page against the local sandbox"
+run = "./scripts/dev web"
+
+[tasks."dev:shell"]
+description = "Run the exported Godot shell against the local sandbox"
+run = "./scripts/dev shell"
+
 [tasks."build:image-dev"]
 description = "Build an uncompressed USB image for local boot testing"
 run = "SLIPPI_DEV=1 ./scripts/build-image"
@@ -27,7 +43,7 @@ run = "./scripts/fetch-image"
 
 [tasks."test:shell"]
 description = "Parse the Godot project headlessly"
-run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit"
+run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c sh -c 'godot --headless --path apps/shell --import && godot --headless --path apps/shell --quit'"
 
 [tasks.test]
 description = "Run the fast checks"

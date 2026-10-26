@@ -4,3 +4,8 @@
 __pycache__/
 *.qcow2
 *.raw
+
+# Godot import cache (the image build imports the project fresh)
+/apps/shell/.godot/
+/apps/shell/**/*.import
+/apps/shell/**/*.uid

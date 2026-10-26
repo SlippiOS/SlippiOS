@@ -78,6 +78,8 @@ func Defaults() map[string]any {
 		"display": map[string]any{
 			"refresh_hz": int64(120),
 			"resolution": "auto",
+			"rate":       "",
+			"custom":     "",
 		},
 		"audio": map[string]any{
 			"sink": "auto",
@@ -85,6 +87,20 @@ func Defaults() map[string]any {
 		"network": map[string]any{
 			"ssid": "",
 			"psk":  "",
+		},
+		"dolphin": map[string]any{
+			"backend":       "Vulkan",
+			"resolution":    int64(3),
+			"aspect":        int64(3),
+			"vsync":         false,
+			"msaa":          int64(1),
+			"audio_backend": "Cubeb",
+			"audio_latency": int64(20),
+			"controller":    "adapter",
+			"profile":       "",
+		},
+		"expert": map[string]any{
+			"enabled": false,
 		},
 		"slippi": map[string]any{
 			"user_json": DefaultUserJSON,

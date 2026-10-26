@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Create a tiny file with a valid Melee GameCube ID for local UI/CLI testing.
+# It is not a bootable disc image; Dolphin will refuse it.
+set -euo pipefail
+out="${1:-test-melee.iso}"
+mkdir -p "$(dirname "$out")"
+if [[ ! -f "$out" ]]; then
+  truncate -s 64M "$out"
+  printf 'GALE01' | dd of="$out" bs=1 conv=notrunc status=none
+fi
+printf '%s\n' "$out"

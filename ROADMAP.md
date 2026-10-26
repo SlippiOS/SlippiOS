@@ -11,8 +11,10 @@ more installation modes.
       fit and appear with their original filenames.
 - [ ] Choose a default image, power-cycle, and confirm it launches automatically.
 - [ ] Open `Melee ROMs`, switch images, and confirm the new default persists.
-- [ ] Confirm the hold-A menu path on hardware. (Cold-boot splash and reopening
-      the shell without a splash are verified in QEMU.)
+- [ ] Confirm the hold-A menu path on hardware. (Cold-boot Plymouth/Godot
+      splash and reopening the shell without a splash are verified in QEMU.)
+- [ ] Replace the temporary Slippi mark with a SlippiOS mark for Plymouth and
+      the Godot splash.
 - [ ] Test the real GameCube adapter in the shell and Dolphin.
 - [ ] Test Wi-Fi setup and a real Slippi sign-in.
 - [ ] Confirm `/data` grows to fill the stick and survives reboots.

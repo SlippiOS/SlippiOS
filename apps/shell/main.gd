@@ -3,6 +3,9 @@ extends Control
 const CLI := "slippios"
 const GAME_EXIT := 42
 const DOLPHIN_EXIT := 43
+const TERMINAL_EXIT := 44
+const EDITOR_EXIT := 45
+const MAX_MODE_ROWS := 24
 const REFRESH_CHOICES := [0, 60, 120, 144, 240]
 const RESOLUTION_CHOICES := ["auto", "1280x720", "1920x1080", "2560x1440", "3840x2160"]
 const BOOT_HOLD_MS := 1800
@@ -39,6 +42,9 @@ func _ready() -> void:
 	set_process(false)
 	_build_base()
 	_refresh_status()
+	# The graphical session does not run slippios-session, so apply the saved
+	# display mode here (including re-adding a custom mode after a reboot).
+	_cli(["display", "apply"])
 	if OS.get_environment("SLIPPIOS_SKIP_SPLASH") == "1":
 		_after_splash()
 	else:
@@ -171,7 +177,7 @@ func _add_boot_bar() -> ProgressBar:
 	background.corner_radius_bottom_left = 2
 	background.corner_radius_bottom_right = 2
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("#3d7dff")
+	fill.bg_color = Color("#44a963")
 	fill.corner_radius_top_left = 2
 	fill.corner_radius_top_right = 2
 	fill.corner_radius_bottom_left = 2
@@ -234,7 +240,7 @@ func _show_menu() -> void:
 		current = current.get_file()
 	_add_button(("Play — %s" % current) if current != "" else "Play", _on_play)
 	_add_button("Melee ROMs", _show_roms)
-	_add_button("Dolphin settings", _open_dolphin_settings)
+	_add_button("Dolphin", _show_dolphin)
 	_add_button("Update", _show_update)
 	_add_button("Account", _show_account)
 	_add_button("Settings", _show_settings)
@@ -420,6 +426,9 @@ func _delete_character(masked: bool) -> void:
 
 
 func _finish_field() -> void:
+	if _input_mode == "display_custom":
+		_apply_custom_mode(_auth_field.strip_edges())
+		return
 	if _input_mode == "wifi_password":
 		_submit_wifi(_wifi_ssid, _auth_field)
 		return
@@ -461,75 +470,47 @@ func _submit_login(password: String) -> void:
 
 func _show_settings(message: String = "") -> void:
 	_stop_net()
+	_input_mode = ""
 	_screen = "settings"
 	_clear()
 	_title = _add_title("SETTINGS", 44)
-	var result := _cli(["settings", "show"])
-	var settings: Dictionary = result.get("settings", {})
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
 	var display: Dictionary = settings.get("display", {})
 	var audio: Dictionary = settings.get("audio", {})
 	var network: Dictionary = settings.get("network", {})
-	var refresh := _refresh_value(display)
-	_add_button("Refresh: %s" % ("auto" if refresh == 0 else "%d Hz" % refresh), _cycle_refresh)
-	_add_button("Resolution: %s" % _text(display.get("resolution"), "auto"), _cycle_resolution)
+	var expert: Dictionary = settings.get("expert", {})
+	var expert_on := bool(expert.get("enabled", false))
+	_add_button("Display: %s" % _display_label(display), _show_display)
 	_add_button("Audio: %s" % _sink_label(audio), _show_audio)
 	_add_label("Network: %s" % _text(network.get("ssid"), "(none)"), 0.8)
 	_add_button("Wi-Fi network", _show_wifi)
+	_add_button("Expert mode: %s" % ("on" if expert_on else "off"), _toggle_expert)
+	if expert_on:
+		_add_button("Expert tools", _show_expert)
 	if message != "":
 		_add_label(message, 0.9)
 	_add_button("Back", _show_menu)
 	_focus_first()
 
 
-func _refresh_value(display: Dictionary) -> int:
-	var value: Variant = display.get("refresh_hz", 0)
-	if value == null:
-		return 0
-	return int(value)
+func _display_label(display: Dictionary) -> String:
+	var custom := _text(display.get("custom"), "")
+	if custom != "":
+		return "custom %s" % custom
+	var resolution := _text(display.get("resolution"), "auto")
+	if resolution == "" or resolution == "auto":
+		return "auto"
+	var rate := _text(display.get("rate"), "")
+	if rate == "":
+		rate = _text(display.get("refresh_hz"), "")
+	if rate == "" or rate == "0":
+		return resolution
+	return "%s @ %s Hz" % [resolution, rate]
 
 
 func _sink_label(audio: Dictionary) -> String:
 	var sink := _text(audio.get("sink"), "auto")
 	return "auto (system default)" if sink == "auto" else sink
-
-
-func _cycle_refresh() -> void:
-	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
-	var current := _refresh_value(settings.get("display", {}))
-	var index := REFRESH_CHOICES.find(current)
-	if index < 0:
-		index = 0
-	var next := int(REFRESH_CHOICES[(index + 1) % REFRESH_CHOICES.size()])
-	var value := "auto" if next == 0 else str(next)
-	var saved := _cli(["settings", "set", "display.refresh_hz", value])
-	if not saved.get("ok", false):
-		_show_settings(str(saved.get("error", "Could not save the refresh rate.")))
-		return
-	_apply_display("Refresh set to %s." % value)
-
-
-func _cycle_resolution() -> void:
-	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
-	var display: Dictionary = settings.get("display", {})
-	var current := _text(display.get("resolution"), "auto")
-	var index := RESOLUTION_CHOICES.find(current)
-	if index < 0:
-		index = 0
-	var next := str(RESOLUTION_CHOICES[(index + 1) % RESOLUTION_CHOICES.size()])
-	var saved := _cli(["settings", "set", "display.resolution", next])
-	if not saved.get("ok", false):
-		_show_settings(str(saved.get("error", "Could not save the resolution.")))
-		return
-	_apply_display("Resolution set to %s." % next)
-
-
-func _apply_display(message: String) -> void:
-	var result := _cli(["display", "apply"])
-	if not result.get("ok", false):
-		_show_settings("Saved. The display did not accept it: %s" %
-			str(result.get("error", "unknown error")))
-		return
-	_show_settings(message)
 
 
 func _show_audio() -> void:
@@ -565,7 +546,275 @@ func _select_sink(name: String) -> void:
 	if not saved.get("ok", false):
 		_show_audio()
 		return
-	_apply_display("Audio output set.")
+	var applied := _cli(["display", "apply"])
+	if not applied.get("ok", false):
+		_show_settings("Audio saved, but applying it failed: %s" %
+			str(applied.get("error", "unknown error")))
+		return
+	_show_settings("Audio output set.")
+
+
+func _show_display(message: String = "") -> void:
+	_stop_net()
+	_input_mode = ""
+	_screen = "display"
+	_clear()
+	_title = _add_title("DISPLAY", 44)
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var display: Dictionary = settings.get("display", {})
+	var expert := bool(settings.get("expert", {}).get("enabled", false))
+	var result := _cli(["display", "modes"])
+	if not result.get("ok", false):
+		_add_label(str(result.get("error", "Could not read the display modes.")), 0.9)
+		_add_button("Back", _show_settings.bind(""))
+		_focus_first()
+		return
+
+	var name := _text(result.get("edid_name"), "")
+	var output := _text(result.get("output"), "")
+	var heading := output
+	if name != "":
+		heading = "%s (%s)" % [output, name]
+	_add_label(heading, 0.65)
+	if message != "":
+		_add_label(message, 0.9)
+
+	var current_res := _text(display.get("resolution"), "auto")
+	var current_rate := _text(display.get("rate"), "")
+	_add_button("Auto (native)%s" % ("  (current)" if current_res == "auto" and
+		_text(display.get("custom"), "") == "" else ""), _select_mode.bind("auto", ""))
+
+	var shown := 0
+	for mode in result.get("modes", []):
+		var resolution := str(mode.get("resolution", ""))
+		if resolution == "":
+			continue
+		for rate in mode.get("rates", []):
+			if shown >= MAX_MODE_ROWS:
+				break
+			var rate_text := _rate_text(rate)
+			var selected := resolution == current_res and _rates_match(rate_text, current_rate)
+			var label := "%s @ %s Hz" % [resolution, rate_text]
+			if selected:
+				label += "  (current)"
+			_add_button(label, _select_mode.bind(resolution, rate_text))
+			shown += 1
+		if shown >= MAX_MODE_ROWS:
+			break
+	if shown == 0:
+		_add_label("No modes reported by the display.", 0.8)
+
+	if expert:
+		_add_button("Custom mode…", _show_custom_mode.bind(""))
+	_add_button("Back", _show_settings.bind(""))
+	_focus_first()
+
+
+func _rate_text(rate: Variant) -> String:
+	var value := float(rate)
+	if absf(value - roundf(value)) < 0.02:
+		return "%d" % int(roundf(value))
+	return "%.2f" % value
+
+
+func _rates_match(left: String, right: String) -> bool:
+	if right == "":
+		return false
+	return absf(float(left) - float(right)) < 0.05
+
+
+func _select_mode(resolution: String, rate: String) -> void:
+	if resolution == "auto":
+		_cli(["settings", "set", "display.resolution", "auto"])
+		_cli(["settings", "set", "display.rate", ""])
+		_cli(["settings", "set", "display.custom", ""])
+		_show_settings("Display set to auto.")
+		return
+	var result := _cli(["display", "mode", resolution, rate])
+	if not result.get("ok", false):
+		_show_display("Could not switch mode: %s" %
+			str(result.get("error", "unknown error")))
+		return
+	_show_settings("Display set to %s @ %s Hz." % [resolution, rate])
+
+
+func _show_custom_mode(message: String = "") -> void:
+	_stop_net()
+	_screen = "display-custom"
+	_input_mode = "display_custom"
+	_auth_field = ""
+	_clear()
+	_title = _add_title("CUSTOM MODE", 40)
+	_add_label("Enter WIDTHxHEIGHT or WIDTHxHEIGHT@HZ, then Done.", 0.8)
+	if message != "":
+		_add_label(message, 0.9)
+	_auth_label = _add_label("", 1.0)
+	_build_keyboard(false)
+	_add_button("Back", _show_display.bind(""))
+	_focus_first()
+
+
+func _apply_custom_mode(spec: String) -> void:
+	if not spec.contains("x"):
+		_show_custom_mode("Use WIDTHxHEIGHT, for example 1920x1080.")
+		return
+	var result := _cli(["display", "custom", spec])
+	if not result.get("ok", false):
+		_show_custom_mode(str(result.get("error", "The display rejected that mode.")))
+		return
+	_show_settings("Custom mode applied: %s." % spec)
+
+
+func _toggle_expert() -> void:
+	var enabled := _expert_enabled()
+	var saved := _cli(["settings", "set", "expert.enabled", "false" if enabled else "true"])
+	if not saved.get("ok", false):
+		_show_settings(str(saved.get("error", "Could not save expert mode.")))
+		return
+	_show_settings("Expert mode %s." % ("disabled" if enabled else "enabled"))
+
+
+func _expert_enabled() -> bool:
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	return bool(settings.get("expert", {}).get("enabled", false))
+
+
+func _show_expert() -> void:
+	_stop_net()
+	_screen = "expert"
+	_clear()
+	_title = _add_title("EXPERT TOOLS", 40)
+	_add_label("These tools can change the system. Use them with care.", 0.7)
+	_add_button("Dolphin settings window", _open_dolphin_settings)
+	_add_button("Terminal", _open_terminal)
+	_add_button("Text editor", _open_editor)
+	_add_button("Custom display mode", _show_custom_mode.bind(""))
+	_add_button("Back", _show_settings.bind(""))
+	_focus_first()
+
+
+func _open_terminal() -> void:
+	_clear()
+	_title = _add_title("TERMINAL", 44)
+	_add_label("Opening a terminal…", 0.8)
+	await get_tree().process_frame
+	get_tree().quit(TERMINAL_EXIT)
+
+
+func _open_editor() -> void:
+	_clear()
+	_title = _add_title("TEXT EDITOR", 44)
+	_add_label("Opening settings.toml…", 0.8)
+	await get_tree().process_frame
+	get_tree().quit(EDITOR_EXIT)
+
+
+func _show_dolphin(message: String = "") -> void:
+	_stop_net()
+	_input_mode = ""
+	_screen = "dolphin"
+	_clear()
+	_title = _add_title("DOLPHIN", 44)
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var dolphin: Dictionary = settings.get("dolphin", {})
+	if message != "":
+		_add_label(message, 0.9)
+	_add_button("Graphics: %s" % _text(dolphin.get("backend"), "Vulkan"),
+		_cycle_dolphin.bind("backend", ["Vulkan", "OGL"]))
+	_add_button("Resolution: %s" % _internal_resolution_label(dolphin),
+		_cycle_dolphin.bind("resolution", [1, 2, 3, 4, 5, 6]))
+	_add_button("Aspect: %s" % _aspect_label(dolphin),
+		_cycle_dolphin.bind("aspect", [3, 1, 2, 4]))
+	_add_button("VSync: %s" % ("on" if dolphin.get("vsync", false) else "off"),
+		_toggle_dolphin.bind("vsync"))
+	_add_button("Anti-aliasing: %s" % _msaa_label(dolphin),
+		_cycle_dolphin.bind("msaa", [1, 2, 4, 8]))
+	_add_button("Audio: %s" % _text(dolphin.get("audio_backend"), "Cubeb"),
+		_cycle_dolphin.bind("audio_backend", ["Cubeb", "ALSA", "NoSound"]))
+	_add_button("Controller: %s" % _controller_label(dolphin),
+		_cycle_dolphin.bind("controller", ["adapter", "pad", "keyboard"]))
+	_add_button("Reset Dolphin config", _reset_dolphin)
+	_add_button("Back", _show_menu)
+	_focus_first()
+
+
+func _internal_resolution_label(dolphin: Dictionary) -> String:
+	var value := int(dolphin.get("resolution", 3))
+	if value <= 0:
+		return "auto"
+	return "%dx native" % value
+
+
+func _aspect_label(dolphin: Dictionary) -> String:
+	match int(dolphin.get("aspect", 3)):
+		1:
+			return "widescreen"
+		2:
+			return "4:3"
+		4:
+			return "stretch"
+		_:
+			return "Melee (73:60)"
+
+
+func _msaa_label(dolphin: Dictionary) -> String:
+	var value := int(dolphin.get("msaa", 1))
+	if value <= 1:
+		return "off"
+	return "%dx" % value
+
+
+func _controller_label(dolphin: Dictionary) -> String:
+	match _text(dolphin.get("controller"), "adapter"):
+		"pad":
+			return "standard pad"
+		"keyboard":
+			return "keyboard"
+		_:
+			return "GameCube adapter"
+
+
+func _cycle_dolphin(key: String, choices: Array) -> void:
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var dolphin: Dictionary = settings.get("dolphin", {})
+	var current: Variant = dolphin.get(key)
+	var index := -1
+	for position in choices.size():
+		var choice: Variant = choices[position]
+		if typeof(choice) in [TYPE_INT, TYPE_FLOAT] and typeof(current) in [TYPE_INT, TYPE_FLOAT]:
+			if float(choice) == float(current):
+				index = position
+				break
+		elif str(choice) == str(current):
+			index = position
+			break
+	if index < 0:
+		index = 0
+	var next: Variant = choices[(index + 1) % choices.size()]
+	var saved := _cli(["settings", "set", "dolphin." + key, str(next)])
+	if not saved.get("ok", false):
+		_show_dolphin(str(saved.get("error", "Could not save the Dolphin setting.")))
+		return
+	_show_dolphin()
+
+
+func _toggle_dolphin(key: String) -> void:
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var dolphin: Dictionary = settings.get("dolphin", {})
+	var next := not bool(dolphin.get(key, false))
+	var saved := _cli(["settings", "set", "dolphin." + key, "true" if next else "false"])
+	if not saved.get("ok", false):
+		_show_dolphin(str(saved.get("error", "Could not save the Dolphin setting.")))
+		return
+	_show_dolphin()
+
+
+func _reset_dolphin() -> void:
+	var result := _cli(["dolphin", "reset"])
+	if not result.get("ok", false):
+		_show_dolphin(str(result.get("error", "Could not reset Dolphin.")))
+		return
+	_show_dolphin("Dolphin configuration reset.")
 
 
 func _show_wifi(message: String = "") -> void:
@@ -846,9 +1095,13 @@ func _local_ip() -> String:
 	return "127.0.0.1"
 
 
+func _data_dir() -> String:
+	return OS.get_environment("SLIPPIOS_DATA") if OS.get_environment("SLIPPIOS_DATA") != "" else "/data"
+
+
 func _start_net(mode: String, message: String = "") -> void:
 	_stop_net()
-	var system_dir := DirAccess.open("/data/system")
+	var system_dir := DirAccess.open(_data_dir() + "/system")
 	if system_dir != null:
 		system_dir.remove("net-upload.json")
 		system_dir.remove("net-status.json")
@@ -941,7 +1194,7 @@ func _poll_net() -> void:
 	if not OS.is_process_running(_net_pid):
 		_net_pid = -1
 		_update_process()
-		var status := _read_json_file("/data/system/net-status.json")
+		var status := _read_json_file(_data_dir() + "/system/net-status.json")
 		if is_instance_valid(_net_status):
 			if not status.get("ok", true):
 				_net_status.text = "Network page stopped: %s" % str(status.get("error", "unknown error"))
@@ -950,7 +1203,7 @@ func _poll_net() -> void:
 		return
 
 	if _net_mode == "setup":
-		var setup := _read_json_file("/data/system/setup.json")
+		var setup := _read_json_file(_data_dir() + "/system/setup.json")
 		if setup.get("done", false):
 			_stop_net()
 			_refresh_status()
@@ -972,7 +1225,7 @@ func _poll_net() -> void:
 		return
 
 	if _net_mode == "iso":
-		var marker := _read_json_file("/data/system/net-upload.json")
+		var marker := _read_json_file(_data_dir() + "/system/net-upload.json")
 		if marker.get("name", "") != "":
 			_stop_net()
 			_refresh_status()
@@ -1005,12 +1258,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			_net_back()
 		"auth":
 			_back_from_auth()
-		"wifi", "audio":
+		"wifi", "audio", "expert":
 			_show_settings()
+		"dolphin":
+			_show_menu()
 		"roms":
 			_show_menu()
 		"wifi-password":
 			_show_wifi("")
+		"display":
+			_show_settings()
+		"display-custom":
+			_show_display("")
 		"login-setup", "setup", "settings", "update", "account", "quit":
 			_stop_net()
 			_show_menu()
