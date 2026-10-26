@@ -192,5 +192,5 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 
 ## Known work
 
-- Backup/restore for larger USB migration.
-- End-to-end update validation on real hardware.
+See the [roadmap](../ROADMAP.md). Current priority is real-hardware USB
+validation; install-to-internal-disk is scheduled after that.
