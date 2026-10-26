@@ -22,7 +22,7 @@ mise run build:image-dev  # uncompressed image, faster local boots
 mise run dev:cli -- status   # CLI against that sandbox
 mise run dev:ssh        # SSH into the running dev VM
 mise run dev:push       # build CLI + shell and push them into the dev VM
-mise run run:image      # boot the local USB image
+mise run run:image      # boot the local image (virtio disk; fast)
 mise run stop:image     # clean ACPI power-off of that VM
 mise run fetch:image    # download the latest published USB image
 mise run test           # Go tests + headless Godot parse

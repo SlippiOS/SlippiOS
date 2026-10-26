@@ -5,6 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
 DISK_SIZE="${SLIPPI_DISK_SIZE:-16G}"
+DISK_MODE="${SLIPPI_DISK:-virtio}"
 DISPLAY_MODE="${SLIPPI_DISPLAY:-gtk}"
 IMAGE="${1:-}"
 
@@ -16,6 +17,7 @@ Boots a local SlippiOS USB image under OVMF/QEMU. Without an argument,
 uses the newest artifact in result-local-image/.
 
 Environment:
+  SLIPPI_DISK        virtio (default, fast) or usb (tests the USB path)
   SLIPPI_DISK_SIZE   virtual disk size (default 16G)
   SLIPPI_DISPLAY     QEMU display backend (default gtk, use none for headless)
   SLIPPI_VGA         std (default) or virtio (DRM/KMS like real hardware)
@@ -111,8 +113,23 @@ if [[ "${SLIPPI_VGA:-std}" == "virtio" ]]; then
   vga_args=(-vga none -device virtio-gpu-pci)
 fi
 
+disk_args=()
+if [[ "$DISK_MODE" == "usb" ]]; then
+  disk_args=(
+    -device qemu-xhci
+    -drive if=none,id=usbstick,file="$overlay",format=qcow2
+    -device usb-storage,drive=usbstick,bootindex=0
+  )
+else
+  disk_args=(
+    -drive if=none,id=disk,file="$overlay",format=qcow2
+    -device virtio-blk-pci,drive=disk,bootindex=0
+  )
+fi
+
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
+echo "Disk:    $DISK_MODE"
 echo "Display: $DISPLAY_MODE"
 echo "Monitor: $monitor"
 echo "Network: host port 8080 is forwarded; from this PC use http://localhost:8080/<token>/"
@@ -123,9 +140,7 @@ exec qemu-system-x86_64 \
   -m 4096 -smp 4 \
   -drive if=pflash,format=raw,readonly=on,file="$code" \
   -drive if=pflash,format=raw,file="$vars_copy" \
-  -device qemu-xhci \
-  -drive if=none,id=usbstick,file="$overlay",format=qcow2 \
-  -device usb-storage,drive=usbstick,bootindex=0 \
+  "${disk_args[@]}" \
   -nic "user,model=virtio-net-pci,hostfwd=tcp::8080-:8080,hostfwd=tcp::${SLIPPI_SSH_PORT:-2222}-:22" \
   "${vga_args[@]}" \
   "${serial_args[@]}" \

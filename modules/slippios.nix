@@ -201,6 +201,13 @@ in {
     displayManager.lightdm.background = themeBackground;
   };
 
+  # The stage-2 systemd status for plymouth-quit is still printed despite
+  # ShowStatus=no. Clear tty1 after Plymouth has quit and before LightDM
+  # starts X, so the last console lines never reach the user.
+  systemd.services.display-manager.serviceConfig.ExecStartPre = lib.mkAfter [
+    "${pkgs.bash}/bin/bash -c 'printf \\033[2J\\033[H > /dev/tty1'"
+  ];
+
   # Renamed from services.xserver.displayManager in NixOS 25.11+.
   services.displayManager = {
     autoLogin.enable = true;
