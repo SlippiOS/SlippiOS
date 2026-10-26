@@ -178,7 +178,8 @@ yet.
 ## Troubleshooting
 
 **“Network page stopped”** — the setup page exited. The console shows the
-reason. Press **Restart setup page**. Only one page can run at a time.
+reason. Press **Skip for now** to reach the menu, or reboot to retry the
+wizard. Only one page can run at a time.
 
 **Setup page does not load** — the device and console must be on the same network.
 Disable VPN/client isolation. In the QEMU VM, use
@@ -186,7 +187,7 @@ Disable VPN/client isolation. In the QEMU VM, use
 
 **No Melee image** — the file must be a GameCube Melee `.iso` with ID `GALE01`,
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
-or **Restart setup page**.
+or reboot to reopen the setup page.
 
 **The console shows a recovery menu instead of the shell** — the graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and
