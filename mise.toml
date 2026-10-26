@@ -50,7 +50,7 @@ description = "Power off the running QEMU guest cleanly"
 run = "./scripts/stop-image"
 
 [tasks.clean]
-description = "Wipe the project cache and garbage-collect unreachable Nix paths"
+description = "Delete disposable cache and garbage-collect unreachable Nix paths"
 run = "./scripts/clean-cache --all"
 
 [tasks."clean:hard"]

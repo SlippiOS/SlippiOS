@@ -48,27 +48,28 @@ improving the appliance.
 
 - With system Nix: `scripts/build-image` calls `nix build`.
 - Without Nix: it downloads nix-portable to
-  `.cache/nix-portable` and runs it under bubblewrap.
+  `.cache/nix-portable-bin` and keeps its store in `.cache/nix`.
 - nix-portable uses `--option sandbox false`; `systemd-repart` needs nested
   user namespaces.
 - Build artifacts need about 12 GB free. `TMPDIR` defaults to
   `.cache/build-tmp`, not `/tmp`.
-- First build downloads the closure. Later builds reuse the global Nix store in
-  `~/.nix-portable`.
+- First build downloads the closure. Later builds reuse the project-local Nix
+  store in `.cache/nix`.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
 
 ## Local cache and cleanup
 
-QEMU overlays, monitor sockets, build scratch, downloaded test ISOs and the
-nix-portable binary live in `.cache/` in the repository, which is gitignored.
-The Nix store itself is global (`~/.nix-portable`).
+QEMU overlays, monitor sockets, build scratch, downloaded test ISOs, the
+nix-portable binary and its Nix store all live in `.cache/` in the repository,
+which is gitignored. The physical store is `.cache/nix`; nix-portable's
+hardcoded `.nix-portable` entry is only a compatibility symlink to it.
 
 ```sh
 mise run clean:cache   # overlays, ISOs, build scratch
 mise run clean         # wipe .cache and GC unreachable Nix paths
-mise run clean:hard    # also remove ~/.nix-portable (full re-download next build)
+mise run clean:hard    # also remove the project Nix store (full re-download next build)
 ```
 
 ## Dev VM loop
@@ -244,7 +245,8 @@ it leaves to the system between releases.
 The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`. It is
 mounted at `/data/isos` after `slippi-data.service` creates the directory. The
 partition is fixed-size; the ext4 `/data` partition after it grows to fill the
-stick. Images keep their original filenames. SlippiOS validates only the
+stick. The initrd grows it once (parted, `e2fsck -f`, `resize2fs`) and skips the
+work on later boots when the partition already reaches the end of the disk. Images keep their original filenames. SlippiOS validates only the
 GameCube game ID, not a hash.
 
 ## Boot and game handoff

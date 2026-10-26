@@ -8,7 +8,9 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="${SLIPPIOS_CACHE:-$ROOT/.cache}"
-PORTABLE="${NIX_PORTABLE:-$CACHE/nix-portable}"
+PORTABLE="${NIX_PORTABLE:-$CACHE/nix-portable-bin}"
+export NP_LOCATION="$CACHE"
+export XDG_CACHE_HOME="$CACHE/xdg"
 mkdir -p "$CACHE"
 
 if [[ ! -x "$PORTABLE" ]]; then

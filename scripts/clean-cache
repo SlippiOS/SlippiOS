@@ -13,15 +13,23 @@ fi
 
 case "${1:-}" in
   --all)
-    # Reclaim unreachable Nix paths first, then remove the whole project cache
-    # (including the nix-portable binary; it is re-downloaded on next use).
+    # Disposable artifacts plus a Nix GC; keep the store and nix-portable.
+    find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
+    find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
+    find "$CACHE" -maxdepth 1 -name '*.iso' -delete
+    find "$CACHE" -maxdepth 1 -name 'ov*.raw' -delete
+    find "$CACHE" -maxdepth 1 -name 'slippios-usb-*.raw*' -delete
+    rm -rf "$CACHE"/build-tmp/*
+    rm -f "$CACHE"/OVMF_VARS-*.fd
     ./scripts/nix store gc || true
-    rm -rf "$CACHE"
-    echo "Wiped $CACHE (Nix store kept)"
+    echo "Cleaned disposable cache and garbage-collected the Nix store."
+    du -sh "$CACHE"
     exit 0
     ;;
   --hard)
     # Full reset: next build re-downloads nix-portable and every dependency.
+    # Store paths are read-only, so make them writable before removing.
+    chmod -R u+w "$CACHE" "$HOME/.nix-portable" 2>/dev/null || true
     rm -rf "$CACHE" "$HOME/.nix-portable"
     echo "Wiped $CACHE and $HOME/.nix-portable"
     exit 0

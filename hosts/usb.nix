@@ -106,6 +106,7 @@ in {
     pkgs.e2fsprogs
     pkgs.parted
     pkgs.util-linux
+    pkgs.gawk
   ];
   boot.initrd.systemd.services.slippios-grow-data = {
     description = "Grow the SlippiOS data partition";
@@ -124,8 +125,28 @@ in {
       data=$(${pkgs.coreutils}/bin/readlink -f /dev/disk/by-partlabel/SLIPPIOS) || exit 0
       disk=/dev/$(${pkgs.coreutils}/bin/basename "$(${pkgs.coreutils}/bin/readlink -f "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$root")/..")")
       partnum=$(${pkgs.coreutils}/bin/cat "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$data")/partition")
+      diskname=$(${pkgs.coreutils}/bin/basename "$disk")
+      pstart=$(${pkgs.coreutils}/bin/cat "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$data")/start")
+      psecs=$(${pkgs.coreutils}/bin/cat "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$data")/size")
+      dsecs=$(${pkgs.coreutils}/bin/cat "/sys/class/block/$diskname/size")
+      partsz=$(${pkgs.util-linux}/bin/blockdev --getsize64 "$data")
+      info=$(${pkgs.e2fsprogs}/bin/dumpe2fs -h "$data" 2>/dev/null || true)
+      blocks=$(printf '%s\n' "$info" | ${pkgs.gawk}/bin/awk '/^Block count:/ {print $3}')
+      bsize=$(printf '%s\n' "$info" | ${pkgs.gawk}/bin/awk '/^Block size:/ {print $3}')
+      if [ -n "$blocks" ] && [ -n "$bsize" ]; then
+        fssz=$((blocks * bsize))
+        # Skip only when the partition already reaches the end of the disk and
+        # the filesystem fills the partition.
+        if [ $((pstart + psecs)) -ge $((dsecs - 2048)) ] \
+          && [ $((partsz - fssz)) -lt $((partsz / 100)) ]; then
+          exit 0
+        fi
+      fi
       ${pkgs.parted}/bin/parted -s -f "$disk" unit s resizepart "$partnum" 100% || true
       ${pkgs.util-linux}/bin/partx -u "$data" || true
+      # resize2fs refuses to grow an unclean filesystem; this only runs when
+      # the partition size and filesystem size disagree.
+      ${pkgs.e2fsprogs}/bin/e2fsck -f -y "$data" || true
       ${pkgs.e2fsprogs}/bin/resize2fs "$data" || true
     '';
   };
