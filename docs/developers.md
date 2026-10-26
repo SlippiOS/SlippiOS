@@ -78,7 +78,10 @@ mise run dev:ssh    # shell/logs on the VM
 
 The shell wrapper prefers `/data/dev/slippios` and `/data/dev/slippios-shell`
 when they exist, so a pushed build takes effect after the session restart.
-Image changes (NixOS modules, packages) still need `build:image-dev`.
+Because the shell export goes through the flake, new shell files must be staged
+(`git add apps/shell`) before `dev:push`; untracked files are not part of the
+Nix source tree. Image changes (NixOS modules, packages) still need
+`build:image-dev`.
 
 `scripts/dev` builds a throwaway data tree with a tiny fake Melee image
 (`GALE01` header, not a playable disc) and a settings.toml. The CLI, ISO
@@ -94,8 +97,10 @@ mise run run:image
 ```
 
 `run-image` accepts `.raw` or `.raw.xz`, creates a 16 GB qcow2 overlay in
-`.cache/`, and boots it as a USB stick under OVMF. It also exposes a
-QEMU monitor socket at `.cache/<image>.sock`.
+`.cache/`, and boots it under OVMF with a virtio disk by default. Set
+`SLIPPI_DISK=usb` to exercise the USB-storage path; USB emulation adds about
+20 seconds to a boot. It also exposes a QEMU monitor socket at
+`.cache/<image>.sock`.
 
 Closing the QEMU window is a hard power cut. Power off from the guest (**Quit →
 Power off**) or run `mise run stop:image`, which sends an ACPI power button over
@@ -147,6 +152,10 @@ hosts/usb.nix              A/B USB image, sysupdate, data growth
 modules/slippios.nix       kiosk, user, data mount, boot hooks
 backend/                   Go CLI, session fallback, auth, updates, LAN pages
 apps/shell/                Godot UI
+  main.gd                  app state, boot flow, routing, system actions
+  screens/                 one screen module per flow
+  services/                CLI wrapper, browser setup server, OS update job
+  widgets/                 shared controls
 pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 scripts/build-image        local image build

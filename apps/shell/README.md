@@ -3,18 +3,37 @@
 Godot 4 project for the console UI. It calls `slippios` for all system work;
 JSON output is automatic when stdout is piped.
 
-Run during development:
+## Layout
+
+- `main.gd` — app state, boot flow, screen routing, system actions
+- `screens/` — one screen per flow (menu, ROMs, setup, account, settings, …)
+- `services/` — CLI wrapper, browser setup server, OS update job
+- `widgets/keyboard.gd` — shared on-screen keyboard
+- `theme.gd` — reads `/etc/slippios/theme.json`
+- `boot_logo.gd` — pulsing boot mark
+
+## Run
+
+From this directory:
 
 ```sh
-nix shell nixpkgs#godot_4 --command godot --path apps/shell
+nix shell nixpkgs#godot_4 --command godot --path .
 ```
 
-Export (needs Godot export templates):
+## Test
 
 ```sh
-godot --headless --path apps/shell \
-  --export-release "Linux/X11" build/slippios-shell
+SLIPPIOS_PARSE_ONLY=1 godot --headless --path . --import
+SLIPPIOS_PARSE_ONLY=1 godot --headless --path . --quit
 ```
 
-Current scope: boot animation, status line, Play (launches Dolphin and returns),
-update check, placeholders for Account/Settings.
+`SLIPPIOS_PARSE_ONLY=1` skips the CLI and display probing.
+
+## Export
+
+The image build exports the `Linux` preset with the nixpkgs Godot export
+template. For a manual export with templates installed:
+
+```sh
+godot --headless --path . --export-release "Linux" build/slippios-shell
+```

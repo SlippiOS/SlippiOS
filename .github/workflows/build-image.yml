@@ -35,7 +35,11 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Validate shell project
-        run: nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
+        env:
+          SLIPPIOS_PARSE_ONLY: "1"
+        run: |
+          nix shell --inputs-from . nixpkgs#godot_4 -c sh -c \
+            'godot --headless --path apps/shell --import && godot --headless --path apps/shell --quit'
 
       - name: Measure system closure
         run: |

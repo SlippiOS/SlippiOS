@@ -31,4 +31,8 @@ jobs:
         run: nix shell --inputs-from . nixpkgs#go -c go test ./...
 
       - name: Validate Godot shell
-        run: nix shell --inputs-from . nixpkgs#godot_4 -c godot --headless --path apps/shell --quit
+        env:
+          SLIPPIOS_PARSE_ONLY: "1"
+        run: |
+          nix shell --inputs-from . nixpkgs#godot_4 -c sh -c \
+            'godot --headless --path apps/shell --import && godot --headless --path apps/shell --quit'
