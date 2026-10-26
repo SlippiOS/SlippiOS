@@ -40,7 +40,7 @@ func _ready() -> void:
 		if settings.get("exists", false) and _has_valid_isos():
 			_show_roms("Default Melee image is missing. Choose one.")
 		else:
-			_show_setup()
+			_check_setup()
 		_animate_boot()
 	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		_show_menu()
@@ -216,16 +216,24 @@ func _show_roms(message: String = "") -> void:
 	var current := _text(settings.get("iso_path"), "")
 	var result := _cli(["isos"])
 	var found := false
+	var default_entry: Dictionary = {}
+	var others: Array = []
 	for entry in result.get("isos", []):
 		if not entry.get("valid", false):
 			continue
 		found = true
+		if str(entry.get("path", "")) == current:
+			default_entry = entry
+		else:
+			others.append(entry)
+	if not default_entry.is_empty():
+		var default_path := str(default_entry.get("path", ""))
+		var default_name := str(default_entry.get("name", default_path))
+		_add_button("%s  (default)" % default_name, _select_rom.bind(default_path))
+	for entry in others:
 		var path := str(entry.get("path", ""))
 		var name := str(entry.get("name", path))
-		var label := name
-		if path == current:
-			label = "%s  (default)" % name
-		_add_button(label, _select_rom.bind(path))
+		_add_button(name, _select_rom.bind(path))
 	if not found:
 		_add_label("No Melee images found on MELEE-ROMS.", 0.8)
 	if message != "":
@@ -250,6 +258,31 @@ func _has_valid_isos() -> bool:
 		if entry.get("valid", false):
 			return true
 	return false
+
+
+func _check_setup() -> void:
+	_screen = "prepare"
+	_clear()
+	_title = _add_title("SETTING UP", 48)
+	_add_label("Checking the MELEE-ROMS drive…", 0.8)
+	var status := _add_label("", 0.75)
+	await get_tree().process_frame
+
+	var result := _cli(["isos"])
+	var count := 0
+	for entry in result.get("isos", []):
+		if entry.get("valid", false):
+			count += 1
+	if not result.get("ok", true):
+		status.text = "Could not read the MELEE-ROMS drive."
+	elif count == 0:
+		status.text = "No Melee images found."
+	else:
+		status.text = "Found %d Melee %s." % [count, "image" if count == 1 else "images"]
+	await get_tree().create_timer(0.8).timeout
+	status.text = "Starting setup…"
+	await get_tree().create_timer(0.4).timeout
+	_show_setup()
 
 
 func _show_setup(message: String = "") -> void:

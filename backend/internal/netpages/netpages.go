@@ -134,9 +134,9 @@ button.secondary:hover{background:#2c3646}
   {{if .Message}}<p class="ok">{{.Message}}</p>{{end}}
 
   {{if not .GameReady}}
-    <h2>Add your game</h2>
-    <p class="muted">Upload a Melee 1.02 ISO, or choose one already on the console.</p>
     {{if .ISOs}}
+    <h2>Choose your default Melee image</h2>
+    <p class="muted">This starts when you power on. You can change it later from Melee ROMs in the shell.</p>
     <form method="post" action="/{{.Token}}/select">
       <label for="game">Game image</label>
       <select id="game" name="path">
@@ -145,6 +145,9 @@ button.secondary:hover{background:#2c3646}
       <button type="submit">Use this game</button>
     </form>
     <p class="or">or upload a new image</p>
+    {{else}}
+    <h2>Add your game</h2>
+    <p class="muted">Upload a Melee 1.02 ISO. It will become your default image.</p>
     {{end}}
     <div>
       <input id="file" type="file" accept=".iso,application/x-iso9660-image">

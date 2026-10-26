@@ -261,7 +261,7 @@ func TestSetupFlow(t *testing.T) {
 	}
 	body, _ := io.ReadAll(response.Body)
 	response.Body.Close()
-	if !strings.Contains(string(body), "Add your game") ||
+	if !strings.Contains(string(body), "Choose your default Melee image") ||
 		!strings.Contains(string(body), "melee.iso") {
 		t.Fatalf("game step = %s", body)
 	}
