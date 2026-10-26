@@ -20,6 +20,7 @@ No Docker or system Nix required.
 mise run build:image    # USB image, compressed for release
 mise run build:image-dev  # uncompressed image, faster local boots
 mise run run:image      # boot the local USB image
+mise run stop:image     # clean ACPI power-off of that VM
 mise run fetch:image    # download the latest published USB image
 mise run test           # Go tests + headless Godot parse
 mise run test:shell
@@ -61,7 +62,12 @@ mise run run:image
 ```
 
 `run-image` accepts `.raw` or `.raw.xz`, creates a 16 GB qcow2 overlay in
-`~/.cache/slippios`, and boots it as a USB stick under OVMF.
+`~/.cache/slippios`, and boots it as a USB stick under OVMF. It also exposes a
+QEMU monitor socket at `~/.cache/slippios/<image>.sock`.
+
+Closing the QEMU window is a hard power cut. Power off from the guest (**Quit →
+Power off**) or run `mise run stop:image`, which sends an ACPI power button over
+the monitor socket.
 
 ```sh
 SLIPPI_DISPLAY=none SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image

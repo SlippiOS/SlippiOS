@@ -17,6 +17,10 @@ run = "SLIPPI_DEV=1 ./scripts/build-image"
 description = "Boot the newest local USB image in QEMU/UEFI"
 run = "./scripts/run-image"
 
+[tasks."stop:image"]
+description = "Power off the running QEMU guest cleanly"
+run = "./scripts/stop-image"
+
 [tasks."fetch:image"]
 description = "Download and verify the newest published USB image"
 run = "./scripts/fetch-image"

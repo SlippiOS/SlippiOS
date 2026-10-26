@@ -18,6 +18,10 @@ uses the newest artifact in result-local-image/.
 Environment:
   SLIPPI_DISK_SIZE   virtual disk size (default 16G)
   SLIPPI_DISPLAY     QEMU display backend (default gtk, use none for headless)
+  SLIPPI_MONITOR     QEMU monitor socket (default ~/.cache/slippios/<id>.sock)
+
+Closing the QEMU window is a hard power cut. Power off from the shell
+(Quit -> Power off) or run 'mise run stop:image' for a clean shutdown.
 USAGE
 }
 
@@ -96,14 +100,14 @@ serial_args=()
 if [[ -n "${SLIPPI_SERIAL:-}" ]]; then
   serial_args=(-serial "file:${SLIPPI_SERIAL}")
 fi
-monitor_args=()
-if [[ -n "${SLIPPI_MONITOR:-}" ]]; then
-  monitor_args=(-monitor "unix:${SLIPPI_MONITOR},server,nowait")
-fi
+monitor="${SLIPPI_MONITOR:-$CACHE/slippios-${image_id}.sock}"
+rm -f "$monitor"
+monitor_args=(-monitor "unix:${monitor},server,nowait")
 
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
 echo "Display: $DISPLAY_MODE"
+echo "Monitor: $monitor"
 echo "Network: host port 8080 is forwarded; from this PC use http://localhost:8080/<token>/"
 exec qemu-system-x86_64 \
   -machine "q35,accel=$accel" \
