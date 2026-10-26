@@ -10,6 +10,12 @@ let
   splashMark = ../apps/shell/assets/slippi-mark.png;
   splashBoot = ../apps/shell/assets/slippi-boot.png;
   theme = import ../theme/default.nix;
+  plymouthConf = ''
+    [Daemon]
+    ShowDelay=0
+    DeviceTimeout=1
+    Theme=slippios
+  '';
   themeBackground = pkgs.runCommand "slippios-theme-background.png" { } ''
     ${pkgs.imagemagick}/bin/magick -size 1920x1080 xc:'${theme.background}' "$out"
   '';
@@ -146,11 +152,16 @@ in {
     logo = splashMark;
   };
 
+  # NixOS hardcodes DeviceTimeout=8 before extraConfig; duplicate keys keep the
+  # first value, so replace the generated config outright. Without this the
+  # console sits on screen until the 8s device wait expires.
+  boot.initrd.systemd.contents."/etc/plymouth/plymouthd.conf" =
+    lib.mkForce { text = plymouthConf; };
+  environment.etc."plymouth/plymouthd.conf" =
+    lib.mkForce { text = plymouthConf; };
+
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
-    # Keep late kernel/systemd text off the graphical VT. Plymouth and X use
-    # tty1; console output goes to tty3, which is invisible on the appliance.
-    "console=tty3"
   ];
   # NixOS appends loglevel=<consoleLogLevel> after our params, so keep this in
   # sync: 0 suppresses late kernel/systemd text between Plymouth and the shell.

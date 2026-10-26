@@ -203,9 +203,11 @@ of the screen height and pulses it.
 
 The initrd loads `virtio_gpu` and `bochs` so Plymouth has a framebuffer in a VM
 before stage 2; physical machines use the firmware framebuffer through the
-built-in `simpledrm` until the native driver loads. Late kernel/systemd output
-is sent to `tty3` (`console=tty3`), so it cannot appear over the splash or the
-shell on `tty1`.
+built-in `simpledrm` until the native driver loads. NixOS hardcodes
+`DeviceTimeout=8` in `plymouthd.conf`, which leaves console text on screen until
+the wait expires; the module replaces that file with `DeviceTimeout=1` in both
+the initrd and stage 2. With `loglevel=0` and `ShowStatus=no`, the splash covers
+the console immediately and no TTY lines leak through.
 
 When the session starts, the X session script paints
 `apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so

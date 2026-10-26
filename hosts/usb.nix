@@ -106,17 +106,7 @@ in {
     pkgs.e2fsprogs
     pkgs.parted
     pkgs.util-linux
-    pkgs.kbd
   ];
-  # Keep the graphical VT selected while the console (tty3) prints initrd
-  # status. Otherwise the last status lines are visible before Plymouth starts.
-  boot.initrd.systemd.services.slippios-keep-vt = {
-    description = "Keep the graphical VT active";
-    wantedBy = [ "sysinit.target" ];
-    before = [ "plymouth-start.service" "initrd-switch-root.target" ];
-    serviceConfig.Type = "oneshot";
-    script = "${pkgs.kbd}/bin/chvt 1 || true";
-  };
   boot.initrd.systemd.services.slippios-grow-data = {
     description = "Grow the SlippiOS data partition";
     wantedBy = [ "initrd-root-fs.target" ];

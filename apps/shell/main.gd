@@ -38,6 +38,9 @@ var _os_status: Label
 
 
 func _ready() -> void:
+	# CI only imports/parses the project; skip the CLI and display probing.
+	if OS.get_environment("SLIPPIOS_PARSE_ONLY") == "1":
+		return
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	set_process(false)
 	_build_base()
