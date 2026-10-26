@@ -2,6 +2,9 @@ extends Control
 
 const CLI := "slippios"
 const GAME_EXIT := 42
+const DOLPHIN_EXIT := 43
+const REFRESH_CHOICES := [0, 60, 120, 144, 240]
+const RESOLUTION_CHOICES := ["auto", "1280x720", "1920x1080", "2560x1440", "3840x2160"]
 const BOOT_HOLD_MS := 1800
 const BootLogo := preload("res://boot_logo.gd")
 const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@", "!@#$%^&*()", "+=[]{};:'\",.<>/?"]
@@ -231,10 +234,11 @@ func _show_menu() -> void:
 		current = current.get_file()
 	_add_button(("Play — %s" % current) if current != "" else "Play", _on_play)
 	_add_button("Melee ROMs", _show_roms)
+	_add_button("Dolphin settings", _open_dolphin_settings)
 	_add_button("Update", _show_update)
 	_add_button("Account", _show_account)
 	_add_button("Settings", _show_settings)
-	_add_button("Quit", _on_quit)
+	_add_button("Quit", _show_quit)
 	_status_label = _add_label(_status_text(), 0.6)
 	_focus_first()
 
@@ -455,7 +459,7 @@ func _submit_login(password: String) -> void:
 		_show_auth_field("password", str(result.get("error", "Sign-in failed.")))
 
 
-func _show_settings() -> void:
+func _show_settings(message: String = "") -> void:
 	_stop_net()
 	_screen = "settings"
 	_clear()
@@ -465,13 +469,103 @@ func _show_settings() -> void:
 	var display: Dictionary = settings.get("display", {})
 	var audio: Dictionary = settings.get("audio", {})
 	var network: Dictionary = settings.get("network", {})
-	_add_label("Refresh: %s Hz" % str(display.get("refresh_hz", "auto")), 0.8)
-	_add_label("Resolution: %s" % str(display.get("resolution", "auto")), 0.8)
-	_add_label("Audio: %s" % str(audio.get("sink", "auto")), 0.8)
+	var refresh := _refresh_value(display)
+	_add_button("Refresh: %s" % ("auto" if refresh == 0 else "%d Hz" % refresh), _cycle_refresh)
+	_add_button("Resolution: %s" % _text(display.get("resolution"), "auto"), _cycle_resolution)
+	_add_button("Audio: %s" % _sink_label(audio), _show_audio)
 	_add_label("Network: %s" % _text(network.get("ssid"), "(none)"), 0.8)
 	_add_button("Wi-Fi network", _show_wifi)
+	if message != "":
+		_add_label(message, 0.9)
 	_add_button("Back", _show_menu)
 	_focus_first()
+
+
+func _refresh_value(display: Dictionary) -> int:
+	var value: Variant = display.get("refresh_hz", 0)
+	if value == null:
+		return 0
+	return int(value)
+
+
+func _sink_label(audio: Dictionary) -> String:
+	var sink := _text(audio.get("sink"), "auto")
+	return "auto (system default)" if sink == "auto" else sink
+
+
+func _cycle_refresh() -> void:
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var current := _refresh_value(settings.get("display", {}))
+	var index := REFRESH_CHOICES.find(current)
+	if index < 0:
+		index = 0
+	var next := int(REFRESH_CHOICES[(index + 1) % REFRESH_CHOICES.size()])
+	var value := "auto" if next == 0 else str(next)
+	var saved := _cli(["settings", "set", "display.refresh_hz", value])
+	if not saved.get("ok", false):
+		_show_settings(str(saved.get("error", "Could not save the refresh rate.")))
+		return
+	_apply_display("Refresh set to %s." % value)
+
+
+func _cycle_resolution() -> void:
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var display: Dictionary = settings.get("display", {})
+	var current := _text(display.get("resolution"), "auto")
+	var index := RESOLUTION_CHOICES.find(current)
+	if index < 0:
+		index = 0
+	var next := str(RESOLUTION_CHOICES[(index + 1) % RESOLUTION_CHOICES.size()])
+	var saved := _cli(["settings", "set", "display.resolution", next])
+	if not saved.get("ok", false):
+		_show_settings(str(saved.get("error", "Could not save the resolution.")))
+		return
+	_apply_display("Resolution set to %s." % next)
+
+
+func _apply_display(message: String) -> void:
+	var result := _cli(["display", "apply"])
+	if not result.get("ok", false):
+		_show_settings("Saved. The display did not accept it: %s" %
+			str(result.get("error", "unknown error")))
+		return
+	_show_settings(message)
+
+
+func _show_audio() -> void:
+	_stop_net()
+	_screen = "audio"
+	_clear()
+	_title = _add_title("AUDIO OUTPUT", 40)
+	var settings: Dictionary = _cli(["settings", "show"]).get("settings", {})
+	var current := _text(settings.get("audio", {}).get("sink"), "auto")
+	_add_button("Auto (system default)%s" % ("  (selected)" if current == "auto" else ""),
+		_select_sink.bind("auto"))
+	var result := _cli(["audio", "sinks"])
+	if not result.get("ok", false):
+		_add_label(str(result.get("error", "Could not list audio outputs.")), 0.8)
+	else:
+		var sinks: Array = result.get("sinks", [])
+		if sinks.is_empty():
+			_add_label("No audio outputs found.", 0.8)
+		for sink in sinks:
+			var name := str(sink.get("name", ""))
+			if name == "":
+				continue
+			var label := _text(sink.get("description"), name)
+			if name == current:
+				label += "  (selected)"
+			_add_button(label, _select_sink.bind(name))
+	_add_button("Back", _show_settings.bind(""))
+	_focus_first()
+
+
+func _select_sink(name: String) -> void:
+	var saved := _cli(["settings", "set", "audio.sink", name])
+	if not saved.get("ok", false):
+		_show_audio()
+		return
+	_apply_display("Audio output set.")
 
 
 func _show_wifi(message: String = "") -> void:
@@ -706,6 +800,27 @@ func _launch_game() -> void:
 	get_tree().quit(GAME_EXIT)
 
 
+func _open_dolphin_settings() -> void:
+	_busy = true
+	_clear()
+	_title = _add_title("LAUNCHING", 44)
+	_add_label("Preparing Slippi Dolphin…", 0.8)
+	await get_tree().process_frame
+
+	# Same hand-off as Play: make sure Dolphin is installed, then let the
+	# wrapper start its settings window after Godot releases the adapter.
+	var result := _cli(["update"], false)
+	if not result.get("ok", false):
+		_busy = false
+		_clear()
+		_title = _add_title("COULD NOT START", 44)
+		_add_label(str(result.get("error", "Could not prepare Slippi Dolphin.")), 0.9)
+		_add_button("Back", _show_menu)
+		_focus_first()
+		return
+	get_tree().quit(DOLPHIN_EXIT)
+
+
 func _process(delta: float) -> void:
 	if _net_pid != -1:
 		_net_timer += delta
@@ -890,16 +1005,35 @@ func _unhandled_input(event: InputEvent) -> void:
 			_net_back()
 		"auth":
 			_back_from_auth()
-		"wifi":
+		"wifi", "audio":
 			_show_settings()
 		"roms":
 			_show_menu()
 		"wifi-password":
 			_show_wifi("")
-		"login-setup", "setup", "settings", "update", "account":
+		"login-setup", "setup", "settings", "update", "account", "quit":
 			_stop_net()
 			_show_menu()
 
 
-func _on_quit() -> void:
-	get_tree().quit()
+func _show_quit() -> void:
+	_stop_net()
+	_screen = "quit"
+	_clear()
+	_title = _add_title("POWER OFF", 44)
+	_add_label("Power off the console?", 0.8)
+	_add_button("Power off", _poweroff)
+	_add_button("Cancel", _show_menu)
+	_focus_first()
+
+
+func _poweroff() -> void:
+	_clear()
+	_title = _add_title("POWERING OFF", 44)
+	var status := _add_label("You can unplug the drive when the screen goes dark.", 0.8)
+	await get_tree().process_frame
+	var result := _cli(["poweroff"])
+	if not result.get("ok", false):
+		status.text = str(result.get("error", "Could not power off."))
+		_add_button("Back", _show_menu)
+		_focus_first()

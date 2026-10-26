@@ -1,21 +1,64 @@
 { config, pkgs, lib, slippiosPackages, ... }:
 
 let
-  session = slippiosPackages.session;
   cli = slippiosPackages.cli;
   shell = slippiosPackages.shell;
 
   # openbox-autostart only reads its own built-in global file and
   # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
+  #
+  # There is deliberately no xterm fallback: when the shell fails, the wrapper
+  # drops a flag and the recovery console takes the console instead, so users
+  # are never left on an openbox desktop with nothing to do.
   autostart = pkgs.writeText "slippios-openbox-autostart" ''
     ${pkgs.xset}/bin/xset s off -dpms
-    ${shell}/bin/slippios-shell || \
-      exec ${pkgs.xterm}/bin/xterm -hold -fullscreen -fa Monospace -fs 18 -e ${session}/bin/slippios-session
+    ${shell}/bin/slippios-shell
+  '';
+
+  recovery = pkgs.writeShellScript "slippios-recovery" ''
+    log=/data/system/shell.log
+    ${pkgs.kbd}/bin/chvt 1 2>/dev/null || true
+    while true; do
+      printf '\033[2J\033[H'
+      ${pkgs.kbd}/bin/chvt 1 2>/dev/null || true
+      echo "SlippiOS"
+      echo
+      echo "The graphical shell stopped."
+      echo
+      if [ -s "$log" ]; then
+        tail -n 12 "$log" 2>/dev/null || true
+        echo
+      fi
+      failed=$(${config.systemd.package}/bin/systemctl --failed --no-legend --plain --no-pager 2>/dev/null || true)
+      if [ -n "$failed" ]; then
+        echo "Failed units:"
+        echo "$failed"
+        echo
+      fi
+      echo "1) Try again"
+      echo "2) Power off"
+      echo "3) Reboot"
+      printf "> "
+      read -r choice || choice=2
+      case "$choice" in
+        1)
+          rm -f /data/system/shell-failed
+          ${config.systemd.package}/bin/systemctl --no-block start display-manager.service
+          exit 0
+          ;;
+        2) ${config.systemd.package}/bin/systemctl poweroff ;;
+        3) ${config.systemd.package}/bin/systemctl reboot ;;
+      esac
+    done
   '';
 in {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  boot.kernelParams = [ "quiet" "loglevel=3" "vt.global_cursor_default=0" ];
+  # The console is covered by the boot splash; keep systemd's service status
+  # lines off it. Failures remain in the journal and the recovery console.
+  boot.kernelParams = [
+    "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
+  ];
   boot.kernelModules = [ "uinput" ];
 
   services.udev.extraRules = ''
@@ -55,7 +98,6 @@ in {
     slippiosPackages.session
     slippiosPackages.cli
     slippiosPackages.shell
-    xterm
     xrandr
     xset
   ];
@@ -83,6 +125,8 @@ in {
         ${pkgs.util-linux}/bin/mountpoint -q /data || \
           ${pkgs.util-linux}/bin/mount -L SLIPPIOS /data || true
       fi
+      # A crash flag from the previous boot is stale: try the shell again.
+      ${pkgs.coreutils}/bin/rm -f /data/system/shell-failed
       ${pkgs.coreutils}/bin/mkdir -p \
         /data/isos /data/system /data/users/default/dolphin \
         /data/users/default/replays /data/users/default/logs
@@ -98,6 +142,28 @@ in {
       ${pkgs.coreutils}/bin/cp -n ${../assets/controller-profiles}/*.ini "$profile_dir"/ || true
       ${pkgs.coreutils}/bin/chown -R player:users "$profile_dir" || true
     '';
+  };
+
+  # The shell wrapper writes /data/system/shell-failed when Godot exits for
+  # any reason other than Play (42) or Dolphin settings (43).
+  systemd.services.slippios-recovery = {
+    description = "SlippiOS recovery console";
+    conflicts = [ "display-manager.service" "getty@tty1.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      StandardInput = "tty";
+      StandardOutput = "tty";
+      StandardError = "tty";
+      TTYPath = "/dev/tty1";
+      TTYReset = true;
+      TTYVHangup = true;
+      ExecStart = recovery;
+    };
+  };
+  systemd.paths.slippios-recovery = {
+    wantedBy = [ "multi-user.target" ];
+    after = [ "data.mount" ];
+    pathConfig.PathExists = "/data/system/shell-failed";
   };
 
   systemd.tmpfiles.rules = [

@@ -68,6 +68,10 @@ SLIPPI_DISPLAY=none SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 SLIPPI_DISK_SIZE=32G mise run run:image
 ```
 
+QEMU has no Wi-Fi hardware, so `wpa_supplicant.service` stays in its
+"wait for a wireless interface" loop and eventually reports failure. That is
+expected; the boot console no longer shows service status lines.
+
 Host port 8080 forwards to the guest. Use
 `http://localhost:8080/<token>/` from the host. QEMU user networking does not
 reach other devices.
@@ -143,12 +147,33 @@ GameCube game ID, not a hash.
 
 ## Boot and game handoff
 
-The shell shows a short boot splash on cold boot and waits for A/Enter. It then
-exits with code 42. The `slippios-shell` wrapper runs `slippios play` only after
-Godot has exited, then starts Godot again with `SLIPPIOS_AUTOPLAY=0` and
-`SLIPPIOS_SKIP_SPLASH=1`. This releases the GameCube adapter for Dolphin instead
-of leaving it claimed by SDL, and avoids replaying the splash after a game. The
-same loop reopens the shell when Dolphin is closed or crashes.
+Godot never launches Dolphin itself. It exits with a code and the
+`slippios-shell` wrapper acts on it:
+
+| Exit | Wrapper action |
+| --- | --- |
+| 42 | `slippios play`, then reopen the shell |
+| 43 | `slippios dolphin-config`, then reopen the shell |
+| anything else | write `/data/system/shell-failed`, exit |
+
+This releases the GameCube adapter for Dolphin instead of leaving it claimed by
+SDL. The wrapper reopens Godot with `SLIPPIOS_AUTOPLAY=0` and
+`SLIPPIOS_SKIP_SPLASH=1`, so the splash is cold-boot only.
+
+On a crash, `slippios-recovery.service` conflicts with the display manager and
+takes over tty1 with a recovery console: last shell log lines, failed units,
+and Try again / Power off / Reboot. There is no xterm fallback; an openbox
+desktop is not useful to a console player.
+
+## Display and audio
+
+```sh
+slippios display apply        # apply resolution, refresh, and audio sink
+slippios audio sinks          # JSON list of PulseAudio outputs
+```
+
+`backend/internal/desktop` is shared by the shell (through these commands) and
+the terminal session, so both apply the same settings.toml values.
 
 ## Wi-Fi
 

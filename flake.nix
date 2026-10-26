@@ -72,16 +72,27 @@
             SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
               ${shellPackage}/bin/slippios-shell \
                 --fullscreen --rendering-driver opengl3 2>>"$log" || code=$?
-            if [ "$code" -ne 42 ]; then
-              echo "slippios-shell exited with $code" >>"$log"
-              exit "$code"
-            fi
 
             # Godot must be gone before Dolphin opens the adapter: USB access
             # is exclusive, and the shell's SDL driver claims it.
-            ${cliPackage}/bin/slippios play || true
-            autoplay=0
-            splash=1
+            if [ "$code" -eq 42 ]; then
+              ${cliPackage}/bin/slippios play || true
+              autoplay=0
+              splash=1
+              continue
+            fi
+            if [ "$code" -eq 43 ]; then
+              ${cliPackage}/bin/slippios dolphin-config || true
+              autoplay=0
+              splash=1
+              continue
+            fi
+
+            # Anything else is a crash. Leave X and hand the console to the
+            # recovery service instead of showing a desktop nobody can use.
+            echo "slippios-shell exited with $code" >>"$log"
+            : >/data/system/shell-failed 2>/dev/null || true
+            exit "$code"
           done
         '';
       };

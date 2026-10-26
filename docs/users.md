@@ -127,9 +127,18 @@ them on a trusted network.
 ## Play
 
 **Play** launches Slippi Dolphin with the selected ISO. Standard SDL controllers
-work. Controller profiles:
+work. **Dolphin settings** opens Dolphin's own configuration window: controller
+bindings and profiles, graphics, audio, and game paths all live there. SlippiOS
+closes its shell while Dolphin is open, then returns to the menu.
 
 [controllers.md](controllers.md)
+
+**Settings** changes display refresh rate, resolution, and audio output. Changes
+apply immediately and are saved for the next boot. **Wi-Fi network** scans and
+joins networks.
+
+**Quit** powers the console off cleanly. Wait for the screen to go dark before
+unplugging the drive.
 
 Dolphin is downloaded and verified on first launch and updates separately from
 the system.
@@ -174,9 +183,10 @@ Disable VPN/client isolation. In the QEMU VM, use
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
 or **Restart setup page**.
 
-**The console shows a text setup prompt instead of the shell** — the graphical
-shell exited. Its last error is written to `/data/system/shell.log`, which you
-can read by mounting the `SLIPPIOS` data partition.
+**The console shows a recovery menu instead of the shell** — the graphical shell
+exited unexpectedly. The menu shows its last error and the failed system units,
+and offers **Try again**, **Power off**, and **Reboot**. The full log is
+`/data/system/shell.log` on the `SLIPPIOS` data partition.
 
 **Nothing persists** — use the USB `.img.xz` release, not a live environment.
 

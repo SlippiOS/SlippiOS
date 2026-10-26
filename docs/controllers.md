@@ -32,6 +32,10 @@ Dolphin also supports the adapter natively through libusb. USB access is
 exclusive, so the shell wrapper quits Godot before starting Dolphin and starts
 Godot again after Dolphin exits. Do not run a uinput bridge at the same time.
 
+Open **Dolphin settings** in the shell to bind controllers or load a profile.
+SlippiOS closes its UI first, so the adapter is free for Dolphin's own
+controller configuration.
+
 ## Bundled profiles
 
 SlippiOS seeds these community profiles into

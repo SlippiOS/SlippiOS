@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/auth"
+	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/netpages"
 	"github.com/SlippiOS/SlippiOS/backend/internal/osupdate"
@@ -223,11 +224,15 @@ func settingsCommand(args []string, mode modes) {
 		}
 	}
 	if name == "refresh_hz" {
-		number, err := strconv.Atoi(value)
-		if err != nil {
-			fail("refresh_hz must be a number")
+		if value == "auto" {
+			valuesSection[name] = int64(0)
+		} else {
+			number, err := strconv.Atoi(value)
+			if err != nil {
+				fail("refresh_hz must be a number or auto")
+			}
+			valuesSection[name] = int64(number)
 		}
-		valuesSection[name] = int64(number)
 	} else {
 		valuesSection[name] = value
 	}
@@ -523,6 +528,28 @@ func playCommand(args []string, mode modes) {
 	}
 	iso := paths.ISOPath(raw)
 
+	returncode, err := runDolphin(paths, appimage, []string{
+		"-C", "Dolphin.Display.Fullscreen=True",
+		"-C", "Graphics.Hardware.VSync=False",
+		"-b", "-e", iso,
+	})
+	if err != nil {
+		fail(err.Error())
+	}
+	emit(map[string]any{
+		"ok": returncode == 0, "iso": iso, "returncode": returncode,
+	}, mode, func() {
+		if returncode == 0 {
+			fmt.Println("Dolphin exited cleanly.")
+		} else {
+			fmt.Printf("Dolphin exited with status %d.\n", returncode)
+		}
+	})
+}
+
+// runDolphin starts the Slippi AppImage with the shared user directory and
+// returns its exit status.
+func runDolphin(paths settings.Paths, appimage string, arguments []string) (int, error) {
 	environment := os.Environ()
 	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
 	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
@@ -538,34 +565,91 @@ func playCommand(args []string, mode modes) {
 		}
 	}
 
-	command := exec.Command(
-		"slippi-appimage-run", appimage,
-		"-u", paths.DolphinDir,
-		"-C", "Dolphin.Display.Fullscreen=True",
-		"-C", "Graphics.Hardware.VSync=False",
-		"-b", "-e", iso,
-	)
+	args := append([]string{appimage, "-u", paths.DolphinDir}, arguments...)
+	command := exec.Command("slippi-appimage-run", args...)
 	command.Env = environment
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
-	runErr := command.Run()
-	returncode := 0
-	if runErr != nil {
+	if err := command.Run(); err != nil {
 		var exitError *exec.ExitError
-		if errors.As(runErr, &exitError) {
-			returncode = exitError.ExitCode()
-		} else {
-			fail(runErr.Error())
+		if errors.As(err, &exitError) {
+			return exitError.ExitCode(), nil
 		}
+		return 0, err
 	}
-	emit(map[string]any{
-		"ok": returncode == 0, "iso": iso, "returncode": returncode,
-	}, mode, func() {
-		if returncode == 0 {
-			fmt.Println("Dolphin exited cleanly.")
-		} else {
-			fmt.Printf("Dolphin exited with status %d.\n", returncode)
+	return 0, nil
+}
+
+// dolphinConfigCommand opens Dolphin's own settings window so users can bind
+// controllers or change graphics options.
+func dolphinConfigCommand(mode modes) {
+	paths := settings.DefaultPaths()
+	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
+		fmt.Fprintln(os.Stderr, message)
+	}, false)
+	if err != nil {
+		fail(err.Error())
+	}
+	returncode, err := runDolphin(paths, appimage, []string{
+		"-C", "Graphics.Hardware.VSync=False",
+	})
+	if err != nil {
+		fail(err.Error())
+	}
+	emit(map[string]any{"ok": returncode == 0, "returncode": returncode}, mode, func() {
+		fmt.Println("Dolphin closed.")
+	})
+}
+
+func displayCommand(args []string, mode modes) {
+	if len(args) == 0 || args[0] != "apply" {
+		fail("usage: slippios display apply")
+	}
+	values, err := settings.DefaultPaths().Load()
+	if err != nil {
+		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+		return
+	}
+	if err := desktop.ApplyDisplay(values); err != nil {
+		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+		return
+	}
+	// Audio is best effort: a missing sink must not fail the display change.
+	_ = desktop.ApplyAudio(values)
+	emit(map[string]any{"ok": true}, mode, func() {
+		fmt.Println("Display settings applied.")
+	})
+}
+
+func audioCommand(args []string, mode modes) {
+	if len(args) == 0 || args[0] != "sinks" {
+		fail("usage: slippios audio sinks")
+	}
+	sinks, err := desktop.Sinks()
+	if err != nil {
+		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
+		return
+	}
+	list := make([]map[string]any, 0, len(sinks))
+	for _, sink := range sinks {
+		list = append(list, map[string]any{
+			"name":        sink.Name,
+			"description": sink.Description,
+		})
+	}
+	emit(map[string]any{"ok": true, "sinks": list}, mode, func() {
+		for _, sink := range sinks {
+			fmt.Println(sink.Name)
 		}
+	})
+}
+
+func poweroffCommand(mode modes) {
+	if err := exec.Command("systemctl", "poweroff", "--no-block").Run(); err != nil {
+		fail(err.Error())
+	}
+	emit(map[string]any{"ok": true}, mode, func() {
+		fmt.Println("Powering off.")
 	})
 }
 
@@ -650,6 +734,14 @@ func main() {
 		osCommand(args[1:], mode)
 	case "play":
 		playCommand(args[1:], mode)
+	case "dolphin-config":
+		dolphinConfigCommand(mode)
+	case "display":
+		displayCommand(args[1:], mode)
+	case "audio":
+		audioCommand(args[1:], mode)
+	case "poweroff":
+		poweroffCommand(mode)
 	case "wifi":
 		wifiCommand(args[1:], mode)
 	default:

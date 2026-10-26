@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/auth"
+	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
@@ -158,58 +159,6 @@ func onboarding(paths settings.Paths, reason string) (map[string]any, bool) {
 	fmt.Printf("\n                 Wrote %s\n", paths.SettingsFile)
 	time.Sleep(time.Second)
 	return values, true
-}
-
-func applyDisplay(values map[string]any) {
-	if _, err := exec.LookPath("xrandr"); err != nil {
-		return
-	}
-	query, err := exec.Command("xrandr", "--query").Output()
-	if err != nil {
-		return
-	}
-	output := ""
-	for _, entry := range strings.Split(string(query), "\n") {
-		if strings.Contains(entry, " connected") {
-			fields := strings.Fields(entry)
-			if len(fields) > 0 {
-				output = fields[0]
-			}
-			if strings.Contains(entry, " primary") {
-				break
-			}
-		}
-	}
-	if output == "" {
-		return
-	}
-
-	display, _ := values["display"].(map[string]any)
-	resolution := fmt.Sprint(display["resolution"])
-	rate := display["refresh_hz"]
-	arguments := []string{"--output", output}
-	if resolution != "" && resolution != "auto" {
-		arguments = append(arguments, "--mode", resolution)
-	}
-	if rate != nil && fmt.Sprint(rate) != "" && fmt.Sprint(rate) != "0" {
-		arguments = append(arguments, "--rate", fmt.Sprint(rate))
-	}
-	if len(arguments) == 2 {
-		return
-	}
-	_ = exec.Command("xrandr", arguments...).Run()
-}
-
-func applyAudio(values map[string]any) {
-	audio, _ := values["audio"].(map[string]any)
-	sink, _ := audio["sink"].(string)
-	if sink == "" || sink == "auto" {
-		return
-	}
-	if _, err := exec.LookPath("pactl"); err != nil {
-		return
-	}
-	_ = exec.Command("pactl", "set-default-sink", sink).Run()
 }
 
 func readPassword() (string, bool) {
@@ -412,8 +361,8 @@ func main() {
 	}
 
 	configureNetwork(values)
-	applyDisplay(values)
-	applyAudio(values)
+	_ = desktop.ApplyDisplay(values)
+	_ = desktop.ApplyAudio(values)
 
 	if loggedIn, detail := ensureLogin(paths, values); loggedIn {
 		fmt.Printf("\n                 Slippi login: %s\n", detail)
