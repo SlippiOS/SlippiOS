@@ -13,7 +13,8 @@ Requirements: 16 GB USB, UEFI boot, Secure Boot off.
 
 1. Download `slippios-usb-<version>.img.xz` from the
    [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
-2. Flash with Etcher, Rufus (DD mode), or `dd`.
+2. Flash with balenaEtcher, or extract with 7-Zip and use Rufus in DD mode.
+   See the [player guide](docs/users.md#flash) for macOS/Linux commands.
 3. Boot the stick.
 4. Scan the setup QR with a phone or open it on a computer, add a Melee 1.02 ISO, then sign in or skip.
 

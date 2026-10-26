@@ -2,7 +2,8 @@ extends Control
 
 const CLI := "slippios"
 const GAME_EXIT := 42
-const BOOT_HOLD_MS := 1500
+const BOOT_HOLD_MS := 1800
+const BootLogo := preload("res://boot_logo.gd")
 const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@", "!@#$%^&*()", "+=[]{};:'\",.<>/?"]
 const MASK := "•"
 
@@ -134,17 +135,51 @@ func _animate_boot() -> void:
 func _boot_to_game() -> void:
 	_screen = "boot"
 	_clear()
+	var logo := BootLogo.new()
+	_content.add_child(logo)
 	_title = _add_title("SLIPPIOS", 64)
-	_add_label("Hold A for settings", 0.65)
-	_animate_boot()
+	_title.modulate.a = 0.0
+	var prompt := _add_label("Hold A for settings", 0.0)
+	var bar := _add_boot_bar()
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(_title, "modulate:a", 1.0, 0.55)
+	tween.tween_property(prompt, "modulate:a", 0.65, 0.45).set_delay(0.75)
+	tween.tween_property(bar, "value", 1.0, 1.6).set_trans(Tween.TRANS_SINE)
 
 	var deadline := Time.get_ticks_msec() + BOOT_HOLD_MS
 	while Time.get_ticks_msec() < deadline:
 		if _settings_held():
+			tween.kill()
 			_show_menu()
 			return
 		await get_tree().process_frame
 	_launch_game()
+
+
+func _add_boot_bar() -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.min_value = 0
+	bar.max_value = 1
+	bar.value = 0
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(360, 4)
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var background := StyleBoxFlat.new()
+	background.bg_color = Color("#202633")
+	background.corner_radius_top_left = 2
+	background.corner_radius_top_right = 2
+	background.corner_radius_bottom_left = 2
+	background.corner_radius_bottom_right = 2
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color("#3d7dff")
+	fill.corner_radius_top_left = 2
+	fill.corner_radius_top_right = 2
+	fill.corner_radius_bottom_left = 2
+	fill.corner_radius_bottom_right = 2
+	bar.add_theme_stylebox_override("background", background)
+	bar.add_theme_stylebox_override("fill", fill)
+	_content.add_child(bar)
+	return bar
 
 
 func _settings_held() -> bool:

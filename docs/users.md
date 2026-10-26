@@ -9,18 +9,58 @@
 
 ## Flash
 
-Download `slippios-usb-<version>.img.xz` from the
+Download `slippios-usb-<version>.img.xz` and `SHA256SUMS` from the
 [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
 
-- **Etcher:** select the `.img.xz`.
-- **Rufus:** select the `.img.xz` and use DD mode.
-- **dd:**
+The image is xz-compressed. It is **not** double-clickable on every desktop;
+use one of the methods below.
+
+Verify the download first:
 
 ```sh
-sudo dd if=slippios-usb-<version>.img.xz of=/dev/sdX bs=4M status=progress conv=fsync
+sha256sum -c SHA256SUMS
+```
+
+On macOS use `shasum -a 256 -c SHA256SUMS`.
+
+### Windows
+
+Easiest: install [balenaEtcher](https://etcher.balena.io/), select the
+`.img.xz`, and flash.
+
+If Rufus does not accept the `.xz` directly:
+
+1. Install [7-Zip](https://www.7-zip.org/).
+2. Right-click the `.img.xz` and extract the `.img`.
+3. Open Rufus, select the `.img`, choose **DD Image mode**, and flash.
+
+Do not use Windows Explorer to open the image.
+
+### macOS
+
+Install balenaEtcher and select the `.img.xz`, or use the command line:
+
+```sh
+brew install xz
+diskutil list
+diskutil unmountDisk /dev/diskN
+xzcat slippios-usb-<version>.img.xz | \
+  sudo dd of=/dev/rdiskN bs=4m status=progress
+```
+
+Use the raw `rdiskN` device. Do not write to a partition such as `diskNs1`.
+
+### Linux
+
+```sh
+xzcat slippios-usb-<version>.img.xz | \
+  sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Use the whole device, not a partition. This erases the USB.
+
+After flashing, the `MELEE-ROMS` FAT32 drive should appear. If it does not, eject
+and reconnect the stick, or check that the image finished writing.
 
 ## First boot
 
