@@ -164,9 +164,13 @@ anything the curated list does not cover (controller bindings, profiles).
 
 Plymouth shows `assets/plymouth/slippios.script` with the shared mark. When the
 session starts, the openbox autostart paints `apps/shell/assets/slippi-boot.png`
-on the X root window before Godot starts, so the Plymouth → X → Godot handoff
-never shows a blank screen. The Godot splash animates the same mark; replace
-the temporary Slippi mark in `assets/branding/` when the SlippiOS mark exists.
+on the X root window before Godot starts, so the handoff shows the same mark
+instead of a blank screen. X's own modeset still flashes black for about half a
+second; removing that needs a direct X start with a controlled VT switch.
+
+The Godot splash pulses the same mark. `assets/branding/` holds the temporary
+Slippi mark and how to regenerate the raster assets; replace it when the
+SlippiOS mark exists.
 
 ## Dolphin AppImage
 
