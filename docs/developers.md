@@ -136,11 +136,12 @@ GameCube game ID, not a hash.
 
 ## Boot and game handoff
 
-The shell waits 1.5 seconds for A/Enter, then exits with code 42. The
-`slippios-shell` wrapper runs `slippios play` only after Godot has exited, then
-starts Godot again with `SLIPPIOS_AUTOPLAY=0`. This releases the GameCube adapter
-for Dolphin instead of leaving it claimed by SDL. The same loop reopens the
-shell when Dolphin is closed or crashes.
+The shell shows a short boot splash on cold boot and waits for A/Enter. It then
+exits with code 42. The `slippios-shell` wrapper runs `slippios play` only after
+Godot has exited, then starts Godot again with `SLIPPIOS_AUTOPLAY=0` and
+`SLIPPIOS_SKIP_SPLASH=1`. This releases the GameCube adapter for Dolphin instead
+of leaving it claimed by SDL, and avoids replaying the splash after a game. The
+same loop reopens the shell when Dolphin is closed or crashes.
 
 ## Wi-Fi
 

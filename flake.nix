@@ -50,9 +50,11 @@
           runtime=$(${pkgs.coreutils}/bin/mktemp -d)
           ${pkgs.coreutils}/bin/cp -r ${./apps/shell}/. "$runtime"/
           autoplay=1
+          splash=0
           while true; do
             code=0
             SLIPPIOS_AUTOPLAY="$autoplay" \
+            SLIPPIOS_SKIP_SPLASH="$splash" \
             SDL_JOYSTICK_HIDAPI_GAMECUBE=1 \
             SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
               ${pkgs.godot_4}/bin/godot --path "$runtime" \
@@ -65,6 +67,7 @@
             # is exclusive, and the shell's SDL driver claims it.
             ${cliPackage}/bin/slippios play || true
             autoplay=0
+            splash=1
           done
         '';
       };

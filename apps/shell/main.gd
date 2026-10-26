@@ -36,7 +36,10 @@ func _ready() -> void:
 	set_process(false)
 	_build_base()
 	_refresh_status()
-	_boot_splash()
+	if OS.get_environment("SLIPPIOS_SKIP_SPLASH") == "1":
+		_after_splash()
+	else:
+		_boot_splash()
 
 
 func _build_base() -> void:
