@@ -126,6 +126,14 @@ scripts/fetch-image        release downloader
 scripts/flash-usb          legacy ISO + data partition flasher
 ```
 
+## Melee ROMs
+
+The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`. It is
+mounted at `/data/isos` after `slippi-data.service` creates the directory. The
+partition is fixed-size; the ext4 `/data` partition after it grows to fill the
+stick. Images keep their original filenames. SlippiOS validates only the
+GameCube game ID, not a hash.
+
 ## Boot and game handoff
 
 The shell waits 1.5 seconds for A/Enter, then exits with code 42. The

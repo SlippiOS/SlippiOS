@@ -28,6 +28,7 @@ in {
 
   users.users.player = {
     isNormalUser = true;
+    uid = 1000;
     extraGroups = [ "audio" "input" "video" "networkmanager" ];
   };
 

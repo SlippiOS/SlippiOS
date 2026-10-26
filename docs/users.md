@@ -24,16 +24,23 @@ Use the whole device, not a partition. This erases the USB.
 
 ## First boot
 
-1. Boot from the USB in UEFI mode.
-2. Wait for the setup QR. The data partition grows to fill the stick.
-3. Scan the QR with a phone, or open the shown address on any computer on the same network.
-4. **Step 1 — Game:** upload a Melee 1.02 ISO, or pick one already on the stick.
-5. **Step 2 — Account:** sign in to Slippi, or choose **Skip for offline play**.
-6. The console starts Melee automatically. Keep the device on the same network
-   until the page says setup is complete.
+1. Flash the USB image.
+2. Open the `MELEE-ROMS` drive on your computer and copy in your Melee images.
+   This is optional; you can also add them from the setup page.
+3. Boot from the USB in UEFI mode.
+4. Wait for setup. The data partition grows to fill the stick.
+5. Scan the setup QR with a phone, or open the shown address on any computer on
+   the same network.
+6. **Step 1 — Game:** choose one of the images on `MELEE-ROMS`, or upload another.
+7. **Step 2 — Account:** sign in to Slippi, or choose **Skip for offline play**.
+8. The console starts the selected image automatically.
 
 The setup page is a two-step browser wizard. It works on a phone, tablet, or
-computer. You do not need to choose anything on the TV during first boot.
+computer. Afterwards, use **Melee ROMs** in the shell to change the selected
+image.
+
+`MELEE-ROMS` is a normal FAT32 drive, so you can plug the stick into any PC and
+add or remove images later. SlippiOS does not rename them.
 
 ## Connect Wi-Fi
 
@@ -44,16 +51,18 @@ computer. You do not need to choose anything on the TV during first boot.
 
 The console uses NetworkManager. Ethernet works automatically.
 
-## Add a Melee ISO
+## Add Melee images
 
-On first boot, the setup wizard handles this in your browser. You can also put an
-ISO on the stick directly:
+1. Plug the SlippiOS stick into a PC.
+2. Open the FAT32 drive labelled `MELEE-ROMS`.
+3. Copy in vanilla, training, or modded Melee ISOs.
+4. Eject the drive and boot the console.
+5. In the shell, open **Melee ROMs** to choose the default image, or use the
+   setup page on first boot.
 
-1. Mount the ext4 partition labelled `SLIPPIOS`.
-2. Copy the ISO into `isos/`.
-3. Reboot without a valid game image, or open setup again.
-
-Windows and macOS cannot read ext4 without extra drivers.
+The partition is sized for vanilla Melee, Training Mode CE, and one modded build.
+Files keep their original names. Do not put other user data on this drive; it is
+only for Melee images.
 
 ## Sign in
 
@@ -113,8 +122,9 @@ reason. Press **Restart setup page**. Only one page can run at a time.
 Disable VPN/client isolation. In the QEMU VM, use
 `http://localhost:8080/<token>/` from the host.
 
-**No game image** — the file must be a Melee 1.02 `.iso` with ID `GALE01`,
-`GALJ01`, or `GALP01`. Copy it into `isos/` and press **Restart setup page**.
+**No Melee image** — the file must be a GameCube Melee `.iso` with ID `GALE01`,
+`GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
+or **Restart setup page**.
 
 **Nothing persists** — use the USB `.img.xz` release, not the development ISO.
 

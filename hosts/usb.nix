@@ -75,6 +75,21 @@ in {
     };
   };
 
+  # The Melee image library is a plain FAT32 volume so it can be edited from
+  # any PC. Mount it over the /data/isos directory created by slippi-data.
+  systemd.mounts = [{
+    what = "/dev/disk/by-label/MELEE-ROMS";
+    where = "/data/isos";
+    type = "vfat";
+    options = "nofail,uid=1000,gid=100,fmask=0133,dmask=0022";
+    wantedBy = [ "multi-user.target" ];
+    unitConfig = {
+      After = [ "slippi-data.service" ];
+      Requires = [ "slippi-data.service" ];
+      Before = [ "display-manager.service" ];
+    };
+  }];
+
   # Grow the data partition into the unused space on the stick before the
   # root is mounted. systemd-repart cannot parse a percentage as a maximum
   # size on this systemd version, and it does not repair the GPT backup
@@ -183,6 +198,19 @@ in {
         Minimize = "off";
         SizeMinBytes = "1G";
         SizeMaxBytes = "1G";
+        SplitName = "-";
+      };
+
+      # User-visible Melee image library. It is deliberately FAT32 so the
+      # stick can be plugged into any PC and ISOs can be dragged in. The
+      # running system mounts it over /data/isos.
+      y-melee.repartConfig = {
+        Type = "linux-generic";
+        Format = "vfat";
+        Label = "MELEE-ROMS";
+        Minimize = "off";
+        SizeMinBytes = "5G";
+        SizeMaxBytes = "5G";
         SplitName = "-";
       };
 

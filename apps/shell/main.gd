@@ -36,7 +36,11 @@ func _ready() -> void:
 	_build_base()
 	_refresh_status()
 	if _needs_setup():
-		_show_setup()
+		var settings: Dictionary = _status.get("settings", {})
+		if settings.get("exists", false) and _has_valid_isos():
+			_show_roms("Default Melee image is missing. Choose one.")
+		else:
+			_show_setup()
 		_animate_boot()
 	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		_show_menu()
@@ -189,13 +193,63 @@ func _show_menu() -> void:
 	_clear()
 	_title = _add_title("SLIPPIOS", 64)
 	_add_label("Super Smash Bros. Melee", 0.55)
-	_add_button("Play", _on_play)
+	var settings: Dictionary = _status.get("settings", {})
+	var current := _text(settings.get("iso_path"), "")
+	if current != "":
+		current = current.get_file()
+	_add_button(("Play — %s" % current) if current != "" else "Play", _on_play)
+	_add_button("Melee ROMs", _show_roms)
 	_add_button("Update", _show_update)
 	_add_button("Account", _show_account)
 	_add_button("Settings", _show_settings)
 	_add_button("Quit", _on_quit)
 	_status_label = _add_label(_status_text(), 0.6)
 	_focus_first()
+
+
+func _show_roms(message: String = "") -> void:
+	_stop_net()
+	_screen = "roms"
+	_clear()
+	_title = _add_title("MELEE ROMS", 48)
+	var settings: Dictionary = _status.get("settings", {})
+	var current := _text(settings.get("iso_path"), "")
+	var result := _cli(["isos"])
+	var found := false
+	for entry in result.get("isos", []):
+		if not entry.get("valid", false):
+			continue
+		found = true
+		var path := str(entry.get("path", ""))
+		var name := str(entry.get("name", path))
+		var label := name
+		if path == current:
+			label = "%s  (default)" % name
+		_add_button(label, _select_rom.bind(path))
+	if not found:
+		_add_label("No Melee images found on MELEE-ROMS.", 0.8)
+	if message != "":
+		_add_label(message, 0.9)
+	_add_button("Rescan", _show_roms.bind(""))
+	_add_button("Back", _show_menu)
+	_focus_first()
+
+
+func _select_rom(path: String) -> void:
+	var result := _cli(["settings", "set", "game.iso", path])
+	if not result.get("ok", false):
+		_show_roms(str(result.get("error", "Could not save the Melee image.")))
+		return
+	_refresh_status()
+	_launch_game()
+
+
+func _has_valid_isos() -> bool:
+	var result := _cli(["isos"])
+	for entry in result.get("isos", []):
+		if entry.get("valid", false):
+			return true
+	return false
 
 
 func _show_setup(message: String = "") -> void:
@@ -551,6 +605,12 @@ func _request_reboot() -> void:
 
 
 func _on_play() -> void:
+	if _needs_setup():
+		if _has_valid_isos():
+			_show_roms("Choose a Melee image to play.")
+		else:
+			_show_setup("No valid game image yet.")
+		return
 	_launch_game()
 
 
@@ -724,7 +784,7 @@ func _poll_net() -> void:
 			if problem != "":
 				_net_status.text = problem
 			elif not setup.get("game_ready", false):
-				_net_status.text = "Waiting for a game image…"
+				_net_status.text = "Waiting for game selection…"
 			elif not setup.get("account_ready", false):
 				_net_status.text = "Game added. Finish sign-in or skip in the browser."
 			else:
@@ -767,6 +827,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_back_from_auth()
 		"wifi":
 			_show_settings()
+		"roms":
+			_show_menu()
 		"wifi-password":
 			_show_wifi("")
 		"login-setup", "setup", "settings", "update", "account":

@@ -8,12 +8,14 @@ GPT
 ├── nix-store-A    1.9G   read-only squashfs store
 ├── nix-store-B    1.9G   inactive slot
 ├── root            1G    ext4: /etc, /var, /home
+├── MELEE-ROMS      5G    FAT32: user-managed Melee images
 └── SLIPPIOS        grow  ext4: /data
 ```
 
 - `/nix/store` is mounted from the active `nix-store_<version>` partition.
 - The matching UKI embeds that label and is stored in the ESP.
 - `/data` is a separate partition and is never written by system updates.
+- `MELEE-ROMS` is mounted at `/data/isos`; it is the only PC-visible data drive.
 - A first-boot service grows `SLIPPIOS` and its ext4 filesystem to fill the USB.
 
 ## Boot
@@ -76,7 +78,7 @@ blocks require it. Hosting is free GitHub Releases, limited to 2 GiB per asset.
 
 ```text
 /data
-├── isos/
+├── isos/                    MELEE-ROMS FAT32 mount
 ├── system/
 │   ├── dolphin/            runtime Dolphin builds
 │   ├── hardware-id
@@ -91,12 +93,14 @@ blocks require it. Hosting is free GitHub Releases, limited to 2 GiB per asset.
 ```
 
 The profile layout is multi-user ready; the shell currently uses `default`.
+Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 
 ## Components
 
 - `slippios-shell` — Godot kiosk UI; reads controllers through SDL3 and exits
   before Dolphin claims the GameCube adapter.
 - `slippios net --mode setup` — first-boot browser wizard for game and account.
+- `data-isos.mount` — mounts `MELEE-ROMS` FAT32 at `/data/isos`.
 - `slippios-session` — terminal fallback/session launch.
 - `slippios` — Go CLI; human output on a TTY, JSON when piped.
 - `slippios-os-update.service` — root installer for staged updates.
