@@ -1119,6 +1119,12 @@ func _start_net(mode: String, message: String = "") -> void:
 	_show_net_screen(mode, message)
 
 
+func _skip_setup() -> void:
+	_stop_net()
+	_refresh_status()
+	_show_menu()
+
+
 func _stop_net() -> void:
 	if _net_pid != -1:
 		OS.kill(_net_pid)
@@ -1147,7 +1153,7 @@ func _show_net_screen(mode: String, message: String = "") -> void:
 	if mode == "setup":
 		_add_label("Step 1: add Melee. Step 2: sign in or skip.", 0.65)
 		_net_status = _add_label(message if message != "" else "Waiting for setup…", 0.75)
-		_add_button("Restart setup page", _show_setup)
+		_add_button("Skip for now", _skip_setup)
 	else:
 		_add_label("Upload a Melee ISO." if mode == "iso" else "Enter your Slippi email and password.", 0.7)
 		_net_status = _add_label("Waiting…", 0.7)
