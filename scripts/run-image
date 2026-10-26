@@ -18,6 +18,8 @@ uses the newest artifact in result-local-image/.
 Environment:
   SLIPPI_DISK_SIZE   virtual disk size (default 16G)
   SLIPPI_DISPLAY     QEMU display backend (default gtk, use none for headless)
+  SLIPPI_VGA         std (default) or virtio (DRM/KMS like real hardware)
+  SLIPPI_SSH_PORT    host port forwarded to the dev VM's SSH (default 2222)
   SLIPPI_MONITOR     QEMU monitor socket (default ~/.cache/slippios/<id>.sock)
 
 Closing the QEMU window is a hard power cut. Power off from the shell
@@ -104,11 +106,17 @@ monitor="${SLIPPI_MONITOR:-$CACHE/slippios-${image_id}.sock}"
 rm -f "$monitor"
 monitor_args=(-monitor "unix:${monitor},server,nowait")
 
+vga_args=(-vga std)
+if [[ "${SLIPPI_VGA:-std}" == "virtio" ]]; then
+  vga_args=(-vga none -device virtio-gpu-pci)
+fi
+
 echo "Image:   $raw"
 echo "Overlay: $overlay ($DISK_SIZE)"
 echo "Display: $DISPLAY_MODE"
 echo "Monitor: $monitor"
 echo "Network: host port 8080 is forwarded; from this PC use http://localhost:8080/<token>/"
+echo "SSH:     ssh -p ${SLIPPI_SSH_PORT:-2222} player@localhost (dev image, password: slippios)"
 exec qemu-system-x86_64 \
   -machine "q35,accel=$accel" \
   -cpu "$cpu" \
@@ -118,8 +126,8 @@ exec qemu-system-x86_64 \
   -device qemu-xhci \
   -drive if=none,id=usbstick,file="$overlay",format=qcow2 \
   -device usb-storage,drive=usbstick,bootindex=0 \
-  -nic user,model=virtio-net-pci,hostfwd=tcp::8080-:8080 \
-  -vga std \
+  -nic "user,model=virtio-net-pci,hostfwd=tcp::8080-:8080,hostfwd=tcp::${SLIPPI_SSH_PORT:-2222}-:22" \
+  "${vga_args[@]}" \
   "${serial_args[@]}" \
   "${monitor_args[@]}" \
   -display "$DISPLAY_MODE"

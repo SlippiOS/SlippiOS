@@ -21,6 +21,14 @@ run = "./scripts/dev cli"
 description = "Run the setup page against the local sandbox"
 run = "./scripts/dev web"
 
+[tasks."dev:ssh"]
+description = "SSH into the running dev VM (password: slippios)"
+run = "./scripts/dev ssh"
+
+[tasks."dev:push"]
+description = "Push the CLI and exported shell to the running dev VM"
+run = "./scripts/dev push"
+
 [tasks."dev:shell"]
 description = "Run the exported Godot shell against the local sandbox"
 run = "./scripts/dev shell"

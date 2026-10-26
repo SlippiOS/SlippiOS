@@ -38,6 +38,7 @@
         modules = [
           ./modules/slippios.nix
           ./hosts/usb.nix
+          ./hosts/dev.nix
           {
             system.image.version = version;
             image.repart.compression.enable = nixpkgs.lib.mkForce false;
@@ -64,25 +65,41 @@
             log=/tmp/slippios-shell.log
           fi
 
+          # Dev VMs can override the shell and CLI without rebuilding the
+          # image: mise run dev:push copies them to /data/dev.
+          dev=/data/dev
+          if [ -d "$dev" ]; then
+            PATH="$dev:$PATH"
+            export PATH
+          fi
+          shell_bin=${shellPackage}/bin/slippios-shell
+          cli_bin=${cliPackage}/bin/slippios
+          if [ -x "$dev/slippios-shell" ]; then
+            shell_bin="$dev/slippios-shell"
+          fi
+          if [ -x "$dev/slippios" ]; then
+            cli_bin="$dev/slippios"
+          fi
+
           while true; do
             code=0
             SLIPPIOS_AUTOPLAY="$autoplay" \
             SLIPPIOS_SKIP_SPLASH="$splash" \
             SDL_JOYSTICK_HIDAPI_GAMECUBE=1 \
             SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
-              ${shellPackage}/bin/slippios-shell \
+              "$shell_bin" \
                 --fullscreen --rendering-driver opengl3 2>>"$log" || code=$?
 
             # Godot must be gone before Dolphin opens the adapter: USB access
             # is exclusive, and the shell's SDL driver claims it.
             if [ "$code" -eq 42 ]; then
-              ${cliPackage}/bin/slippios play || true
+              "$cli_bin" play || true
               autoplay=0
               splash=1
               continue
             fi
             if [ "$code" -eq 43 ]; then
-              ${cliPackage}/bin/slippios dolphin config || true
+              "$cli_bin" dolphin config || true
               autoplay=0
               splash=1
               continue

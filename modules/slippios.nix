@@ -10,20 +10,47 @@ let
   splashMark = ../apps/shell/assets/slippi-mark.png;
   splashBoot = ../apps/shell/assets/slippi-boot.png;
 
+  # Charge-style two-step theme: the mark is pre-rendered as throbber frames
+  # with a sine opacity, the same C-side animation Fedora's charge theme uses.
   slippiosPlymouth = pkgs.runCommand "slippios-plymouth" { } ''
     theme=$out/share/plymouth/themes/slippios
     mkdir -p "$theme"
-    cp ${splashMark} "$theme/mark.png"
-    cp ${../assets/plymouth/slippios.script} "$theme/slippios.script"
+    # The two-step plugin loads these dialog assets during show_splash_screen,
+    # even in boot mode; without them it aborts and Plymouth falls back to text.
+    cp ${pkgs.plymouth}/share/plymouth/themes/spinner/{lock,entry,keyboard,capslock,keymap-render,bullet}.png "$theme"/
+    for frame in $(seq 1 24); do
+      alpha=$(awk -v i="$frame" 'BEGIN { pi = atan2(0, -1); print 0.35 + 0.65 * (0.5 + 0.5 * sin(2 * pi * i / 24)) }')
+      ${pkgs.imagemagick}/bin/magick ${splashMark} -resize x324 \
+        -channel A -evaluate multiply "$alpha" +channel PNG32:"$theme/throbber-$(printf %04d "$frame").png"
+    done
     cat > "$theme/slippios.plymouth" <<EOF
     [Plymouth Theme]
     Name=SlippiOS
     Description=SlippiOS boot splash
-    ModuleName=script
+    ModuleName=two-step
 
-    [script]
+    [two-step]
+    Font=DejaVu Sans 12
+    TitleFont=DejaVu Sans 30
     ImageDir=$theme
-    ScriptFile=$theme/slippios.script
+    HorizontalAlignment=.5
+    VerticalAlignment=.5
+    BackgroundStartColor=0x0b0b10
+    BackgroundEndColor=0x0b0b10
+    Transition=none
+    TransitionDuration=0.0
+    ProgressBarBackgroundColor=0x202633
+    ProgressBarForegroundColor=0x44a963
+    MessageBelowAnimation=true
+
+    [boot-up]
+    UseEndAnimation=false
+
+    [shutdown]
+    UseEndAnimation=false
+
+    [reboot]
+    UseEndAnimation=false
     EOF
   '';
 
@@ -37,7 +64,7 @@ let
     # Paint the same mark before Godot is ready, so the X start and Godot
     # startup never show a blank screen.
     ${pkgs.xorg.xsetroot}/bin/xsetroot -solid '#0b0b10'
-    ${pkgs.xwallpaper}/bin/xwallpaper --center ${splashBoot}
+    ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot}
     ${pkgs.xset}/bin/xset s off -dpms
     ${shell}/bin/slippios-shell
   '';

@@ -8,7 +8,7 @@ const EDITOR_EXIT := 45
 const MAX_MODE_ROWS := 24
 const REFRESH_CHOICES := [0, 60, 120, 144, 240]
 const RESOLUTION_CHOICES := ["auto", "1280x720", "1920x1080", "2560x1440", "3840x2160"]
-const BOOT_HOLD_MS := 1800
+const BOOT_HOLD_MS := 2600
 const BootLogo := preload("res://boot_logo.gd")
 const KEY_ROWS := ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm", "-_.@", "!@#$%^&*()", "+=[]{};:'\",.<>/?"]
 const MASK := "•"
@@ -137,7 +137,7 @@ func _boot_splash() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_title, "modulate:a", 1.0, 0.55)
 	tween.tween_property(prompt, "modulate:a", 0.65, 0.45).set_delay(0.75)
-	tween.tween_property(bar, "value", 1.0, 1.6).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(bar, "value", 1.0, 2.4).set_trans(Tween.TRANS_SINE)
 
 	var deadline := Time.get_ticks_msec() + BOOT_HOLD_MS
 	while Time.get_ticks_msec() < deadline:

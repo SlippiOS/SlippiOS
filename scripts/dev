@@ -89,8 +89,68 @@ case "${1:-env}" in
     setup
     echo "$DATA/isos/test-melee.iso"
     ;;
+  ssh)
+    port="${SLIPPI_SSH_PORT:-2222}"
+    echo "password: slippios"
+    exec ssh -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null       player@localhost
+    ;;
+  push)
+    setup
+    port="${SLIPPI_SSH_PORT:-2222}"
+    askpass="$CACHE/askpass"
+    printf '#!/bin/sh\necho slippios\n' > "$askpass"
+    chmod +x "$askpass"
+    remote() {
+      SSH_ASKPASS="$askpass" SSH_ASKPASS_REQUIRE=force DISPLAY=:0 setsid \
+        ssh -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+        player@localhost "$@"
+    }
+    remote_ready() {
+      for _ in $(seq 1 30); do
+        if remote true 2>/dev/null; then return 0; fi
+        sleep 1
+      done
+      return 1
+    }
+
+    echo "Building CLI..."
+    # Static so the binary runs inside NixOS without the host's glibc loader.
+    ( cd backend && CGO_ENABLED=0 mise exec -- go build -trimpath -o "$BIN/slippios" ./cmd/slippios )
+    echo "Exporting shell..."
+    ./scripts/nix build .#shell-export -o result-shell-export >/dev/null
+    target=$(readlink result-shell-export)
+    if [[ -d "$HOME/.nix-portable$target" ]]; then
+      src="$HOME/.nix-portable$target"
+    else
+      src="$target"
+    fi
+    cp -f "$src/bin/slippios-shell" "$BIN/slippios-shell"
+    chmod 0755 "$BIN/slippios" "$BIN/slippios-shell"
+
+    if ! remote_ready; then
+      echo "dev VM is not reachable on port $port (boot a dev image first)" >&2
+      exit 1
+    fi
+    remote "mkdir -p /data/dev"
+    # Upload beside the live binaries and rename: writing over a running
+    # executable fails with ETXTBSY.
+    SSH_ASKPASS="$askpass" SSH_ASKPASS_REQUIRE=force DISPLAY=:0 setsid \
+      scp -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+      "$BIN/slippios" player@localhost:/data/dev/slippios.new
+    SSH_ASKPASS="$askpass" SSH_ASKPASS_REQUIRE=force DISPLAY=:0 setsid \
+      scp -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+      "$BIN/slippios-shell" player@localhost:/data/dev/slippios-shell.new
+    remote "mv -f /data/dev/slippios.new /data/dev/slippios && mv -f /data/dev/slippios-shell.new /data/dev/slippios-shell && chmod 0755 /data/dev/slippios /data/dev/slippios-shell"
+    echo "Restarting the graphical session..."
+    remote "sudo -n /run/current-system/sw/bin/systemctl restart display-manager"
+    sleep 3
+    echo "Pushed. Use 'mise run dev:ssh' for logs."
+    ;;
   *)
-    echo "usage: scripts/dev {env|cli|web|shell|iso} [args...]" >&2
+    echo "usage: scripts/dev {env|cli|web|shell|iso|ssh|push} [args...]" >&2
     exit 2
     ;;
 esac

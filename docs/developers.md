@@ -23,6 +23,8 @@ mise run dev:env        # local sandbox under ~/.cache/slippios/dev
 mise run dev:cli -- status   # CLI against that sandbox
 mise run dev:web        # setup page against that sandbox
 mise run dev:shell      # exported shell against that sandbox (needs GL)
+mise run dev:ssh        # SSH into the running dev VM
+mise run dev:push       # build CLI + shell and push them into the dev VM
 mise run run:image      # boot the local USB image
 mise run stop:image     # clean ACPI power-off of that VM
 mise run fetch:image    # download the latest published USB image
@@ -55,6 +57,21 @@ improving the appliance.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
+
+## Dev VM loop
+
+Build a dev image once with `mise run build:image-dev` and boot it. That image
+enables SSH on port 2222 (`player` / `slippios`) and creates `/data/dev`.
+After that, do not rebuild for application changes:
+
+```sh
+mise run dev:push   # Go CLI + Godot export -> /data/dev, restart lightdm
+mise run dev:ssh    # shell/logs on the VM
+```
+
+The shell wrapper prefers `/data/dev/slippios` and `/data/dev/slippios-shell`
+when they exist, so a pushed build takes effect after the session restart.
+Image changes (NixOS modules, packages) still need `build:image-dev`.
 
 `scripts/dev` builds a throwaway data tree with a tiny fake Melee image
 (`GALE01` header, not a playable disc) and a settings.toml. The CLI, ISO
@@ -162,15 +179,23 @@ anything the curated list does not cover (controller bindings, profiles).
 
 ## Boot splash
 
-Plymouth shows `assets/plymouth/slippios.script` with the shared mark. When the
-session starts, the openbox autostart paints `apps/shell/assets/slippi-boot.png`
-on the X root window before Godot starts, so the handoff shows the same mark
-instead of a blank screen. X's own modeset still flashes black for about half a
-second; removing that needs a direct X start with a controlled VT switch.
+Plymouth uses a charge-style `two-step` theme: `modules/slippios.nix` renders 24
+throbber frames from the mark with a sine opacity, and the C throbber plugin
+animates them over two seconds. This avoids the script plugin's refresh
+callback, which did not animate in QEMU's frame-buffer fallback.
 
-The Godot splash pulses the same mark. `assets/branding/` holds the temporary
-Slippi mark and how to regenerate the raster assets; replace it when the
-SlippiOS mark exists.
+Plymouth frames are a fixed 324 px high (30% of 1080p), because two-step themes
+cannot scale per display. The Godot splash does scale: it sizes the mark to 30%
+of the screen height and pulses it.
+
+When the session starts, the openbox autostart paints
+`apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so
+the handoff shows the same mark instead of a blank screen. X's own modeset still
+flashes black for about half a second; removing that needs a direct X start with
+a controlled VT switch.
+
+`assets/branding/` holds the temporary Slippi mark and how to regenerate the
+raster assets; replace it when the SlippiOS mark exists.
 
 ## Dolphin AppImage
 
