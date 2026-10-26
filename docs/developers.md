@@ -17,7 +17,8 @@ No Docker or system Nix required.
 ## Tasks
 
 ```sh
-mise run build:image    # USB image
+mise run build:image    # USB image, compressed for release
+mise run build:image-dev  # uncompressed image, faster local boots
 mise run run:image      # boot the local USB image
 mise run fetch:image    # download the latest published USB image
 mise run test           # Go tests + headless Godot parse
@@ -47,6 +48,8 @@ improving the appliance.
   `~/.cache/slippios/build-tmp`, not `/tmp`.
 - First build downloads the closure. Later builds reuse `~/.nix-portable`.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
+  Compression only matters for published images, so `build:image-dev` skips it
+  (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
 
 `test:shell` starts the shell headlessly. JSON parse errors from the missing
 `slippios` CLI are expected; GDScript parse errors are not.
@@ -114,6 +117,21 @@ scripts/fetch-image        release downloader
 `apps/shell` is exported at image-build time to a compiled Godot binary with an
 embedded PCK. The USB image contains that binary, not the `.gd`/`.tscn` source
 project. `mise run test:shell` still parses the source project.
+
+Export with the template nixpkgs builds (`godot_4.export-template`), not
+`godot_4.export-templates-bin`. The prebuilt upstream template expects a generic
+desktop graphics stack, cannot initialise OpenGL on NixOS, falls back to OpenGL
+ES, and exits. The symptom is the shell dying immediately and Openbox falling
+back to the terminal session.
+
+## Dolphin AppImage
+
+`pkgs/appimage-runner.nix` is an FHS environment built from
+`appimageTools.defaultFhsEnvArgs`. Slippi's AppImage downloads at runtime and
+expects a normal desktop set of system libraries (`harfbuzz`, `gmp`,
+`libgpg-error`, `libcom_err` and friends). Keep the upstream environment rather
+than a hand-picked package list; the upstream AppImage changes which libraries
+it leaves to the system between releases.
 
 ## Melee ROMs
 

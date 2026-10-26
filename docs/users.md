@@ -174,6 +174,10 @@ Disable VPN/client isolation. In the QEMU VM, use
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
 or **Restart setup page**.
 
+**The console shows a text setup prompt instead of the shell** — the graphical
+shell exited. Its last error is written to `/data/system/shell.log`, which you
+can read by mounting the `SLIPPIOS` data partition.
+
 **Nothing persists** — use the USB `.img.xz` release, not a live environment.
 
 **Does not boot** — disable Secure Boot and select the USB device in the UEFI

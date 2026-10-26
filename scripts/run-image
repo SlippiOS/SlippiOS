@@ -27,8 +27,10 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 if [[ -z "$IMAGE" ]]; then
-  IMAGE=$(find -L result-local-image -maxdepth 1 -name '*.raw.xz' \
-    ! -name '*.nix-store.raw.xz' -print -quit 2>/dev/null || true)
+  IMAGE=$(find -L result-local-image -maxdepth 1 \
+    \( -name '*.raw' -o -name '*.raw.xz' \) \
+    ! -name '*.nix-store.raw' ! -name '*.nix-store.raw.xz' \
+    -print -quit 2>/dev/null || true)
   if [[ -z "$IMAGE" ]]; then
     echo "no image found; run 'mise run build:image' first" >&2
     exit 1
@@ -56,7 +58,7 @@ if [[ "$IMAGE" == *.xz ]]; then
     mv "$raw.tmp" "$raw"
   fi
 else
-  raw="$IMAGE"
+  raw=$(realpath "$IMAGE")
 fi
 
 overlay="$CACHE/slippios-${image_id}.qcow2"

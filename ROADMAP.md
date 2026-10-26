@@ -11,7 +11,8 @@ more installation modes.
       fit and appear with their original filenames.
 - [ ] Choose a default image, power-cycle, and confirm it launches automatically.
 - [ ] Open `Melee ROMs`, switch images, and confirm the new default persists.
-- [ ] Confirm the cold-boot splash, hold-A menu path, and no splash after Dolphin.
+- [ ] Confirm the hold-A menu path on hardware. (Cold-boot splash and reopening
+      the shell without a splash are verified in QEMU.)
 - [ ] Test the real GameCube adapter in the shell and Dolphin.
 - [ ] Test Wi-Fi setup and a real Slippi sign-in.
 - [ ] Confirm `/data` grows to fill the stick and survives reboots.

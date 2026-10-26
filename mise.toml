@@ -9,6 +9,10 @@ auto_install = true
 description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
 run = "./scripts/build-image"
 
+[tasks."build:image-dev"]
+description = "Build an uncompressed USB image for local boot testing"
+run = "SLIPPI_DEV=1 ./scripts/build-image"
+
 [tasks."run:image"]
 description = "Boot the newest local USB image in QEMU/UEFI"
 run = "./scripts/run-image"

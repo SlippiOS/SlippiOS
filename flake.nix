@@ -29,6 +29,22 @@
         ];
       };
 
+      # Same image, but left uncompressed. Compression only exists to keep
+      # release downloads under GitHub's asset limit, so local boot tests
+      # skip it and save a few minutes per build.
+      nixosConfigurations.slippios-usb-dev = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { slippiosPackages = self.packages.${system}; };
+        modules = [
+          ./modules/slippios.nix
+          ./hosts/usb.nix
+          {
+            system.image.version = version;
+            image.repart.compression.enable = nixpkgs.lib.mkForce false;
+          }
+        ];
+      };
+
       packages.${system} = {
         appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
         slippios = cliPackage;
@@ -39,6 +55,15 @@
         shell = pkgs.writeShellScriptBin "slippios-shell" ''
           autoplay=1
           splash=0
+
+          # Keep the newest session's stderr for field diagnosis. This is
+          # truncated once per boot, not once per launch, so a crash after
+          # Dolphin exits is still captured.
+          log=/data/system/shell.log
+          if ! : >"$log" 2>/dev/null; then
+            log=/tmp/slippios-shell.log
+          fi
+
           while true; do
             code=0
             SLIPPIOS_AUTOPLAY="$autoplay" \
@@ -46,8 +71,9 @@
             SDL_JOYSTICK_HIDAPI_GAMECUBE=1 \
             SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
               ${shellPackage}/bin/slippios-shell \
-                --fullscreen --rendering-driver opengl3 || code=$?
+                --fullscreen --rendering-driver opengl3 2>>"$log" || code=$?
             if [ "$code" -ne 42 ]; then
+              echo "slippios-shell exited with $code" >>"$log"
               exit "$code"
             fi
 

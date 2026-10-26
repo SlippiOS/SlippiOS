@@ -330,7 +330,10 @@ in {
   };
   systemd.paths.slippios-os-update = {
     wantedBy = [ "paths.target" ];
-    after = [ "slippi-data.service" ];
+    # Ordering against slippi-data.service here would close a loop:
+    # basic.target -> paths.target -> this path unit -> slippi-data ->
+    # basic.target. The mount unit is enough to know when /data is ready.
+    after = [ "data.mount" ];
     pathConfig.PathExists = "/data/system/update/request";
   };
 
@@ -345,7 +348,7 @@ in {
   };
   systemd.paths.slippios-os-reboot = {
     wantedBy = [ "paths.target" ];
-    after = [ "slippi-data.service" ];
+    after = [ "data.mount" ];
     pathConfig.PathExists = "/data/system/update/reboot";
   };
 

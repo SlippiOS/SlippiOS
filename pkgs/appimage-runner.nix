@@ -1,70 +1,24 @@
-{ buildFHSEnv, appimageTools, lib }:
+{
+  appimageTools,
+  buildFHSEnv,
+  lib,
+}:
 
-buildFHSEnv {
+# Runs Slippi Dolphin AppImages that are downloaded at runtime, so the image
+# does not need rebuilding for every upstream Dolphin release. Start from
+# nixpkgs' tested AppImage environment and add the input/udev libraries
+# Dolphin needs for controllers.
+buildFHSEnv (appimageTools.defaultFhsEnvArgs // {
   name = "slippi-appimage-run";
 
-  # Extracts and runs an AppImage supplied at runtime. This lets SlippiOS
-  # follow upstream releases without rebuilding the image.
+  targetPkgs = pkgs:
+    [
+      appimageTools.appimage-exec
+      pkgs.libevdev
+      pkgs.systemd
+    ] ++ appimageTools.defaultFhsEnvArgs.targetPkgs pkgs;
+
   runScript = "${appimageTools.appimage-exec}/bin/appimage-exec.sh";
-
-  targetPkgs = pkgs: with pkgs; [
-    appimageTools.appimage-exec
-    bashInteractive
-    coreutils
-
-    alsa-lib
-    libpulseaudio
-
-    libGL
-    libglvnd
-    vulkan-loader
-    libdrm
-    libgbm
-    libxkbcommon
-
-    libusb1
-    systemd
-    libevdev
-
-    gtk3
-    glib
-    gdk-pixbuf
-    freetype
-    fontconfig
-    zlib
-    bzip2
-    dbus
-
-    xorg.libX11
-    xorg.libXext
-    xorg.libXrandr
-    xorg.libXcursor
-    xorg.libXi
-    xorg.libXinerama
-    xorg.libXrender
-    xorg.libXfixes
-    xorg.libXcomposite
-    xorg.libXtst
-    xorg.libXScrnSaver
-    xorg.libXxf86vm
-    xorg.libxcb
-    xorg.xcbutil
-    xorg.xcbutilimage
-    xorg.xcbutilkeysyms
-    xorg.xcbutilrenderutil
-    xorg.xcbutilwm
-    xorg.xkeyboardconfig
-    xorg.xrandr
-
-    iana-etc
-    krb5
-    gsettings-desktop-schemas
-    hicolor-icon-theme
-    zenity
-    which
-    perl
-    xdg-utils
-  ];
 
   meta = {
     description = "Run Slippi Dolphin AppImages on NixOS";
@@ -72,4 +26,4 @@ buildFHSEnv {
     platforms = [ "x86_64-linux" ];
     mainProgram = "slippi-appimage-run";
   };
-}
+})

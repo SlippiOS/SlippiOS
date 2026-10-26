@@ -11,6 +11,12 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
 BUILD_TMP="${SLIPPI_TMPDIR:-$CACHE/build-tmp}"
 OUT="${SLIPPI_RESULT:-result-local-image}"
 JOBS="${SLIPPI_JOBS:-$(( $(nproc 2>/dev/null || echo 4) > 8 ? 8 : $(nproc 2>/dev/null || echo 4) ))}"
+# Local boot tests do not need the compressed release artifact.
+if [[ "${SLIPPI_DEV:-0}" == "1" ]]; then
+  CONFIG=slippios-usb-dev
+else
+  CONFIG=slippios-usb
+fi
 
 mkdir -p "$BUILD_TMP"
 export TMPDIR="$BUILD_TMP"
@@ -21,11 +27,16 @@ build() {
     --print-build-logs \
     --cores "$JOBS" \
     --max-jobs 1 \
-    .#nixosConfigurations.slippios-usb.config.system.build.image \
+    ".#nixosConfigurations.$CONFIG.config.system.build.image" \
     -o "$OUT"
 }
 
 rm -f "$OUT"
+
+old_target=""
+if [[ "$CONFIG" == "slippios-usb-dev" && -e "$OUT" ]]; then
+  old_target=$(readlink "$OUT" || true)
+fi
 
 if command -v nix >/dev/null 2>&1; then
   echo "Building with system Nix ($JOBS cores)..."
@@ -50,17 +61,32 @@ else
     --print-build-logs \
     --cores "$JOBS" \
     --max-jobs 1 \
-    .#nixosConfigurations.slippios-usb.config.system.build.image \
+    ".#nixosConfigurations.$CONFIG.config.system.build.image" \
     -o "$OUT"
 fi
 
 echo
+if [[ "$CONFIG" == "slippios-usb-dev" ]]; then
+  echo "Dev build: image is uncompressed."
+fi
 # nix-portable maps the store to ~/.nix-portable but writes result
 # symlinks using the in-container /nix/store path. Rewrite them so the
 # artifacts are usable from the host.
 target=$(readlink "$OUT" 2>/dev/null || true)
 if [[ "$target" == /nix/store/* && ! -e "$target" && -d "$HOME/.nix-portable$target" ]]; then
   ln -sfn "$HOME/.nix-portable$target" "$OUT"
+fi
+
+# A dev image is ~11 GB of uncompressed disk, and the store keeps every
+# build. Drop the previous one once the new one is ready.
+if [[ "$CONFIG" == "slippios-usb-dev" && -n "$old_target" &&
+      "$old_target" != "$(readlink "$OUT")" ]]; then
+  echo "Pruning previous dev image: $old_target"
+  if command -v nix >/dev/null 2>&1; then
+    nix store delete "$old_target" >/dev/null 2>&1 || true
+  else
+    NP_RUNTIME=bwrap "$portable" nix store delete "$old_target" >/dev/null 2>&1 || true
+  fi
 fi
 
 echo "Artifacts:"

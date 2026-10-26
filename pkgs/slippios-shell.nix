@@ -1,9 +1,6 @@
 {
-  lib,
   stdenv,
   godot_4,
-  patchelf,
-  autoPatchelfHook,
 }:
 
 stdenv.mkDerivation {
@@ -13,11 +10,7 @@ stdenv.mkDerivation {
   src = ../apps/shell;
   dontUnpack = true;
 
-  nativeBuildInputs = [
-    godot_4
-    patchelf
-    autoPatchelfHook
-  ];
+  nativeBuildInputs = [ godot_4 ];
 
   buildPhase = ''
     runHook preBuild
@@ -29,7 +22,10 @@ stdenv.mkDerivation {
     export HOME="$TMPDIR/home"
     export XDG_DATA_HOME="$TMPDIR/data"
     mkdir -p "$HOME" "$XDG_DATA_HOME/godot/export_templates"
-    ln -s ${godot_4.export-templates-bin}/share/godot/export_templates/* \
+    # Use the template nixpkgs builds itself. The prebuilt upstream template
+    # links against a generic desktop environment and cannot load the NixOS
+    # graphics stack, so Godot falls back to OpenGL ES and exits.
+    ln -s ${godot_4.export-template}/share/godot/export_templates/* \
       "$XDG_DATA_HOME/godot/export_templates/"
 
     godot --headless --path . --import
@@ -42,14 +38,6 @@ stdenv.mkDerivation {
     runHook preInstall
     install -Dm755 "$TMPDIR/slippios-shell" "$out/bin/slippios-shell"
     runHook postInstall
-  '';
-
-  # The export template is mostly self-contained but dlopens X11/GL/audio
-  # libraries. Reuse the exact runtime search path from the packaged editor.
-  postFixup = ''
-    godot_bin=$(find ${godot_4}/libexec -maxdepth 1 -type f -name 'godot*' | head -1)
-    rpath=$(patchelf --print-rpath "$godot_bin")
-    patchelf --set-rpath "$rpath" "$out/bin/slippios-shell"
   '';
 
   meta = {
