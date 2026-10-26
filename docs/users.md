@@ -26,14 +26,14 @@ Use the whole device, not a partition. This erases the USB.
 
 1. Boot from the USB in UEFI mode.
 2. Wait for the setup QR. The data partition grows to fill the stick.
-3. Scan the QR with a phone or open the shown address.
+3. Scan the QR with a phone, or open the shown address on any computer on the same network.
 4. **Step 1 — Game:** upload a Melee 1.02 ISO, or pick one already on the stick.
 5. **Step 2 — Account:** sign in to Slippi, or choose **Skip for offline play**.
-6. The console starts Melee automatically. Keep the phone on the same network
+6. The console starts Melee automatically. Keep the device on the same network
    until the page says setup is complete.
 
-The setup page is a two-step wizard. You do not need to choose anything on the
-TV during first boot.
+The setup page is a two-step browser wizard. It works on a phone, tablet, or
+computer. You do not need to choose anything on the TV during first boot.
 
 ## Connect Wi-Fi
 
@@ -46,7 +46,7 @@ The console uses NetworkManager. Ethernet works automatically.
 
 ## Add a Melee ISO
 
-On first boot, the setup wizard handles this on your phone. You can also put an
+On first boot, the setup wizard handles this in your browser. You can also put an
 ISO on the stick directly:
 
 1. Mount the ext4 partition labelled `SLIPPIOS`.
@@ -57,14 +57,14 @@ Windows and macOS cannot read ext4 without extra drivers.
 
 ## Sign in
 
-First boot signs you in on the phone setup page. Later, use **Account → Sign in**
-on the console or **Sign in on phone**.
+First boot signs you in on the browser setup page. Later, use **Account → Sign in**
+on the console or **Sign in on another device**.
 
 Passwords are not stored. `slippi-user.json` is an auth token, readable only by
 the appliance user, and bound to the current PC. Moving the USB to another PC
 requires signing in again.
 
-The phone pages are LAN-only, tokenized in the URL, and served over HTTP. Use
+The setup pages are LAN-only, tokenized in the URL, and served over HTTP. Use
 them on a trusted network.
 
 ## Play
@@ -106,10 +106,10 @@ yet.
 
 ## Troubleshooting
 
-**“Network page stopped”** — the local page exited. The console shows the
+**“Network page stopped”** — the setup page exited. The console shows the
 reason. Press **Restart setup page**. Only one page can run at a time.
 
-**Phone page does not load** — phone and console must be on the same network.
+**Setup page does not load** — the device and console must be on the same network.
 Disable VPN/client isolation. In the QEMU VM, use
 `http://localhost:8080/<token>/` from the host.
 

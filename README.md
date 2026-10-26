@@ -3,7 +3,7 @@
 A console-style NixOS appliance for Slippi Melee. Boots into a fullscreen Godot
 shell and stores games, settings, the Slippi login, and replays on the USB.
 
-**Status:** alpha. A/B system updates, phone sign-in, Wi-Fi setup, network ISO
+**Status:** alpha. A/B system updates, browser sign-in, Wi-Fi setup, network ISO
 upload, and native GameCube-adapter input work. Boot-to-game and hold-A settings
 still need real-hardware validation.
 
@@ -15,7 +15,7 @@ Requirements: 16 GB USB, UEFI boot, Secure Boot off.
    [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
 2. Flash with Etcher, Rufus (DD mode), or `dd`.
 3. Boot the stick.
-4. Scan the setup QR with a phone, add a Melee 1.02 ISO, then sign in or skip.
+4. Scan the setup QR with a phone or open it on a computer, add a Melee 1.02 ISO, then sign in or skip.
 
 Updates: **Update → Install system update → Restart**. Games, settings, login,
 Dolphin, and replays are preserved.

@@ -1,4 +1,4 @@
-// Package netpages serves the phone-facing sign-in and ISO upload pages.
+// Package netpages serves the LAN sign-in and ISO upload pages.
 package netpages
 
 import (
@@ -221,7 +221,7 @@ func New(token string, port int, paths settings.Paths) *Server {
 	}
 }
 
-// LocalAddress is the address a phone on the same network can reach.
+// LocalAddress is the address another device on the same network can reach.
 func LocalAddress() string {
 	connection, err := net.Dial("udp4", "8.8.8.8:80")
 	if err != nil {
@@ -712,7 +712,7 @@ func (s *Server) upload(w http.ResponseWriter, request *http.Request) {
 	s.sendText(w, http.StatusOK, fmt.Sprintf("Added %s. Return to the console.", name))
 }
 
-// Start listens on the configured port and publishes the phone URL.
+// Start listens on the configured port and publishes the LAN URL.
 func (s *Server) Start() (string, error) {
 	_ = os.MkdirAll(filepath.Dir(s.Status), 0o755)
 	_ = os.Remove(s.Marker)

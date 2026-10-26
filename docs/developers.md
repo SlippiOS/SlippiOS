@@ -69,7 +69,7 @@ SLIPPI_DISK_SIZE=32G mise run run:image
 
 Host port 8080 forwards to the guest. Use
 `http://localhost:8080/<token>/` from the host. QEMU user networking does not
-reach phones.
+reach other devices.
 
 Delete the qcow2 named after the image hash to reset the guest.
 
@@ -170,9 +170,9 @@ Range requests for zsync.
 
 ## Network pages
 
-The first-boot setup page is a two-step wizard served by `slippios net --mode
+The first-boot setup page is a two-step browser wizard served by `slippios net --mode
 setup`: game image, then Slippi account or offline. The shell shows only the QR
-and progress; the phone writes the normal `settings.toml` and login files.
+and progress; the browser writes the normal `settings.toml` and login files.
 
 The shell reads:
 
@@ -182,7 +182,8 @@ The shell reads:
 
 When `setup.json` reports `done`, the shell stops the server and launches Melee.
 Port 8080 is retried for five seconds. `--mode iso` and `--mode login` remain for
-the older single-purpose pages used by tests/account flows.
+the older single-purpose pages used by tests/account flows. The wizard works
+from any LAN device, not just a phone.
 
 ## Debugging
 

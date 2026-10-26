@@ -213,7 +213,7 @@ func _show_account() -> void:
 	else:
 		_add_label("Not signed in.", 0.8)
 		_add_button("Sign in", _start_login)
-		_add_button("Sign in on phone", _start_net.bind("login"))
+		_add_button("Sign in on another device", _start_net.bind("login"))
 	_add_button("Back", _show_menu)
 	_focus_first()
 
@@ -235,7 +235,7 @@ func _show_auth_field(stage: String, message: String = "") -> void:
 	if message != "":
 		_add_label(message, 0.9)
 	_build_keyboard(stage == "password")
-	_add_button("Use phone instead", _start_net.bind("login"))
+	_add_button("Use browser instead", _start_net.bind("login"))
 	_add_button("Back", _back_from_auth)
 	_focus_first()
 
@@ -635,13 +635,13 @@ func _show_net_screen(mode: String, message: String = "") -> void:
 	_net_mode = mode
 	_clear()
 	if mode == "setup":
-		_title = _add_title("SET UP ON YOUR PHONE", 40)
-		_add_label("Scan this code and follow two steps: game, then account.", 0.75)
+		_title = _add_title("SET UP ON ANOTHER DEVICE", 34)
+		_add_label("Scan with a phone, or open the address on any computer.", 0.75)
 	elif mode == "iso":
 		_title = _add_title("ADD A GAME", 44)
 		_add_label("Open this address on a phone or computer:", 0.8)
 	else:
-		_title = _add_title("SIGN IN ON YOUR PHONE", 40)
+		_title = _add_title("SIGN IN ON ANOTHER DEVICE", 34)
 		_add_label("Open this address on a phone or computer:", 0.8)
 
 	_add_label(_net_url, 1.0)
@@ -726,7 +726,7 @@ func _poll_net() -> void:
 			elif not setup.get("game_ready", false):
 				_net_status.text = "Waiting for a game image…"
 			elif not setup.get("account_ready", false):
-				_net_status.text = "Game added. Finish sign-in or skip on your phone."
+				_net_status.text = "Game added. Finish sign-in or skip in the browser."
 			else:
 				_net_status.text = "Finishing setup…"
 		return
