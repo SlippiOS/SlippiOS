@@ -19,7 +19,7 @@ No Docker or system Nix required.
 ```sh
 mise run build:image    # USB image, compressed for release
 mise run build:image-dev  # uncompressed image, faster local boots
-mise run dev:env        # local sandbox under ~/.cache/slippios/dev
+mise run dev:env        # local sandbox under .cache/dev
 mise run dev:cli -- status   # CLI against that sandbox
 mise run dev:web        # setup page against that sandbox
 mise run dev:shell      # exported shell against that sandbox (needs GL)
@@ -48,15 +48,28 @@ improving the appliance.
 
 - With system Nix: `scripts/build-image` calls `nix build`.
 - Without Nix: it downloads nix-portable to
-  `~/.cache/slippios/nix-portable` and runs it under bubblewrap.
+  `.cache/nix-portable` and runs it under bubblewrap.
 - nix-portable uses `--option sandbox false`; `systemd-repart` needs nested
   user namespaces.
 - Build artifacts need about 12 GB free. `TMPDIR` defaults to
-  `~/.cache/slippios/build-tmp`, not `/tmp`.
-- First build downloads the closure. Later builds reuse `~/.nix-portable`.
+  `.cache/build-tmp`, not `/tmp`.
+- First build downloads the closure. Later builds reuse the global Nix store in
+  `~/.nix-portable`.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
+
+## Local cache and cleanup
+
+QEMU overlays, monitor sockets, build scratch, downloaded test ISOs and the
+nix-portable binary live in `.cache/` in the repository, which is gitignored.
+The Nix store itself is global (`~/.nix-portable`).
+
+```sh
+mise run clean:cache   # overlays, ISOs, build scratch
+mise run clean         # wipe .cache and GC unreachable Nix paths
+mise run clean:hard    # also remove ~/.nix-portable (full re-download next build)
+```
 
 ## Dev VM loop
 
@@ -65,7 +78,7 @@ enables SSH on port 2222 (`player` / `slippios`) and creates `/data/dev`.
 After that, do not rebuild for application changes:
 
 ```sh
-mise run dev:push   # Go CLI + Godot export -> /data/dev, restart lightdm
+mise run dev:push   # Go CLI + Godot export -> /data/dev, restart the session
 mise run dev:ssh    # shell/logs on the VM
 ```
 
@@ -89,8 +102,8 @@ mise run run:image
 ```
 
 `run-image` accepts `.raw` or `.raw.xz`, creates a 16 GB qcow2 overlay in
-`~/.cache/slippios`, and boots it as a USB stick under OVMF. It also exposes a
-QEMU monitor socket at `~/.cache/slippios/<image>.sock`.
+`.cache/`, and boots it as a USB stick under OVMF. It also exposes a
+QEMU monitor socket at `.cache/<image>.sock`.
 
 Closing the QEMU window is a hard power cut. Power off from the guest (**Quit →
 Power off**) or run `mise run stop:image`, which sends an ACPI power button over
@@ -188,14 +201,32 @@ Plymouth frames are a fixed 324 px high (30% of 1080p), because two-step themes
 cannot scale per display. The Godot splash does scale: it sizes the mark to 30%
 of the screen height and pulses it.
 
-When the session starts, the openbox autostart paints
+The initrd loads `virtio_gpu` and `bochs` so Plymouth has a framebuffer in a VM
+before stage 2; physical machines use the firmware framebuffer through the
+built-in `simpledrm` until the native driver loads. Late kernel/systemd output
+is sent to `tty3` (`console=tty3`), so it cannot appear over the splash or the
+shell on `tty1`.
+
+When the session starts, the X session script paints
 `apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so
-the handoff shows the same mark instead of a blank screen. X's own modeset still
-flashes black for about half a second; removing that needs a direct X start with
-a controlled VT switch.
+the handoff shows the same mark instead of a blank screen. There is no window
+manager in the normal path: the Godot shell is the X session, so it has no
+decorations and owns the whole screen. Openbox is only started if the shell
+exits, as a desktop for diagnosis.
 
 `assets/branding/` holds the temporary Slippi mark and how to regenerate the
 raster assets; replace it when the SlippiOS mark exists.
+
+## Theming
+
+`theme/default.nix` is the single source of truth for the background, surface,
+accent and text colors, plus the splash mark size and pulse. Nix uses it for the
+Plymouth theme, LightDM's greeter background and the X root color. The module
+also installs it as `/etc/slippios/theme.json`; the `SlippiTheme` Godot autoload
+reads that file at startup and applies the clear color and UI colors. The
+compiled fallback in `theme.gd` keeps the dev sandbox usable without the file.
+Changing a color therefore needs an image rebuild for Plymouth/LightDM and a
+shell push for the Godot UI.
 
 ## Dolphin AppImage
 
@@ -225,16 +256,18 @@ Godot never launches Dolphin itself. It exits with a code and the
 | 43 | `slippios dolphin config` (Dolphin settings window), then reopen |
 | 44 | xterm running a login shell, then reopen |
 | 45 | xterm running nano on settings.toml, then reopen |
-| anything else | write `/data/system/shell-failed`, exit |
+| anything else | exit; the X session starts Openbox |
 
 This releases the GameCube adapter for Dolphin instead of leaving it claimed by
 SDL. The wrapper reopens Godot with `SLIPPIOS_AUTOPLAY=0` and
 `SLIPPIOS_SKIP_SPLASH=1`, so the splash is cold-boot only.
 
-On a crash, `slippios-recovery.service` conflicts with the display manager and
-takes over tty1 with a recovery console: last shell log lines, failed units,
-and Try again / Power off / Reboot. There is no xterm fallback; an openbox
-desktop is not useful to a console player.
+The normal X session runs the shell directly, without a window manager. On a
+crash the session script starts Openbox so the machine can be diagnosed. If
+Openbox also exits, it writes `/data/system/shell-failed`;
+`slippios-recovery.service` then conflicts with the display manager and takes
+over tty1 with a recovery console: last shell log lines, failed units, and Try
+again / Power off / Reboot.
 
 ## Display and audio
 

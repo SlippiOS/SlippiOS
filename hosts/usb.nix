@@ -49,6 +49,12 @@ in {
     "virtio_blk"
     "virtio_scsi"
     "virtio_net"
+    # Display drivers for the boot splash in VMs. Real hardware uses the
+    # firmware framebuffer through the built-in simpledrm until the native
+    # driver loads in stage 2; including native GPU drivers here would pull
+    # hundreds of megabytes of firmware into the 512M ESP.
+    "virtio_gpu"
+    "bochs"
     "loop"
   ];
 
@@ -100,9 +106,19 @@ in {
     pkgs.e2fsprogs
     pkgs.parted
     pkgs.util-linux
+    pkgs.kbd
   ];
+  # Keep the graphical VT selected while the console (tty3) prints initrd
+  # status. Otherwise the last status lines are visible before Plymouth starts.
+  boot.initrd.systemd.services.slippios-keep-vt = {
+    description = "Keep the graphical VT active";
+    wantedBy = [ "sysinit.target" ];
+    before = [ "plymouth-start.service" "initrd-switch-root.target" ];
+    serviceConfig.Type = "oneshot";
+    script = "${pkgs.kbd}/bin/chvt 1 || true";
+  };
   boot.initrd.systemd.services.slippios-grow-data = {
-    description = "Grow the SLIPPIOS data partition";
+    description = "Grow the SlippiOS data partition";
     wantedBy = [ "initrd-root-fs.target" ];
     after = [ "sysroot.mount" ];
     before = [ "initrd-switch-root.target" ];
@@ -112,6 +128,8 @@ in {
     };
     script = ''
       set -eu
+      # The GPT rewrite briefly removes the other partition nodes; the
+      # sliippios-wait-store unit waits for them before the store mount.
       root=$(${pkgs.coreutils}/bin/readlink -f /dev/disk/by-partlabel/root) || exit 0
       data=$(${pkgs.coreutils}/bin/readlink -f /dev/disk/by-partlabel/SLIPPIOS) || exit 0
       disk=/dev/$(${pkgs.coreutils}/bin/basename "$(${pkgs.coreutils}/bin/readlink -f "/sys/class/block/$(${pkgs.coreutils}/bin/basename "$root")/..")")
@@ -119,6 +137,36 @@ in {
       ${pkgs.parted}/bin/parted -s -f "$disk" unit s resizepart "$partnum" 100% || true
       ${pkgs.util-linux}/bin/partx -u "$data" || true
       ${pkgs.e2fsprogs}/bin/resize2fs "$data" || true
+    '';
+  };
+
+  # Growing the data partition rewrites the GPT and briefly removes the other
+  # partition nodes. The generated /sysroot/nix/store mount can race that and
+  # fail into the initrd emergency shell. Wait for the store label to come
+  # back before allowing that mount.
+  boot.initrd.systemd.services.slippios-wait-store = {
+    description = "Wait for the SlippiOS store partition";
+    wantedBy = [ "initrd-root-fs.target" ];
+    after = [ "slippios-grow-data.service" "systemd-udev-trigger.service" ];
+    before = [ "sysroot-nix-store.mount" "initrd-switch-root.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      set -eu
+      i=0
+      while [ "$i" -lt 100 ]; do
+        if [ -e /dev/disk/by-partlabel/nix-store_* ]; then
+          ${config.systemd.package}/bin/udevadm settle --timeout=1 || true
+          exit 0
+        fi
+        ${config.systemd.package}/bin/udevadm settle --timeout=1 || true
+        ${pkgs.coreutils}/bin/sleep 0.1
+        i=$((i + 1))
+      done
+      echo "slippios-wait-store: store partition did not appear" >&2
+      exit 1
     '';
   };
 
@@ -304,7 +352,7 @@ in {
   # /data/system/update/request. This keeps the downloader (and the shell)
   # unprivileged; only this oneshot runs as root.
   systemd.services.slippios-os-update = {
-    description = "Install a staged SlippiOS system update";
+    description = "Install a staged SlippiOS system update.";
     after = [ "slippi-data.service" ];
     requires = [ "slippi-data.service" ];
     serviceConfig = {
@@ -312,6 +360,7 @@ in {
       TimeoutStartSec = "30min";
       ExecStart = pkgs.writeShellScript "slippios-os-update" ''
         set -eu
+        # Runs as root from the update request path unit.
         export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
         rm -f /data/system/update/request
         mkdir -p /data/system/update
@@ -329,6 +378,7 @@ in {
     };
   };
   systemd.paths.slippios-os-update = {
+    description = "Watch for a staged update request";
     wantedBy = [ "paths.target" ];
     # Ordering against slippi-data.service here would close a loop:
     # basic.target -> paths.target -> this path unit -> slippi-data ->
@@ -338,15 +388,17 @@ in {
   };
 
   systemd.services.slippios-os-reboot = {
-    description = "Restart after a SlippiOS update";
+    description = "Restart after a SlippiOS update.";
     serviceConfig.Type = "oneshot";
     serviceConfig.ExecStart = pkgs.writeShellScript "slippios-os-reboot" ''
       set -eu
+      # Requested by the updater after staging.
       rm -f /data/system/update/reboot
       ${config.systemd.package}/bin/systemctl reboot --no-block
     '';
   };
   systemd.paths.slippios-os-reboot = {
+    description = "Watch for the update reboot request";
     wantedBy = [ "paths.target" ];
     after = [ "data.mount" ];
     pathConfig.PathExists = "/data/system/update/reboot";

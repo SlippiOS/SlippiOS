@@ -9,3 +9,6 @@ __pycache__/
 /apps/shell/.godot/
 /apps/shell/**/*.import
 /apps/shell/**/*.uid
+
+# Project-local QEMU/build cache (never commit)
+/.cache/

@@ -101,7 +101,7 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
   before Dolphin claims the GameCube adapter.
 - `slippios net --mode setup` — first-boot browser wizard for game and account.
 - `data-isos.mount` — mounts `MELEE-ROMS` FAT32 at `/data/isos`.
-- `slippios-recovery` — tty console after an unexpected shell exit.
+- `slippios-recovery` — tty console if the shell and the Openbox fallback both exit.
 - `slippios-session` — terminal session used for hands-on diagnostics.
 - `slippios` — Go CLI; human output on a TTY, JSON when piped.
 - `slippios-os-update.service` — root installer for staged updates.

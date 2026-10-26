@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
 sock=$(ls -t "$CACHE"/slippios-*.sock 2>/dev/null | head -1 || true)
 if [[ -z "$sock" ]]; then
   echo "no running image (no monitor socket in $CACHE)" >&2

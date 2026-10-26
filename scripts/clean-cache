@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Remove disposable local VM/build artifacts from the project cache.
+# Keeps the nix-portable binary and the dev sandbox data.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
+
+if pgrep -f qemu-system-x86_64 >/dev/null; then
+  echo "Stop the running VM first: mise run stop:image" >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  --all)
+    # Reclaim unreachable Nix paths first, then remove the whole project cache
+    # (including the nix-portable binary; it is re-downloaded on next use).
+    ./scripts/nix store gc || true
+    rm -rf "$CACHE"
+    echo "Wiped $CACHE (Nix store kept)"
+    exit 0
+    ;;
+  --hard)
+    # Full reset: next build re-downloads nix-portable and every dependency.
+    rm -rf "$CACHE" "$HOME/.nix-portable"
+    echo "Wiped $CACHE and $HOME/.nix-portable"
+    exit 0
+    ;;
+esac
+
+mkdir -p "$CACHE"
+find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
+find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
+find "$CACHE" -maxdepth 1 -name '*.iso' -delete
+find "$CACHE" -maxdepth 1 -name 'ov*.raw' -delete
+find "$CACHE" -maxdepth 1 -name 'slippios-usb-*.raw*' -delete
+rm -rf "$CACHE"/build-tmp/*
+rm -f "$CACHE"/OVMF_VARS-*.fd
+
+echo "Remaining cache:"
+du -sh "$CACHE"

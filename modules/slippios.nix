@@ -9,6 +9,20 @@ let
   # between them has no blank frame.
   splashMark = ../apps/shell/assets/slippi-mark.png;
   splashBoot = ../apps/shell/assets/slippi-boot.png;
+  theme = import ../theme/default.nix;
+  themeBackground = pkgs.runCommand "slippios-theme-background.png" { } ''
+    ${pkgs.imagemagick}/bin/magick -size 1920x1080 xc:'${theme.background}' "$out"
+  '';
+  themeJson = pkgs.writeText "slippios-theme.json" (builtins.toJSON {
+    inherit (theme) background surface accent text;
+    splash = {
+      mark_fraction = theme.splash.markFraction;
+      pulse_speed = theme.splash.pulseSpeed;
+      pulse_min = theme.splash.pulseMin;
+      pulse_max = theme.splash.pulseMax;
+      scale_pulse = theme.splash.scalePulse;
+    };
+  });
 
   # Charge-style two-step theme: the mark is pre-rendered as throbber frames
   # with a sine opacity, the same C-side animation Fedora's charge theme uses.
@@ -18,9 +32,9 @@ let
     # The two-step plugin loads these dialog assets during show_splash_screen,
     # even in boot mode; without them it aborts and Plymouth falls back to text.
     cp ${pkgs.plymouth}/share/plymouth/themes/spinner/{lock,entry,keyboard,capslock,keymap-render,bullet}.png "$theme"/
-    for frame in $(seq 1 24); do
-      alpha=$(awk -v i="$frame" 'BEGIN { pi = atan2(0, -1); print 0.35 + 0.65 * (0.5 + 0.5 * sin(2 * pi * i / 24)) }')
-      ${pkgs.imagemagick}/bin/magick ${splashMark} -resize x324 \
+    for frame in $(seq 1 ${toString theme.splash.plymouthFrames}); do
+      alpha=$(awk -v i="$frame" 'BEGIN { pi = atan2(0, -1); print ${toString theme.splash.pulseMin} + (${toString theme.splash.pulseMax} - ${toString theme.splash.pulseMin}) * (0.5 + 0.5 * sin(2 * pi * i / ${toString theme.splash.plymouthFrames})) }')
+      ${pkgs.imagemagick}/bin/magick ${splashMark} -resize x${toString theme.splash.plymouthMarkHeight} \
         -channel A -evaluate multiply "$alpha" +channel PNG32:"$theme/throbber-$(printf %04d "$frame").png"
     done
     cat > "$theme/slippios.plymouth" <<EOF
@@ -35,12 +49,12 @@ let
     ImageDir=$theme
     HorizontalAlignment=.5
     VerticalAlignment=.5
-    BackgroundStartColor=0x0b0b10
-    BackgroundEndColor=0x0b0b10
+    BackgroundStartColor=0x${lib.removePrefix "#" theme.background}
+    BackgroundEndColor=0x${lib.removePrefix "#" theme.background}
     Transition=none
     TransitionDuration=0.0
-    ProgressBarBackgroundColor=0x202633
-    ProgressBarForegroundColor=0x44a963
+    ProgressBarBackgroundColor=0x${lib.removePrefix "#" theme.surface}
+    ProgressBarForegroundColor=0x${lib.removePrefix "#" theme.accent}
     MessageBelowAnimation=true
 
     [boot-up]
@@ -54,22 +68,37 @@ let
     EOF
   '';
 
-  # openbox-autostart only reads its own built-in global file and
-  # $XDG_CONFIG_HOME/openbox/autostart. /etc/xdg/openbox/autostart is ignored.
-  #
-  # There is deliberately no automatic xterm fallback: when the shell fails,
-  # the wrapper drops a flag and the recovery console takes the console
-  # instead. xterm is only used by the expert-mode tools.
-  autostart = pkgs.writeText "slippios-openbox-autostart" ''
-    # Paint the same mark before Godot is ready, so the X start and Godot
-    # startup never show a blank screen.
-    ${pkgs.xorg.xsetroot}/bin/xsetroot -solid '#0b0b10'
-    ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot}
-    ${pkgs.xset}/bin/xset s off -dpms
+  # Run the Godot shell directly as the X session. There is no window manager
+  # in the normal path, so the shell owns the whole screen and draws no
+  # decorations. If it crashes, Openbox gives us a usable desktop for
+  # diagnosis; if the fallback also exits, the recovery console takes over.
+  session = pkgs.writeShellScript "slippios-x-session" ''
+    # A display-manager stop/restart terminates the whole session. Do not
+    # mistake that for a crash and start Openbox on the way out.
+    trap 'exit 0' TERM INT HUP
+
+    ${pkgs.xorg.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
+    ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot} || true
+    ${pkgs.xset}/bin/xset s off -dpms || true
     ${shell}/bin/slippios-shell
+    # Crash/exit fallback: Openbox plus one terminal, so there is something
+    # usable to diagnose with. The normal path never starts a window manager.
+    ${pkgs.openbox}/bin/openbox &
+    wm=$!
+    sleep 1
+    ${pkgs.xterm}/bin/xterm -fa Monospace -fs 14 &
+    term=$!
+    wait "$wm"
+    kill "$term" 2>/dev/null || true
+    # If Openbox also exited while the display manager is still running, hand
+    # over to the console recovery menu. During shutdown it is already gone.
+    if ${config.systemd.package}/bin/systemctl is-active --quiet display-manager.service; then
+      : >/data/system/shell-failed 2>/dev/null || true
+    fi
   '';
 
   recovery = pkgs.writeShellScript "slippios-recovery" ''
+    # Shown on tty1 only after Openbox exits.
     log=/data/system/shell.log
     ${pkgs.kbd}/bin/chvt 1 2>/dev/null || true
     while true; do
@@ -119,7 +148,18 @@ in {
 
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
+    # Keep late kernel/systemd text off the graphical VT. Plymouth and X use
+    # tty1; console output goes to tty3, which is invisible on the appliance.
+    "console=tty3"
   ];
+  # NixOS appends loglevel=<consoleLogLevel> after our params, so keep this in
+  # sync: 0 suppresses late kernel/systemd text between Plymouth and the shell.
+  boot.consoleLogLevel = 0;
+  # The initrd systemd manager ignores the kernel show_status setting on this
+  # path; disable status lines explicitly in both stages. Otherwise the last
+  # lines reappear when Plymouth quits.
+  boot.initrd.systemd.settings.Manager.ShowStatus = "no";
+  systemd.settings.Manager.ShowStatus = "no";
   boot.kernelModules = [ "uinput" ];
 
   services.udev.extraRules = ''
@@ -138,14 +178,23 @@ in {
 
   services.xserver = {
     enable = true;
-    windowManager.openbox.enable = true;
+    # No window manager on the normal path: the Godot shell is the session.
+    # The session script starts Openbox only if the shell exits.
+    displayManager.session = [{
+      manage = "desktop";
+      name = "slippios";
+      start = "exec ${session}";
+    }];
+    # LightDM's greeter background, used during autologin before the session
+    # paints the root window. Same value as the Plymouth/shell background.
+    displayManager.lightdm.background = themeBackground;
   };
 
   # Renamed from services.xserver.displayManager in NixOS 25.11+.
   services.displayManager = {
     autoLogin.enable = true;
     autoLogin.user = "player";
-    defaultSession = "none+openbox";
+    defaultSession = "slippios";
   };
 
   environment.systemPackages = with pkgs; [
@@ -170,6 +219,9 @@ in {
     Settings live in /data/users/default/settings.toml.
     Game images live in /data/isos/.
   '';
+
+  # Runtime copy of theme/default.nix for the Godot shell.
+  environment.etc."slippios/theme.json".source = themeJson;
 
   # SlippiOS stores user data on a partition labelled SLIPPIOS. Mount it when
   # present; otherwise /data lives on the (ephemeral) root filesystem so the
@@ -208,10 +260,10 @@ in {
     '';
   };
 
-  # The shell wrapper writes /data/system/shell-failed when Godot exits for
-  # any reason other than Play (42) or Dolphin settings (43).
+  # The session script starts Openbox when the shell crashes. If Openbox also
+  # exits, it writes /data/system/shell-failed and this console takes over.
   systemd.services.slippios-recovery = {
-    description = "SlippiOS recovery console";
+    description = "SlippiOS recovery console.";
     conflicts = [ "display-manager.service" "getty@tty1.service" ];
     serviceConfig = {
       Type = "oneshot";
@@ -225,6 +277,7 @@ in {
     };
   };
   systemd.paths.slippios-recovery = {
+    description = "Watch for the shell failure flag";
     wantedBy = [ "multi-user.target" ];
     after = [ "data.mount" ];
     pathConfig.PathExists = "/data/system/shell-failed";
@@ -233,8 +286,6 @@ in {
   systemd.tmpfiles.rules = [
     "d /home/player 0755 player users -"
     "d /home/player/.config 0755 player users -"
-    "d /home/player/.config/openbox 0755 player users -"
-    "L+ /home/player/.config/openbox/autostart - - - - ${autostart}"
   ];
 
   system.stateVersion = "25.05";

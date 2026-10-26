@@ -6,7 +6,8 @@ if command -v nix >/dev/null 2>&1; then
   exec nix "$@"
 fi
 
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CACHE="${SLIPPIOS_CACHE:-$ROOT/.cache}"
 PORTABLE="${NIX_PORTABLE:-$CACHE/nix-portable}"
 mkdir -p "$CACHE"
 

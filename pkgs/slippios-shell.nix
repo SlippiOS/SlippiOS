@@ -3,6 +3,10 @@
   godot_4,
 }:
 
+let
+  theme = import ../theme/default.nix;
+in
+
 stdenv.mkDerivation {
   pname = "slippios-shell";
   version = "0.1.0";
@@ -17,6 +21,10 @@ stdenv.mkDerivation {
 
     cp -r "$src" project
     chmod -R u+w project
+    # The engine splash is drawn before the main scene, so bake the theme
+    # background into the exported project.
+    sed -i "s|^boot_splash/bg_color=.*|boot_splash/bg_color=${theme.backgroundGodot}|" \
+      project/project.godot
     cd project
 
     export HOME="$TMPDIR/home"

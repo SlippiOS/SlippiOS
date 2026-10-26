@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios/dev"
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}/dev"
 DATA="$CACHE/data"
 BIN="$CACHE/bin"
 

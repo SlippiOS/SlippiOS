@@ -119,10 +119,10 @@
               continue
             fi
 
-            # Anything else is a crash. Leave X and hand the console to the
-            # recovery service instead of showing a desktop nobody can use.
+            # Anything else is a crash. Return to the session script, which
+            # starts Openbox for diagnosis and only then hands over to the
+            # recovery console.
             echo "slippios-shell exited with $code" >>"$log"
-            : >/data/system/shell-failed 2>/dev/null || true
             exit "$code"
           done
         '';

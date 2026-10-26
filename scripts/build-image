@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/slippios"
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
 BUILD_TMP="${SLIPPI_TMPDIR:-$CACHE/build-tmp}"
 OUT="${SLIPPI_RESULT:-result-local-image}"
 JOBS="${SLIPPI_JOBS:-$(( $(nproc 2>/dev/null || echo 4) > 8 ? 8 : $(nproc 2>/dev/null || echo 4) ))}"

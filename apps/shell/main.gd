@@ -53,7 +53,7 @@ func _ready() -> void:
 
 func _build_base() -> void:
 	var background := ColorRect.new()
-	background.color = Color("#0b0b10")
+	background.color = SlippiTheme.background
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
@@ -171,13 +171,13 @@ func _add_boot_bar() -> ProgressBar:
 	bar.custom_minimum_size = Vector2(360, 4)
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var background := StyleBoxFlat.new()
-	background.bg_color = Color("#202633")
+	background.bg_color = SlippiTheme.surface
 	background.corner_radius_top_left = 2
 	background.corner_radius_top_right = 2
 	background.corner_radius_bottom_left = 2
 	background.corner_radius_bottom_right = 2
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("#44a963")
+	fill.bg_color = SlippiTheme.accent
 	fill.corner_radius_top_left = 2
 	fill.corner_radius_top_right = 2
 	fill.corner_radius_bottom_left = 2

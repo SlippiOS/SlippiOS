@@ -9,10 +9,10 @@ var _time := 0.0
 
 
 func _ready() -> void:
-	# Size the mark from the display, not a fixed pixel size: 30% of the
-	# screen height keeps it consistent from 720p to 4K.
+	# Size the mark from the display, not a fixed pixel size: the fraction
+	# comes from theme/default.nix and keeps it consistent from 720p to 4K.
 	var screen := get_viewport_rect().size
-	var height := screen.y * 0.30
+	var height := screen.y * SlippiTheme.mark_fraction
 	var width := height * (float(Mark.get_width()) / float(Mark.get_height()))
 	custom_minimum_size = Vector2(width, height)
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -28,9 +28,10 @@ func _draw() -> void:
 	if size.x <= 1 or size.y <= 1:
 		return
 	var center := size * 0.5
-	var pulse := 0.35 + 0.65 * (0.5 + 0.5 * sin(_time * 5.2))
+	var pulse := SlippiTheme.pulse_min + (SlippiTheme.pulse_max - SlippiTheme.pulse_min) \
+		* (0.5 + 0.5 * sin(_time * SlippiTheme.pulse_speed))
 	var fit := (minf(size.x / Mark.get_width(), size.y / Mark.get_height())
-		* (0.92 + 0.015 * sin(_time * 5.2)))
+		* (0.92 + SlippiTheme.scale_pulse * sin(_time * SlippiTheme.pulse_speed)))
 	var target := Mark.get_size() * fit
 	var rect := Rect2(center - target * 0.5, target)
 

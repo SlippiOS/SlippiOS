@@ -45,6 +45,22 @@ run = "./scripts/run-image"
 description = "Power off the running QEMU guest cleanly"
 run = "./scripts/stop-image"
 
+[tasks.clean]
+description = "Wipe the project cache and garbage-collect unreachable Nix paths"
+run = "./scripts/clean-cache --all"
+
+[tasks."clean:hard"]
+description = "Wipe .cache and the entire nix-portable store (full re-download next time)"
+run = "./scripts/clean-cache --hard"
+
+[tasks."clean:cache"]
+description = "Delete disposable QEMU overlays, test ISOs and build scratch from .cache"
+run = "./scripts/clean-cache"
+
+[tasks."clean:nix"]
+description = "Garbage-collect unreachable paths from the Nix store"
+run = "./scripts/nix store gc"
+
 [tasks."fetch:image"]
 description = "Download and verify the newest published USB image"
 run = "./scripts/fetch-image"

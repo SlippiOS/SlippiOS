@@ -189,9 +189,10 @@ Disable VPN/client isolation. In the QEMU VM, use
 or **Restart setup page**.
 
 **The console shows a recovery menu instead of the shell** — the graphical shell
-exited unexpectedly. The menu shows its last error and the failed system units,
-and offers **Try again**, **Power off**, and **Reboot**. The full log is
-`/data/system/shell.log` on the `SLIPPIOS` data partition.
+crashed and the Openbox fallback also exited. The menu shows the last error and
+the failed system units, and offers **Try again**, **Power off**, and
+**Reboot**. The full log is `/data/system/shell.log` on the `SLIPPIOS` data
+partition. If only the shell crashed, you get an Openbox desktop instead.
 
 **Nothing persists** — use the USB `.img.xz` release, not a live environment.
 
