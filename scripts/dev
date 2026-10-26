@@ -4,7 +4,9 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}/dev"
+CACHE_ROOT="${SLIPPIOS_CACHE:-$PWD/.cache}"
+CACHE="$CACHE_ROOT/dev"
+STORE="$CACHE_ROOT/nix"
 DATA="$CACHE/data"
 BIN="$CACHE/bin"
 
@@ -56,17 +58,7 @@ TOML
   export PATH="$BIN:$PATH"
 }
 
-case "${1:-env}" in
-  env)
-    setup
-    echo "SLIPPIOS_DATA=$DATA"
-    echo "CLI=$BIN/slippios"
-    echo
-    echo "Run:"
-    echo "  mise run dev:cli -- status"
-    echo "  mise run dev:web"
-    echo "  mise run dev:shell"
-    ;;
+case "${1:-}" in
   cli)
     setup
     shift
@@ -84,10 +76,6 @@ case "${1:-env}" in
     echo "Starting the exported shell on ${DISPLAY:-the current display}."
     echo "This needs working OpenGL; on non-NixOS hosts, use a dev image instead."
     exec ./scripts/nix run .#shell-export -- --rendering-driver opengl3 "$@"
-    ;;
-  iso)
-    setup
-    echo "$DATA/isos/test-melee.iso"
     ;;
   ssh)
     port="${SLIPPI_SSH_PORT:-2222}"
@@ -120,11 +108,11 @@ case "${1:-env}" in
     echo "Exporting shell..."
     ./scripts/nix build .#shell-export -o result-shell-export >/dev/null
     target=$(readlink result-shell-export)
-    if [[ -d "$HOME/.nix-portable$target" ]]; then
-      src="$HOME/.nix-portable$target"
-    else
-      src="$target"
+    if [[ "$target" == /nix/store/* && -d "$STORE$target" ]]; then
+      target="$STORE$target"
     fi
+    target=${target/"$CACHE_ROOT/.nix-portable"/"$CACHE_ROOT/nix"}
+    src="$target"
     cp -f "$src/bin/slippios-shell" "$BIN/slippios-shell"
     chmod 0755 "$BIN/slippios" "$BIN/slippios-shell"
 
@@ -150,7 +138,7 @@ case "${1:-env}" in
     echo "Pushed. Use 'mise run dev:ssh' for logs."
     ;;
   *)
-    echo "usage: scripts/dev {env|cli|web|shell|iso|ssh|push} [args...]" >&2
+    echo "usage: scripts/dev {cli|web|shell|ssh|push} [args...]" >&2
     exit 2
     ;;
 esac

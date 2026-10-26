@@ -9,10 +9,6 @@ auto_install = true
 description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
 run = "./scripts/build-image"
 
-[tasks."dev:env"]
-description = "Create or report the local development sandbox"
-run = "./scripts/dev env"
-
 [tasks."dev:cli"]
 description = "Run the CLI against the local sandbox"
 run = "./scripts/dev cli"
@@ -32,10 +28,6 @@ run = "./scripts/dev push"
 [tasks."dev:shell"]
 description = "Run the exported Godot shell against the local sandbox"
 run = "./scripts/dev shell"
-
-[tasks."dev:iso"]
-description = "Print the sandbox test ISO path"
-run = "./scripts/dev iso"
 
 [tasks."build:image-dev"]
 description = "Build an uncompressed USB image for local boot testing"
@@ -57,33 +49,13 @@ run = "./scripts/clean-cache --all"
 description = "Wipe .cache and the entire nix-portable store (full re-download next time)"
 run = "./scripts/clean-cache --hard"
 
-[tasks."clean:cache"]
-description = "Delete disposable QEMU overlays, test ISOs and build scratch from .cache"
-run = "./scripts/clean-cache"
-
-[tasks."clean:nix"]
-description = "Garbage-collect unreachable paths from the Nix store"
-run = "./scripts/nix store gc"
-
 [tasks."fetch:image"]
 description = "Download and verify the newest published USB image"
 run = "./scripts/fetch-image"
 
-[tasks."test:shell"]
-description = "Parse the Godot project headlessly"
-run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c sh -c 'export SLIPPIOS_PARSE_ONLY=1; godot --headless --path apps/shell --import && godot --headless --path apps/shell --quit'"
-
 [tasks.test]
-description = "Run the fast checks"
-depends = ["test:shell", "go:test"]
-
-[tasks."go:build"]
-description = "Build the Go control CLI and session fallback"
-run = "mkdir -p .cache/bin && cd backend && go build -o ../.cache/bin/slippios ./cmd/slippios && go build -o ../.cache/bin/slippios-session ./cmd/slippios-session"
-
-[tasks."go:test"]
-description = "Run Go tests"
-run = "cd backend && go test ./..."
+description = "Run Go tests and the headless Godot parse"
+run = "./scripts/test"
 
 [tasks."nix"]
 description = "Open a Nix shell with the project's tools"

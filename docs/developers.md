@@ -19,7 +19,6 @@ No Docker or system Nix required.
 ```sh
 mise run build:image    # USB image, compressed for release
 mise run build:image-dev  # uncompressed image, faster local boots
-mise run dev:env        # local sandbox under .cache/dev
 mise run dev:cli -- status   # CLI against that sandbox
 mise run dev:web        # setup page against that sandbox
 mise run dev:shell      # exported shell against that sandbox (needs GL)
@@ -29,9 +28,6 @@ mise run run:image      # boot the local USB image
 mise run stop:image     # clean ACPI power-off of that VM
 mise run fetch:image    # download the latest published USB image
 mise run test           # Go tests + headless Godot parse
-mise run test:shell
-mise run go:test
-mise run go:build
 mise run nix            # shell with Godot, QEMU, zsync, xz, jq
 ```
 
@@ -67,8 +63,7 @@ which is gitignored. The physical store is `.cache/nix`; nix-portable's
 hardcoded `.nix-portable` entry is only a compatibility symlink to it.
 
 ```sh
-mise run clean:cache   # overlays, ISOs, build scratch
-mise run clean         # disposable cache + GC unreachable Nix paths
+mise run clean         # overlays, ISOs, build scratch + GC unreachable Nix paths
 mise run clean:hard    # also remove the project Nix store (full re-download next build)
 ```
 
@@ -93,8 +88,8 @@ checks, web setup pages, and Dolphin runner can be exercised there without an
 image build. The Godot shell also honours `SLIPPIOS_DATA`; `dev:shell` needs a
 working OpenGL stack on the host, which non-NixOS hosts often do not provide.
 
-`test:shell` starts the shell headlessly. JSON parse errors from the missing
-`slippios` CLI are expected; GDScript parse errors are not.
+`mise run test` starts the shell headlessly with `SLIPPIOS_PARSE_ONLY=1`, so
+it only checks GDScript/project parsing; it does not need the CLI.
 
 ## VM
 
@@ -167,7 +162,7 @@ scripts/fetch-image        release downloader
 
 `apps/shell` is exported at image-build time to a compiled Godot binary with an
 embedded PCK. The USB image contains that binary, not the `.gd`/`.tscn` source
-project. `mise run test:shell` still parses the source project.
+project. `mise run test` still parses the source project.
 
 Export with the template nixpkgs builds (`godot_4.export-template`), not
 `godot_4.export-templates-bin`. The prebuilt upstream template expects a generic
