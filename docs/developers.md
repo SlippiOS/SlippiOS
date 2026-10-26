@@ -109,6 +109,12 @@ scripts/run-image          QEMU/OVMF USB runner
 scripts/fetch-image        release downloader
 ```
 
+## Shell binary
+
+`apps/shell` is exported at image-build time to a compiled Godot binary with an
+embedded PCK. The USB image contains that binary, not the `.gd`/`.tscn` source
+project. `mise run test:shell` still parses the source project.
+
 ## Melee ROMs
 
 The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`. It is

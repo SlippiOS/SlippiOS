@@ -1,0 +1,60 @@
+{
+  lib,
+  stdenv,
+  godot_4,
+  patchelf,
+  autoPatchelfHook,
+}:
+
+stdenv.mkDerivation {
+  pname = "slippios-shell";
+  version = "0.1.0";
+
+  src = ../apps/shell;
+  dontUnpack = true;
+
+  nativeBuildInputs = [
+    godot_4
+    patchelf
+    autoPatchelfHook
+  ];
+
+  buildPhase = ''
+    runHook preBuild
+
+    cp -r "$src" project
+    chmod -R u+w project
+    cd project
+
+    export HOME="$TMPDIR/home"
+    export XDG_DATA_HOME="$TMPDIR/data"
+    mkdir -p "$HOME" "$XDG_DATA_HOME/godot/export_templates"
+    ln -s ${godot_4.export-templates-bin}/share/godot/export_templates/* \
+      "$XDG_DATA_HOME/godot/export_templates/"
+
+    godot --headless --path . --import
+    godot --headless --path . --export-release "Linux" "$TMPDIR/slippios-shell"
+
+    runHook postBuild
+  '';
+
+  installPhase = ''
+    runHook preInstall
+    install -Dm755 "$TMPDIR/slippios-shell" "$out/bin/slippios-shell"
+    runHook postInstall
+  '';
+
+  # The export template is mostly self-contained but dlopens X11/GL/audio
+  # libraries. Reuse the exact runtime search path from the packaged editor.
+  postFixup = ''
+    godot_bin=$(find ${godot_4}/libexec -maxdepth 1 -type f -name 'godot*' | head -1)
+    rpath=$(patchelf --print-rpath "$godot_bin")
+    patchelf --set-rpath "$rpath" "$out/bin/slippios-shell"
+  '';
+
+  meta = {
+    description = "Compiled SlippiOS Godot shell";
+    mainProgram = "slippios-shell";
+    platforms = [ "x86_64-linux" ];
+  };
+}
