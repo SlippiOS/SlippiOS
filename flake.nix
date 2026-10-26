@@ -18,18 +18,6 @@
         else
           "dev-${toString (self.lastModified or 0)}";
     in {
-      nixosConfigurations.slippios-live = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { slippiosPackages = self.packages.${system}; };
-        modules = [
-          ({ modulesPath, ... }: {
-            imports = [ (modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix") ];
-          })
-          ./modules/slippios.nix
-          ./hosts/live.nix
-        ];
-      };
-
       nixosConfigurations.slippios-usb = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { slippiosPackages = self.packages.${system}; };

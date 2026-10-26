@@ -18,9 +18,7 @@ No Docker or system Nix required.
 
 ```sh
 mise run build:image    # USB image
-mise run build:iso      # development ISO (not published)
 mise run run:image      # boot the local USB image
-mise run run:iso        # boot the local ISO
 mise run fetch:image    # download the latest published USB image
 mise run test           # Go tests + headless Godot parse
 mise run test:shell
@@ -73,16 +71,6 @@ reach other devices.
 
 Delete the qcow2 named after the image hash to reset the guest.
 
-## Development ISO
-
-```sh
-mise run build:iso
-mise run run:iso
-```
-
-The ISO is local/recovery only. `scripts/flash-usb` can add a `SLIPPIOS`
-partition to a physical stick; it cannot update in place.
-
 ## CI
 
 - **Validate** — pushes to `main`; Go tests and headless Godot.
@@ -106,13 +94,10 @@ git tag -a v1.0.0 -m "SlippiOS 1.0.0"
 git push origin v1.0.0
 ```
 
-The ISO is not built or published by CI.
-
 ## Repository map
 
 ```text
 flake.nix                  NixOS configs and app packages
-hosts/live.nix             development ISO
 hosts/usb.nix              A/B USB image, sysupdate, data growth
 modules/slippios.nix       kiosk, user, data mount, boot hooks
 backend/                   Go CLI, session fallback, auth, updates, LAN pages
@@ -121,9 +106,7 @@ pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 scripts/build-image        local image build
 scripts/run-image          QEMU/OVMF USB runner
-scripts/build-iso          local ISO build
 scripts/fetch-image        release downloader
-scripts/flash-usb          legacy ISO + data partition flasher
 ```
 
 ## Melee ROMs

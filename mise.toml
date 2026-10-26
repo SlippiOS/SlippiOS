@@ -9,17 +9,9 @@ auto_install = true
 description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
 run = "./scripts/build-image"
 
-[tasks."build:iso"]
-description = "Build the development ISO locally (not published)"
-run = "./scripts/build-iso"
-
 [tasks."run:image"]
 description = "Boot the newest local USB image in QEMU/UEFI"
 run = "./scripts/run-image"
-
-[tasks."run:iso"]
-description = "Boot the newest local development ISO in QEMU"
-run = "./scripts/run-vm result/iso/*.iso"
 
 [tasks."fetch:image"]
 description = "Download and verify the newest published USB image"

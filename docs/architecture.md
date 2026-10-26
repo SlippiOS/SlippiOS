@@ -119,5 +119,4 @@ removes the saved login.
 - **Validate** on pushes: Go tests and headless Godot.
 - **Build Image** on tags/manual: full image + update slot + UKI + zsync +
   manifest, published as a GitHub release.
-- The ISO is a local development artifact and is not published.
 - Release assets are public only when the repository is public.

@@ -174,7 +174,7 @@ Disable VPN/client isolation. In the QEMU VM, use
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
 or **Restart setup page**.
 
-**Nothing persists** — use the USB `.img.xz` release, not the development ISO.
+**Nothing persists** — use the USB `.img.xz` release, not a live environment.
 
 **Does not boot** — disable Secure Boot and select the USB device in the UEFI
 boot menu.
