@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Local development sandbox: run the CLI, setup page, or exported Godot shell
-# against a throwaday /data tree without building a USB image.
+# Local development sandbox: run the CLI against a throwaway /data tree
+# without building a USB image.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -64,19 +64,6 @@ case "${1:-}" in
     shift
     exec slippios "$@"
     ;;
-  web)
-    setup
-    shift || true
-    exec slippios net --token dev --port 8080 --mode setup "$@"
-    ;;
-  shell)
-    setup
-    export SLIPPIOS_AUTOPLAY=0 SLIPPIOS_SKIP_SPLASH=1
-    echo "SLIPPIOS_DATA=$DATA"
-    echo "Starting the exported shell on ${DISPLAY:-the current display}."
-    echo "This needs working OpenGL; on non-NixOS hosts, use a dev image instead."
-    exec ./scripts/nix run .#shell-export -- --rendering-driver opengl3 "$@"
-    ;;
   ssh)
     port="${SLIPPI_SSH_PORT:-2222}"
     echo "password: slippios"
@@ -138,7 +125,7 @@ case "${1:-}" in
     echo "Pushed. Use 'mise run dev:ssh' for logs."
     ;;
   *)
-    echo "usage: scripts/dev {cli|web|shell|ssh|push} [args...]" >&2
+    echo "usage: scripts/dev {cli|ssh|push} [args...]" >&2
     exit 2
     ;;
 esac

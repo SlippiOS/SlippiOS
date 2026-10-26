@@ -20,8 +20,6 @@ No Docker or system Nix required.
 mise run build:image    # USB image, compressed for release
 mise run build:image-dev  # uncompressed image, faster local boots
 mise run dev:cli -- status   # CLI against that sandbox
-mise run dev:web        # setup page against that sandbox
-mise run dev:shell      # exported shell against that sandbox (needs GL)
 mise run dev:ssh        # SSH into the running dev VM
 mise run dev:push       # build CLI + shell and push them into the dev VM
 mise run run:image      # boot the local USB image
@@ -84,9 +82,7 @@ Image changes (NixOS modules, packages) still need `build:image-dev`.
 
 `scripts/dev` builds a throwaway data tree with a tiny fake Melee image
 (`GALE01` header, not a playable disc) and a settings.toml. The CLI, ISO
-checks, web setup pages, and Dolphin runner can be exercised there without an
-image build. The Godot shell also honours `SLIPPIOS_DATA`; `dev:shell` needs a
-working OpenGL stack on the host, which non-NixOS hosts often do not provide.
+checks, and Dolphin runner can be exercised there without an image build.
 
 `mise run test` starts the shell headlessly with `SLIPPIOS_PARSE_ONLY=1`, so
 it only checks GDScript/project parsing; it does not need the CLI.
