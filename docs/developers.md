@@ -68,7 +68,7 @@ hardcoded `.nix-portable` entry is only a compatibility symlink to it.
 
 ```sh
 mise run clean:cache   # overlays, ISOs, build scratch
-mise run clean         # wipe .cache and GC unreachable Nix paths
+mise run clean         # disposable cache + GC unreachable Nix paths
 mise run clean:hard    # also remove the project Nix store (full re-download next build)
 ```
 
