@@ -18,10 +18,18 @@ use one of the methods below.
 Verify the download first:
 
 ```sh
+# Linux
 sha256sum -c SHA256SUMS
+
+# macOS
+shasum -a 256 -c SHA256SUMS
 ```
 
-On macOS use `shasum -a 256 -c SHA256SUMS`.
+On Windows, compare the output of this with the matching line in `SHA256SUMS`:
+
+```powershell
+Get-FileHash .\slippios-usb-<version>.img.xz -Algorithm SHA256
+```
 
 ### Windows
 

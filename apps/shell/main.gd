@@ -36,18 +36,7 @@ func _ready() -> void:
 	set_process(false)
 	_build_base()
 	_refresh_status()
-	if _needs_setup():
-		var settings: Dictionary = _status.get("settings", {})
-		if settings.get("exists", false) and _has_valid_isos():
-			_show_roms("Default Melee image is missing. Choose one.")
-		else:
-			_check_setup()
-		_animate_boot()
-	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
-		_show_menu()
-		_animate_boot()
-	else:
-		_boot_to_game()
+	_boot_splash()
 
 
 func _build_base() -> void:
@@ -124,15 +113,7 @@ func _find_button(node: Node) -> Button:
 	return null
 
 
-func _animate_boot() -> void:
-	if _title == null:
-		return
-	_title.modulate.a = 0.0
-	var tween := create_tween()
-	tween.tween_property(_title, "modulate:a", 1.0, 0.7)
-
-
-func _boot_to_game() -> void:
+func _boot_splash() -> void:
 	_screen = "boot"
 	_clear()
 	var logo := BootLogo.new()
@@ -153,7 +134,20 @@ func _boot_to_game() -> void:
 			_show_menu()
 			return
 		await get_tree().process_frame
-	_launch_game()
+	_after_splash()
+
+
+func _after_splash() -> void:
+	if _needs_setup():
+		var settings: Dictionary = _status.get("settings", {})
+		if settings.get("exists", false) and _has_valid_isos():
+			_show_roms("Default Melee image is missing. Choose one.")
+		else:
+			_check_setup()
+	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
+		_show_menu()
+	else:
+		_launch_game()
 
 
 func _add_boot_bar() -> ProgressBar:
