@@ -1,7 +1,9 @@
 # SlippiOS shell
 
 Godot 4 project for the console UI. It calls `slippios` for all system work;
-JSON output is automatic when stdout is piped.
+JSON output is automatic when stdout is piped. The image builds this project
+into a single compiled binary with an embedded PCK; the `.gd` sources are not
+installed on the appliance.
 
 ## Layout
 
@@ -37,3 +39,21 @@ template. For a manual export with templates installed:
 ```sh
 godot --headless --path . --export-release "Linux" build/slippios-shell
 ```
+
+## Runtime contract
+
+- `slippios` must be on `PATH` and return JSON when stdout is piped.
+- Branding is read from `/etc/slippios/theme.json` when present.
+- Optional environment:
+  - `SLIPPIOS_PARSE_ONLY=1` — import/parse only, no CLI or display calls.
+  - `SLIPPIOS_SKIP_SPLASH=1` — skip the pulsing boot mark.
+  - `SLIPPIOS_AUTOPLAY=0` — show the menu instead of launching immediately.
+  - `SLIPPIOS_DATA` — data root used by the browser upload page (default
+    `/data`).
+- Exit codes are a contract with the OS session wrapper:
+  - `0` — quit normally
+  - `42` — launch Slippi Dolphin
+  - `43` — open Dolphin settings
+  - `44` — open a recovery terminal
+  - `45` — edit `settings.toml`
+  - anything else — crash
