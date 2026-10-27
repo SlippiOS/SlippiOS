@@ -136,18 +136,24 @@ Delete the qcow2 named after the image hash to reset the guest.
 ## CI
 
 - **Validate:** pushes to `main`; Go tests and headless Godot.
-- **Build Image:** `v*`/`os-*` tags and manual dispatch only.
+- **Build Image:** `v*`/`os-*` tags and manual dispatch only. The workflow
+  requires `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` repository secrets and
+  fails without them.
 
 Release assets:
 
 ```text
 slippios-usb-<version>.img.xz
+slippios-usb-<version>-unsigned.img.xz
 slippios_<version>.nix-store.raw
 slippios_<version>.nix-store.raw.zsync
 slippios_<version>.efi
 manifest.json
 SHA256SUMS
 ```
+
+The default image is signed for Secure Boot. The `-unsigned` image is the
+fallback for machines where the shim cannot boot.
 
 Tag a release:
 
@@ -176,6 +182,7 @@ scripts/build-image        local image build
 scripts/run-image          QEMU/OVMF USB runner
 scripts/fetch-image        release downloader
 scripts/sign-image         Secure Boot signing for an image
+scripts/sign-uki           Secure Boot signing for a standalone UKI
 secure-boot/               shim, enrollment note, and signing docs
 ```
 
@@ -305,11 +312,13 @@ SLIPPIOS_SB_CERT=/path/to/slippios.crt \
 
 The script downloads the pinned shim RPM, verifies its SHA-256 and both
 Microsoft signatures, signs systemd-boot and the UKI, and installs the shim,
-MokManager, and `slippios.cer`. Keep the private key offline.
+MokManager, and `slippios.cer`. Keep the private key out of the repository. The
+release workflow reads it from the `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT`
+secrets.
 
-The release workflow still publishes the unsigned image. Signing must be
-integrated before a signed release asset is published, and the manifest must
-use the signed UKI.
+The release workflow signs the default image and the standalone UKI from the
+`SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` secrets. It also publishes the
+unsigned image as a fallback. The manifest uses the signed UKI.
 
 Test with OVMF Secure Boot:
 

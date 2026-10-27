@@ -43,8 +43,11 @@ openssl req -new -x509 -newkey rsa:4096 \
   -days 3650 -nodes -subj "/CN=SlippiOS Secure Boot"
 ```
 
-Keep `slippios.key` offline. Do not commit it. The public certificate is
-embedded in every image as `slippios.cer`.
+Keep `slippios.key` out of the repository. For local signing, keep it offline.
+For CI, store the PEM key and certificate as `SLIPPIOS_SB_KEY` and
+`SLIPPIOS_SB_CERT` repository secrets. The release workflow signs the default
+image and UKI on tags. The public certificate is embedded in every image as
+`slippios.cer`.
 
 Sign an unsigned image:
 
@@ -107,3 +110,9 @@ SHA-256: `4badee0c00c4c41a53f41c8a2dd566dca815ca051f1d2fba92490d0a0194f5c3`
 
 The shim and MokManager are BSD-2-Clause upstream; the Fedora package lists
 BSD-3-Clause. See [LICENSE.shim](LICENSE.shim).
+
+## Key rotation
+
+Every image and update must be signed with the same key that users enrolled.
+Rotating the key requires a new enrollment on every PC. Do not rotate it
+without a migration plan.

@@ -46,6 +46,8 @@ more installation modes.
       unauthenticated devices), publish a release, and verify unauthenticated
       update downloads. Secure Boot is not a release gate; the signed image is
       a separate asset. See [Secure Boot and Mac boot](#later-secure-boot-and-mac-boot).
+- [ ] Verify the signed release workflow on a tag and confirm both images and
+      the signed UKI are published.
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
 - [ ] Stop offering a version that just failed boot assessment until a newer
@@ -71,9 +73,9 @@ UEFI CA 2011 and 2023, plus a SlippiOS MOK key. The first boot requires a
 one-time MOK enrollment per PC; updates use the same key. The unsigned image
 still requires Secure Boot off.
 
-- [ ] Integrate signing into the release workflow and sign the image and UKI
+- [x] Integrate signing into the release workflow and sign the image and UKI
       before generating the manifest.
-- [ ] Document the one-time MOK enrollment in the player guide and keep the
+- [x] Document the one-time MOK enrollment in the player guide and keep the
       unsigned image as a fallback.
 - [ ] Document per-vendor Secure Boot off steps for the unsigned fallback.
 - [ ] Test the signed image on real UEFI hardware with Secure Boot on.

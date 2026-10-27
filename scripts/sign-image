@@ -105,8 +105,8 @@ if sbverify --list "$work/systemd-boot.efi" 2>/dev/null | grep -q "Microsoft Cor
 fi
 
 mkdir -p "$(dirname "$output")"
-if ! cp --reflink=auto "$image" "$output" 2>/dev/null; then
-  cp "$image" "$output"
+if ! cp --reflink=auto --sparse=always "$image" "$output" 2>/dev/null; then
+  cp --sparse=always "$image" "$output"
 fi
 chmod u+w "$output"
 

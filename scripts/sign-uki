@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Sign a standalone UKI for the update manifest.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/sign-uki <unsigned.efi> <signed.efi>
+
+Environment:
+  SLIPPIOS_SB_KEY    PEM private key
+  SLIPPIOS_SB_CERT   PEM certificate for the same key
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+if [[ $# -ne 2 ]]; then
+  usage >&2
+  exit 2
+fi
+
+input=$1
+output=$2
+key="${SLIPPIOS_SB_KEY:-}"
+cert="${SLIPPIOS_SB_CERT:-}"
+
+if [[ -z "$key" || -z "$cert" ]]; then
+  echo "set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT" >&2
+  exit 2
+fi
+if [[ ! -f "$input" || ! -f "$key" || ! -f "$cert" ]]; then
+  echo "input, key, and certificate must exist" >&2
+  exit 1
+fi
+if [[ "$(realpath "$input")" == "$(realpath "$output")" ]]; then
+  echo "input and output must differ" >&2
+  exit 1
+fi
+for tool in sbsign sbverify; do
+  command -v "$tool" >/dev/null || {
+    echo "$tool is required" >&2
+    exit 1
+  }
+done
+
+mkdir -p "$(dirname "$output")"
+sbsign --key "$key" --cert "$cert" --output "$output" "$input"
+sbverify --cert "$cert" "$output"
+echo "Signed UKI: $output"

@@ -77,6 +77,16 @@ Manifest fields:
 {
   "version": "1792937434.113649853",
   "tag": "v1.0.0",
+  "full_image": {
+    "name": "slippios-usb-<version>.img.xz",
+    "sha256": "...",
+    "size": 2000000000
+  },
+  "unsigned_image": {
+    "name": "slippios-usb-<version>-unsigned.img.xz",
+    "sha256": "...",
+    "size": 2000000000
+  },
   "nix_store": {
     "name": "slippios_<version>.nix-store.raw",
     "sha256": "...",
@@ -147,6 +157,7 @@ removes the saved login.
 - **Validate:** pushes to `main`; Go tests and headless Godot.
 - **Build Image:** tags and manual dispatch; full image + update slot + UKI +
   zsync + manifest, published as a GitHub release.
-- The release workflow currently publishes the unsigned image. Secure Boot
-  signing is a local step until it is integrated into the workflow.
+- The release workflow signs the default image and the standalone UKI with the
+  `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` secrets, and publishes the unsigned
+  image as a fallback.
 - Release assets are public only when the repository is public.

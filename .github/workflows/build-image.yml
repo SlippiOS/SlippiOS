@@ -68,28 +68,79 @@ jobs:
             .#nixosConfigurations.slippios-usb.config.system.build.uki \
             -o result-uki
 
-      - name: Inspect artifacts
+      - name: Sign release assets
+        env:
+          SLIPPIOS_SB_KEY: ${{ secrets.SLIPPIOS_SB_KEY }}
+          SLIPPIOS_SB_CERT: ${{ secrets.SLIPPIOS_SB_CERT }}
         run: |
           set -euo pipefail
-          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
-            ! -name '*.nix-store.raw.xz' -print -quit)
-          split=$(find -L result-image -maxdepth 1 -name '*.nix-store.raw.xz' -print -quit)
-          uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
+          if [[ -z "${SLIPPIOS_SB_KEY:-}" || -z "${SLIPPIOS_SB_CERT:-}" ]]; then
+            echo "SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT must be set" >&2
+            exit 1
+          fi
+          key="$RUNNER_TEMP/slippios.key"
+          cert="$RUNNER_TEMP/slippios.crt"
+          printf '%s\n' "$SLIPPIOS_SB_KEY" > "$key"
+          printf '%s\n' "$SLIPPIOS_SB_CERT" > "$cert"
+          chmod 600 "$key" "$cert"
 
-          test -n "$image"
-          test -n "$split"
+          version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
+          unsigned=$(find -L result-image -maxdepth 1 -name '*.raw' \
+            ! -name '*.nix-store.raw' -print -quit)
+          if [[ -z "$unsigned" ]]; then
+            compressed=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
+              ! -name '*.nix-store.raw.xz' -print -quit)
+            test -n "$compressed"
+            unsigned="artifacts/slippios-usb-${version}-unsigned.raw"
+            xz -d -T0 -c "$compressed" > "$unsigned"
+          fi
+          uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
+          test -n "$unsigned"
           test -n "$uki"
 
           mkdir -p artifacts
+          nix shell --inputs-from . \
+            nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
+            nixpkgs#parted nixpkgs#openssl nixpkgs#curl \
+            -c ./scripts/sign-image "$unsigned" \
+              "artifacts/slippios-usb-${version}-secureboot.raw"
+          nix shell --inputs-from . nixpkgs#sbsigntool \
+            -c ./scripts/sign-uki "$uki" "artifacts/slippios_${version}.efi"
+
+          xz -T0 -1 -c "artifacts/slippios-usb-${version}-secureboot.raw" \
+            > "artifacts/slippios-usb-${version}.img.xz"
+          rm -f "artifacts/slippios-usb-${version}-secureboot.raw"
+          rm -f "artifacts/slippios-usb-${version}-unsigned.raw"
+          rm -f "$key" "$cert"
+
+      - name: Inspect artifacts
+        run: |
+          set -euo pipefail
+          version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
+          signed="artifacts/slippios-usb-${version}.img.xz"
+          unsigned="artifacts/slippios-usb-${version}-unsigned.img.xz"
+          split=$(find -L result-image -maxdepth 1 -name '*.nix-store.raw.xz' -print -quit)
+          uki="artifacts/slippios_${version}.efi"
+          test -f "$signed"
+          test -f "$uki"
+          test -n "$split"
+
+          unsigned_source=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
+            ! -name '*.nix-store.raw.xz' -print -quit)
+          test -n "$unsigned_source"
+          cp "$unsigned_source" "$unsigned"
+
           raw="artifacts/$(basename "${split%.xz}")"
           xz -d -T0 -c "$split" > "$raw"
 
-          echo "image=$image"
+          echo "signed=$signed"
+          echo "unsigned=$unsigned"
           echo "raw=$raw"
           echo "uki=$uki"
-          ls -lh "$image" "$raw" "$uki"
+          ls -lh "$signed" "$unsigned" "$raw" "$uki"
 
-          image_bytes=$(stat -c '%s' "$image")
+          signed_bytes=$(stat -c '%s' "$signed")
+          unsigned_bytes=$(stat -c '%s' "$unsigned")
           raw_bytes=$(stat -c '%s' "$raw")
           uki_bytes=$(stat -c '%s' "$uki")
           limit=$((2 * 1024 * 1024 * 1024))
@@ -97,21 +148,21 @@ jobs:
           {
             echo "### SlippiOS USB image"
             echo ""
-            echo "- Version: \`$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)\`"
-            echo "- Full image: \`$(basename "$image")\`: $((image_bytes / 1024 / 1024)) MiB"
+            echo "- Version: \`$version\`"
+            echo "- Signed image: \`$(basename "$signed")\`: $((signed_bytes / 1024 / 1024)) MiB"
+            echo "- Unsigned image: \`$(basename "$unsigned")\`: $((unsigned_bytes / 1024 / 1024)) MiB"
             echo "- Store slot: \`$(basename "$raw")\`: $((raw_bytes / 1024 / 1024)) MiB"
-            echo "- UKI: \`$(basename "$uki")\`: $((uki_bytes / 1024 / 1024)) MiB"
+            echo "- Signed UKI: \`$(basename "$uki")\`: $((uki_bytes / 1024 / 1024)) MiB"
             echo ""
-            if (( image_bytes >= limit )); then
-              echo "> Full image is at or above GitHub's 2 GiB release-asset limit."
-            else
-              echo "> Full image fits under GitHub's 2 GiB release-asset limit."
-            fi
-            if (( raw_bytes >= limit )); then
-              echo "> Store slot is at or above GitHub's 2 GiB release-asset limit."
-            else
-              echo "> Store slot fits under GitHub's 2 GiB release-asset limit."
-            fi
+            for pair in "Signed image:$signed_bytes" "Unsigned image:$unsigned_bytes" "Store slot:$raw_bytes"; do
+              name=${pair%%:*}
+              size=${pair##*:}
+              if (( size >= limit )); then
+                echo "> $name is at or above GitHub's 2 GiB release-asset limit."
+              else
+                echo "> $name fits under GitHub's 2 GiB release-asset limit."
+              fi
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish GitHub release
@@ -120,11 +171,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          image=$(find -L result-image -maxdepth 1 -name '*.raw.xz' \
-            ! -name '*.nix-store.raw.xz' -print -quit)
-          raw=$(find artifacts -maxdepth 1 -name '*.nix-store.raw' -print -quit)
-          uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
-
           version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             tag="$GITHUB_REF_NAME"
@@ -132,12 +178,23 @@ jobs:
             tag="os-${version}-${GITHUB_RUN_ID}"
           fi
 
+          signed="artifacts/slippios-usb-${version}.img.xz"
+          unsigned="artifacts/slippios-usb-${version}-unsigned.img.xz"
+          raw="artifacts/slippios_${version}.nix-store.raw"
+          uki="artifacts/slippios_${version}.efi"
+          test -f "$signed"
+          test -f "$unsigned"
+          test -f "$raw"
+          test -f "$uki"
+
+          signed_name=$(basename "$signed")
+          unsigned_name=$(basename "$unsigned")
           raw_name=$(basename "$raw")
           uki_name=$(basename "$uki")
-          full_name="slippios-usb-${version}.img.xz"
 
           mkdir -p release
-          ln "$image" "release/$full_name" 2>/dev/null || cp "$image" "release/$full_name"
+          ln "$signed" "release/$signed_name" 2>/dev/null || cp "$signed" "release/$signed_name"
+          ln "$unsigned" "release/$unsigned_name" 2>/dev/null || cp "$unsigned" "release/$unsigned_name"
           ln "$raw" "release/$raw_name" 2>/dev/null || cp "$raw" "release/$raw_name"
           ln "$uki" "release/$uki_name" 2>/dev/null || cp "$uki" "release/$uki_name"
 
@@ -146,15 +203,17 @@ jobs:
           nix shell nixpkgs#zsync -c zsyncmake \
             -o "release/${raw_name}.zsync" "release/${raw_name}"
 
-          full_sha=$(sha256sum "release/$full_name" | cut -d' ' -f1)
+          signed_sha=$(sha256sum "release/$signed_name" | cut -d' ' -f1)
+          unsigned_sha=$(sha256sum "release/$unsigned_name" | cut -d' ' -f1)
           raw_sha=$(sha256sum "release/$raw_name" | cut -d' ' -f1)
           uki_sha=$(sha256sum "release/$uki_name" | cut -d' ' -f1)
-          full_size=$(stat -c '%s' "release/$full_name")
+          signed_size=$(stat -c '%s' "release/$signed_name")
+          unsigned_size=$(stat -c '%s' "release/$unsigned_name")
           raw_size=$(stat -c '%s' "release/$raw_name")
           uki_size=$(stat -c '%s' "release/$uki_name")
 
           limit=$((2 * 1024 * 1024 * 1024))
-          for size in "$full_size" "$raw_size"; do
+          for size in "$signed_size" "$unsigned_size" "$raw_size"; do
             if (( size >= limit )); then
               echo "asset is at or above GitHub's 2 GiB limit" >&2
               exit 1
@@ -164,9 +223,12 @@ jobs:
           jq -n \
             --arg version "$version" \
             --arg tag "$tag" \
-            --arg full_name "$full_name" \
-            --arg full_sha "$full_sha" \
-            --argjson full_size "$full_size" \
+            --arg signed_name "$signed_name" \
+            --arg signed_sha "$signed_sha" \
+            --argjson signed_size "$signed_size" \
+            --arg unsigned_name "$unsigned_name" \
+            --arg unsigned_sha "$unsigned_sha" \
+            --argjson unsigned_size "$unsigned_size" \
             --arg raw_name "$raw_name" \
             --arg raw_sha "$raw_sha" \
             --argjson raw_size "$raw_size" \
@@ -176,7 +238,8 @@ jobs:
             '{
               version: $version,
               tag: $tag,
-              full_image: { name: $full_name, sha256: $full_sha, size: $full_size },
+              full_image: { name: $signed_name, sha256: $signed_sha, size: $signed_size },
+              unsigned_image: { name: $unsigned_name, sha256: $unsigned_sha, size: $unsigned_size },
               nix_store: {
                 name: $raw_name,
                 sha256: $raw_sha,
@@ -194,7 +257,7 @@ jobs:
             --title "SlippiOS ${version}" \
             --notes "SlippiOS USB image ${version}.
 
-          Flash \`${full_name}\` with Etcher, Rufus (DD mode), or \`dd\`. Boot with UEFI; Secure Boot must be off.
+          Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/SlippiOS/SlippiOS/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
 
           The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data."
 
@@ -206,6 +269,7 @@ jobs:
             echo "### Release"
             echo ""
             echo "- Tag: \`$tag\`"
-            echo "- Image: [$full_name](https://github.com/${GITHUB_REPOSITORY}/releases/download/$tag/$full_name)"
+            echo "- Signed image: [$signed_name](https://github.com/${GITHUB_REPOSITORY}/releases/download/$tag/$signed_name)"
+            echo "- Unsigned image: [$unsigned_name](https://github.com/${GITHUB_REPOSITORY}/releases/download/$tag/$unsigned_name)"
             echo "- Manifest: [manifest.json](https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/manifest.json)"
           } >> "$GITHUB_STEP_SUMMARY"
