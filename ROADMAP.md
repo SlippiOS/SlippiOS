@@ -38,7 +38,8 @@ more installation modes.
 
 - [ ] Make the repository public (release downloads currently 404 for
       unauthenticated devices), publish a release, and verify unauthenticated
-      update downloads.
+      update downloads. Secure Boot is not a release gate; see
+      [Secure Boot and Mac boot](#later--secure-boot-and-mac-boot).
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
 - [ ] Stop offering a version that just failed boot assessment until a newer
@@ -56,6 +57,25 @@ more installation modes.
 - [ ] Keep the USB image as the installer medium.
 - [ ] Initial scope: UEFI only, erase the whole target disk, fresh install.
 - [ ] Decide later whether dual boot and USB-data migration are in scope.
+
+## Later — Secure Boot and Mac boot
+
+Current images require Secure Boot off. That is a one-time firmware setting per
+PC, and the player guide documents it. Public releases do not wait for Secure
+Boot support.
+
+- [ ] Document per-vendor Secure Boot off steps in the player guide.
+- [ ] Evaluate reusing a Microsoft-signed distro shim with a one-time MOK
+      enrollment. This avoids Microsoft signing, but every PC gets a blue
+      MokManager screen, some firmware needs **Allow Microsoft 3rd Party UEFI
+      CA** enabled, and CA/dbx updates can force re-enrollment.
+- [ ] Evaluate a custom shim with an embedded SlippiOS certificate. This is the
+      only fully automatic path, but it needs a legal entity, an EV code-signing
+      certificate, hardware key storage, shim-review approval, and Microsoft
+      signing.
+- [ ] Investigate Mac boot support. Apple Silicon cannot run this x86_64 image;
+      Intel T2 Macs require **Allow booting from external or removable media**;
+      pre-T2 Intel Macs can boot USB without a firmware change.
 
 ## Not planned yet
 

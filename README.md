@@ -9,7 +9,7 @@ still need real-hardware validation.
 
 ## Players
 
-Requirements: 16 GB USB, UEFI boot, Secure Boot off.
+Requirements: 16 GB USB, UEFI boot, Secure Boot off (one-time firmware setting).
 
 1. Download `slippios-usb-<version>.img.xz` from the
    [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).

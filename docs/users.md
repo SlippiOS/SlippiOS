@@ -3,7 +3,7 @@
 ## Requirements
 
 - 16 GB or larger USB stick.
-- UEFI boot. Secure Boot off.
+- UEFI boot. Secure Boot off (one-time firmware setting).
 - Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
 - Network access for Slippi sign-in and the first Dolphin download.
 
@@ -197,8 +197,10 @@ partition. If only the shell crashed, you get an Openbox desktop instead.
 
 **Nothing persists** — use the USB `.img.xz` release, not a live environment.
 
-**Does not boot** — disable Secure Boot and select the USB device in the UEFI
-boot menu.
+**Does not boot** — disable Secure Boot in the firmware settings and select the
+USB device in the UEFI boot menu. This is a one-time setting per PC unless a
+firmware update resets it; SlippiOS does not currently ship a Secure Boot-signed
+boot chain.
 
 **Update check fails** — check network access to GitHub and retry.
 
