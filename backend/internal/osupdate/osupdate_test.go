@@ -272,6 +272,39 @@ func TestStatusClearsInstalledUpdate(t *testing.T) {
 	}
 }
 
+func TestStatusClearsFailedUpdateAfterBoot(t *testing.T) {
+	paths := testPaths(t, "200")
+	if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.Latest, map[string]any{
+		"latest": "200", "update_available": true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.StatusFile, map[string]any{
+		"ok": false, "phase": "failed", "error": "systemd-sysupdate failed",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.Progress, map[string]any{"phase": "installing"}); err != nil {
+		t.Fatal(err)
+	}
+
+	status := paths.Status()
+	if status["phase"] != "idle" || status["error"] != nil {
+		t.Fatalf("status = %#v", status)
+	}
+	if status["update_available"] != false {
+		t.Fatalf("stale update available flag survived: %#v", status)
+	}
+	for _, path := range []string{paths.StatusFile, paths.Progress} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists", path)
+		}
+	}
+}
+
 func TestStatusReportsFailure(t *testing.T) {
 	paths := testPaths(t, "100")
 	if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {

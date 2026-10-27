@@ -166,17 +166,18 @@ in {
     };
     script = ''
       set -eu
+      # Check the exact label. After an A/B update both store partitions
+      # exist, and a glob would expand to two paths.
+      store="/dev/disk/by-partlabel/nix-store_${version}"
       i=0
-      while [ "$i" -lt 100 ]; do
-        if [ -e /dev/disk/by-partlabel/nix-store_* ]; then
-          ${config.systemd.package}/bin/udevadm settle --timeout=1 || true
+      while [ "$i" -lt 300 ]; do
+        if [ -e "$store" ]; then
           exit 0
         fi
-        ${config.systemd.package}/bin/udevadm settle --timeout=1 || true
         ${pkgs.coreutils}/bin/sleep 0.1
         i=$((i + 1))
       done
-      echo "slippios-wait-store: store partition did not appear" >&2
+      echo "slippios-wait-store: $store did not appear" >&2
       exit 1
     '';
   };
@@ -375,7 +376,7 @@ in {
         export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
         rm -f /data/system/update/request
         mkdir -p /data/system/update
-        if ${config.systemd.package}/bin/systemd-sysupdate update; then
+        if ${config.systemd.package}/lib/systemd/systemd-sysupdate update; then
           printf '{"ok":true,"phase":"installed"}\n' > /data/system/update/status.json
           rm -f /data/system/update/slippios_*.nix-store.raw \
                 /data/system/update/slippios_*.nix-store.raw.part \

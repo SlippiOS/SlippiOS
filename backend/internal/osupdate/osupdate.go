@@ -363,7 +363,10 @@ func (p Paths) Status() map[string]any {
 	service := readJSON(p.StatusFile)
 	progress := readJSON(p.Progress)
 	latest := cached["latest"]
-	available, _ := cached["update_available"].(bool)
+	available := false
+	if latestVersion, ok := latest.(string); ok && latestVersion != "" {
+		available = latestVersion != current && VersionKey(latestVersion) >= VersionKey(current)
+	}
 
 	phase := "idle"
 	if value, ok := progress["phase"].(string); ok && value != "" {
@@ -372,8 +375,11 @@ func (p Paths) Status() map[string]any {
 	if value, ok := service["phase"].(string); ok && value != "" {
 		phase = value
 	}
-	if service["phase"] == "installed" && latest == current {
-		if value, ok := latest.(string); ok && value != "" {
+	// Once the running version is the one the last update targeted, any
+	// installed/failed result is stale: a successful boot supersedes a failed
+	// install, and the installer clears its own installed result.
+	if phase == "installed" || phase == "failed" {
+		if latestVersion, ok := latest.(string); ok && latestVersion != "" && latestVersion == current {
 			service = map[string]any{}
 			_ = os.Remove(p.StatusFile)
 			_ = os.Remove(p.Progress)
