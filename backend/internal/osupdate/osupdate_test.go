@@ -144,15 +144,10 @@ func TestCompareVersions(t *testing.T) {
 		{"1.0.a", "1.0.1", -1},
 		{"1.0.a", "1.0.b", -1},
 		{"1.0.a", "1.0.aa", -1},
-		// The legacy revision format treats a digit-leading hash as newer
-		// than a letter-leading one, so the later v7 build sorts below v6.
 		{"1793067308-8127a3e", "1793067308-d1d3802", 1},
 		{"1793067308-d1d3802", "1793067308-8127a3e", -1},
-		// Decimal revisions compare by value.
 		{"1793067308.99999", "1793067308.100000", -1},
 		{"1793067308.100000", "1793067308.99999", 1},
-		// A new dot version sorts above every legacy hyphen version with the
-		// same commit epoch.
 		{"1793067308-8127a3e", "1793067308.1", -1},
 	}
 	for _, test := range cases {

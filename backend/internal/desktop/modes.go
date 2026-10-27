@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// ModeRate is one resolution with the refresh rates the display advertises.
 type ModeRate struct {
 	Resolution string    `json:"resolution"`
 	Rates      []float64 `json:"rates"`
@@ -17,7 +16,6 @@ type ModeRate struct {
 	Preferred  bool      `json:"preferred"`
 }
 
-// DisplayModes describes the connected output and its advertised modes.
 type DisplayModes struct {
 	Output   string     `json:"output"`
 	Current  string     `json:"current"`
@@ -26,8 +24,6 @@ type DisplayModes struct {
 	Modes    []ModeRate `json:"modes"`
 }
 
-// Modes lists the modes from xrandr, which is the driver's view of the monitor
-// EDID. EDID is read only for the human-readable monitor name.
 func Modes() (DisplayModes, error) {
 	var info DisplayModes
 	query, err := exec.Command("xrandr", "--query").Output()
@@ -100,7 +96,6 @@ func Modes() (DisplayModes, error) {
 	return info, nil
 }
 
-// edidName reads the monitor name descriptor from the connector's EDID.
 func edidName(output string) string {
 	matches, err := filepath.Glob("/sys/class/drm/card*-" + output + "/edid")
 	if err != nil || len(matches) == 0 {

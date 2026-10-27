@@ -1,9 +1,6 @@
 { pkgs, ... }:
 
 {
-  # SlippiOS stores user data on a partition labelled SLIPPIOS. Mount it when
-  # present; otherwise /data lives on the (ephemeral) root filesystem so the
-  # live ISO still works.
   systemd.services.slippi-data = {
     description = "Prepare SlippiOS data directory";
     wantedBy = [ "multi-user.target" ];
@@ -19,7 +16,6 @@
         ${pkgs.util-linux}/bin/mountpoint -q /data || \
           ${pkgs.util-linux}/bin/mount -L SLIPPIOS /data || true
       fi
-      # A crash flag from the previous boot is stale: try the shell again.
       ${pkgs.coreutils}/bin/rm -f /data/system/shell-failed
       ${pkgs.coreutils}/bin/mkdir -p \
         /data/isos /data/system /data/users/default/dolphin \
@@ -30,7 +26,6 @@
         /data/users/default/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
-      # Seed community controller profiles without overwriting user edits.
       profile_dir=/data/users/default/dolphin/Config/Profiles/GCPad
       ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
       ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini "$profile_dir"/ || true

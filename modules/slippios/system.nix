@@ -6,12 +6,9 @@
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
   ];
-  # NixOS appends loglevel=<consoleLogLevel> after our params, so keep this in
-  # sync: 0 suppresses late kernel/systemd text between Plymouth and the shell.
+  # Keep in sync with loglevel; 0 hides late text between Plymouth and the shell.
   boot.consoleLogLevel = 0;
-  # The initrd systemd manager ignores the kernel show_status setting on this
-  # path; disable status lines explicitly in both stages. Otherwise the last
-  # lines reappear when Plymouth quits.
+  # Disable status lines explicitly; the initrd manager ignores show_status.
   boot.initrd.systemd.settings.Manager.ShowStatus = "no";
   systemd.settings.Manager.ShowStatus = "no";
   boot.kernelModules = [ "uinput" ];

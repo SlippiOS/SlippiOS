@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// currentBootID identifies the running boot, so an install can tell a
-// completed reboot from a rollback to the previous system.
 func currentBootID() string {
 	data, err := os.ReadFile(bootIDFile)
 	if err != nil {
@@ -42,7 +40,6 @@ func errorValue(progress, service map[string]any) any {
 	return nil
 }
 
-// Status reports the installed version and any staged update.
 func (p Paths) Status() map[string]any {
 	current := currentVersion(p)
 	cached := readJSON(p.Latest)
@@ -64,14 +61,12 @@ func (p Paths) Status() map[string]any {
 	latestVersion, _ := latest.(string)
 	target, _ := service["version"].(string)
 	if target == "" {
-		// Status written by an older installer does not name its target.
 		target = latestVersion
 	}
 
 	switch phase {
 	case "installed":
 		if target != "" && target == current {
-			// The staged update is now running.
 			service = map[string]any{}
 			_ = os.Remove(p.StatusFile)
 			_ = os.Remove(p.Progress)
@@ -92,8 +87,7 @@ func (p Paths) Status() map[string]any {
 			}
 		}
 	case "failed":
-		// Once the running version is the one the last update targeted, the
-		// failure is stale (for example after a manual install).
+
 		if latestVersion != "" && latestVersion == current {
 			service = map[string]any{}
 			_ = os.Remove(p.StatusFile)

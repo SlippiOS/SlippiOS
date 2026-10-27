@@ -19,7 +19,6 @@ import (
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
 
-// Server hosts the LAN pages for one token.
 type Server struct {
 	Token  string
 	Port   int
@@ -50,7 +49,6 @@ func New(token string, port int, paths settings.Paths) *Server {
 	}
 }
 
-// LocalAddress is the address another device on the same network can reach.
 func LocalAddress() string {
 	connection, err := net.Dial("udp4", "8.8.8.8:80")
 	if err != nil {
@@ -169,7 +167,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// Start listens on the configured port and publishes the LAN URL.
 func (s *Server) Start() (string, error) {
 	_ = os.MkdirAll(filepath.Dir(s.Status), 0o755)
 	_ = os.Remove(s.Marker)
@@ -204,7 +201,6 @@ func (s *Server) Start() (string, error) {
 	return url, nil
 }
 
-// Serve blocks until the server is closed.
 func (s *Server) Serve() error {
 	if s.http == nil {
 		return errors.New("network page is not started")
@@ -219,7 +215,6 @@ func (s *Server) Serve() error {
 	return err
 }
 
-// Close stops the listener and records that the page is no longer running.
 func (s *Server) Close() error {
 	s.mu.Lock()
 	if s.closed {

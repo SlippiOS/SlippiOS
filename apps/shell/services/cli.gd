@@ -1,7 +1,5 @@
 extends RefCounted
 
-## Thin wrapper around the slippios CLI. JSON output is automatic when stdout
-## is piped, so the shell never has to parse human text.
 
 const COMMAND := "slippios"
 

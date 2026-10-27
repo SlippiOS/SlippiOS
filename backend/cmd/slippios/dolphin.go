@@ -47,8 +47,6 @@ func runDolphinReset(mode *modes) error {
 	})
 }
 
-// runDolphinConfig opens Dolphin's own settings window so users can bind
-// controllers or change graphics options.
 func runDolphinConfig(mode *modes) error {
 	paths := settings.DefaultPaths()
 	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {

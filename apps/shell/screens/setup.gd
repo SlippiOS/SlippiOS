@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Short setup check before the browser wizard opens.
 
 func present(message: String = "") -> void:
 	clear()

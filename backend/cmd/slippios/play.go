@@ -75,8 +75,7 @@ func runPlay(mode *modes, options playOptions) error {
 	})
 }
 
-// dolphinArgs maps the curated Dolphin settings onto Dolphin's command-line
-// config layer. Enum values are the integers Dolphin stores in its INIs.
+// Enum values are the integers Dolphin stores in its INIs.
 func dolphinArgs(values map[string]any) []string {
 	dolphin, _ := values["dolphin"].(map[string]any)
 	text := func(key, fallback string) string {
@@ -117,7 +116,6 @@ func dolphinArgs(values map[string]any) []string {
 	}
 	switch text("controller", "adapter") {
 	case "adapter":
-		// The Wii U adapter provides all four ports.
 		for port := 0; port < 4; port++ {
 			arguments = append(arguments,
 				"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=12", port))
@@ -130,8 +128,6 @@ func dolphinArgs(values map[string]any) []string {
 	return arguments
 }
 
-// runDolphin starts the Slippi AppImage with the shared user directory and
-// returns its exit status.
 func runDolphin(paths settings.Paths, appimage string, arguments []string) (int, error) {
 	environment := os.Environ()
 	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())

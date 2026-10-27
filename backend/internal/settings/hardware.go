@@ -19,7 +19,6 @@ var placeholderHardwareIDs = map[string]bool{
 	"03000200-0400-0500-0006-000700080009": true,
 }
 
-// HardwareID returns the best-effort stable machine identity (DMI product UUID).
 func HardwareID() (string, bool) {
 	for _, path := range hardwareIDPaths {
 		raw, err := os.ReadFile(path)
@@ -34,8 +33,6 @@ func HardwareID() (string, bool) {
 	return "", false
 }
 
-// CheckHardwareBinding drops a persisted login when the cartridge moved to
-// different hardware. It records the current machine on first use.
 func (p Paths) CheckHardwareBinding() bool {
 	current, ok := HardwareID()
 	if !ok {

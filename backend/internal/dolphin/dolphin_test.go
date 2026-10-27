@@ -184,7 +184,6 @@ func TestEnsureFallsBackToCurrentOnCheckFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Expire the cache so the next call checks the API.
 	state := readJSON(paths.State)
 	state["checked_at"] = float64(1)
 	if err := writeJSON(paths.State, state); err != nil {

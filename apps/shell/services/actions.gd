@@ -1,6 +1,5 @@
 extends RefCounted
 
-## Actions that hand control back to the OS session wrapper.
 
 const GAME_EXIT := 42
 const DOLPHIN_EXIT := 43
@@ -27,9 +26,7 @@ func launch_game() -> void:
 	app.add_label("Preparing Slippi Dolphin…", 0.8)
 	await app.get_tree().process_frame
 
-	# Fetch/verify Dolphin while this screen is still visible. The wrapper
-	# starts the game after Godot exits, releasing the adapter for Dolphin.
-	# Keep stderr out of the captured output: download progress is not JSON.
+	# Godot must exit before Dolphin opens the adapter.
 	var result: Dictionary = app.cli(["update"], false)
 	if not result.get("ok", false):
 		app._busy = false
@@ -50,8 +47,6 @@ func open_dolphin_settings() -> void:
 	app.add_label("Preparing Slippi Dolphin…", 0.8)
 	await app.get_tree().process_frame
 
-	# Same hand-off as Play: make sure Dolphin is installed, then let the
-	# wrapper start its settings window after Godot releases the adapter.
 	var result: Dictionary = app.cli(["update"], false)
 	if not result.get("ok", false):
 		app._busy = false

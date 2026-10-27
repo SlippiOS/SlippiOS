@@ -1,6 +1,5 @@
 extends VBoxContainer
 
-## Shared on-screen keyboard used by sign-in, Wi-Fi, and custom display mode.
 
 signal submitted(value: String)
 

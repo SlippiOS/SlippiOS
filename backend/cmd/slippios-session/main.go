@@ -1,5 +1,3 @@
-// Command slippios-session is the terminal fallback when the graphical shell
-// fails to start. It configures, updates, and launches Dolphin.
 package main
 
 import (

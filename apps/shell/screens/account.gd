@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Account status and sign-in entry points.
 
 func present(_message: String = "") -> void:
 	clear()

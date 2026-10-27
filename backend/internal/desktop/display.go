@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// ApplyDisplay selects the configured mode on the connected output. A custom
-// mode is re-added first because X forgets runtime modes on restart.
 func ApplyDisplay(values map[string]any) error {
 	if _, err := exec.LookPath("xrandr"); err != nil {
 		return nil
@@ -30,7 +28,6 @@ func ApplyDisplay(values map[string]any) error {
 	return SetMode(resolution, rate)
 }
 
-// SetMode switches the connected output to an advertised resolution and rate.
 func SetMode(resolution, rate string) error {
 	output, err := connectedOutput()
 	if err != nil {
@@ -71,7 +68,6 @@ func connectedOutput() (string, error) {
 	return "", fmt.Errorf("no connected display found")
 }
 
-// ApplyCustomMode adds and selects a CVT mode that the display may not list.
 func ApplyCustomMode(spec string) error {
 	width, height, rate, err := parseModeSpec(spec)
 	if err != nil {

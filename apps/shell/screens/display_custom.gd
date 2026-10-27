@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Expert custom display mode entry.
 
 const Keyboard := preload("res://widgets/keyboard.gd")
 

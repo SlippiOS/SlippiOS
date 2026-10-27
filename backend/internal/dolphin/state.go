@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 )
 
-// CurrentPath returns the AppImage the current symlink points at.
 func (p Paths) CurrentPath() (string, bool) {
 	target, err := os.Readlink(p.Current)
 	if err != nil {
@@ -22,7 +21,6 @@ func (p Paths) CurrentPath() (string, bool) {
 	return target, true
 }
 
-// CurrentTag returns the version directory of the current AppImage.
 func (p Paths) CurrentTag() (string, bool) {
 	path, ok := p.CurrentPath()
 	if !ok {

@@ -44,7 +44,6 @@ if command -v nix >/dev/null 2>&1; then
 else
   echo "Building with nix-portable/bwrap ($JOBS cores)..."
   echo "  TMPDIR: $BUILD_TMP"
-  # scripts/nix owns the nix-portable store location and download.
   build ./scripts/nix
 
 fi
@@ -53,21 +52,17 @@ echo
 if [[ "$CONFIG" == "slippios-usb-dev" ]]; then
   echo "Dev build: image is uncompressed."
 fi
-# nix-portable writes result symlinks using the in-container /nix/store path.
-# Rewrite them to the project-local store so the artifacts are usable here.
+# Rewrite nix-portable's in-container store paths to the project-local store.
 target=$(readlink "$OUT" 2>/dev/null || true)
 if [[ "$target" == /nix/store/* && ! -e "$target" && -d "$CACHE/nix$target" ]]; then
   target="$CACHE/nix$target"
 fi
-# Keep result links on the physical store, not the upstream compatibility
-# symlink.
+# Keep result links on the physical store.
 target=${target/"$CACHE/.nix-portable"/"$CACHE/nix"}
 if [[ -n "$target" && -e "$target" ]]; then
   ln -sfn "$target" "$OUT"
 fi
 
-# A dev image is ~11 GB of uncompressed disk, and the store keeps every
-# build. Drop the previous one once the new one is ready.
 if [[ "$CONFIG" == "slippios-usb-dev" && -n "$old_target" &&
       "$old_target" != "$(readlink "$OUT")" ]]; then
   echo "Pruning previous dev image: $old_target"

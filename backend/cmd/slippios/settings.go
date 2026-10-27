@@ -91,8 +91,7 @@ func runSettingsSet(mode *modes, key, value string) error {
 	} else if section == "display" && name == "refresh_hz" && value == "auto" {
 		valuesSection[name] = int64(0)
 	} else {
-		// Use the schema type, not the current value: older files may have
-		// stored a number as a string, and should still heal.
+		// Older files may have stored a number as a string.
 		schema := settings.Defaults()
 		schemaSection, _ := schema[section].(map[string]any)
 		kind := valuesSection[name]

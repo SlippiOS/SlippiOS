@@ -1,8 +1,5 @@
 extends Node
 
-## Runtime branding. theme/default.nix is the source of truth; the image
-## installs it as /etc/slippios/theme.json. These defaults keep the shell
-## usable in the dev sandbox and if the file is missing.
 
 var background := Color("#0b0b10")
 var surface := Color("#202633")

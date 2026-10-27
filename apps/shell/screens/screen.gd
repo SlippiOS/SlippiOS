@@ -1,7 +1,5 @@
 extends RefCounted
 
-## Base for shell screens. A screen builds controls into the app's content
-## box and navigates by calling app.show_*().
 
 var app
 

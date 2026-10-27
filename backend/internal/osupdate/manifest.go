@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// Part is one downloaded payload in the release manifest.
 type Part struct {
 	Name   string
 	SHA256 string
@@ -22,7 +21,6 @@ type Part struct {
 	Zsync  string
 }
 
-// Manifest is the validated update manifest.
 type Manifest struct {
 	Version  string
 	Tag      string
@@ -33,7 +31,6 @@ type Manifest struct {
 	Raw      map[string]any
 }
 
-// CheckResult is the outcome of comparing the installed version to the release.
 type CheckResult struct {
 	Current   string
 	Latest    string
@@ -109,7 +106,6 @@ func intValue(value any) (int64, bool) {
 	return result, true
 }
 
-// parseManifest validates the shape of a release manifest.
 func parseManifest(data []byte) (*Manifest, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()

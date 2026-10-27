@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## System and Dolphin update checks.
 
 func present(_message: String = "") -> void:
 	clear()

@@ -1,9 +1,6 @@
 { lib, pkgs, ... }:
 
 let
-  # Temporary branding: the Slippi mark recoloured to Slippi green. Reused by
-  # the Godot splash, the Plymouth theme, and the X root window so the handoff
-  # between them has no blank frame.
   splashMark = ../../apps/shell/assets/slippi-mark.png;
   theme = import ../../theme/default.nix;
   plymouthConf = ''
@@ -26,13 +23,10 @@ let
     };
   });
 
-  # Charge-style two-step theme: the mark is pre-rendered as throbber frames
-  # with a sine opacity, the same C-side animation Fedora's charge theme uses.
   slippiosPlymouth = pkgs.runCommand "slippios-plymouth" { } ''
     theme=$out/share/plymouth/themes/slippios
     mkdir -p "$theme"
-    # The two-step plugin loads these dialog assets during show_splash_screen,
-    # even in boot mode; without them it aborts and Plymouth falls back to text.
+    # Two-step aborts without these dialog assets, even in boot mode.
     cp ${pkgs.plymouth}/share/plymouth/themes/spinner/{lock,entry,keyboard,capslock,keymap-render,bullet}.png "$theme"/
     for frame in $(seq 1 ${toString theme.splash.plymouthFrames}); do
       alpha=$(awk -v i="$frame" 'BEGIN { pi = atan2(0, -1); print ${toString theme.splash.pulseMin} + (${toString theme.splash.pulseMax} - ${toString theme.splash.pulseMin}) * (0.5 + 0.5 * sin(2 * pi * i / ${toString theme.splash.plymouthFrames})) }')
@@ -70,8 +64,6 @@ let
     EOF
   '';
 in {
-  # The console is covered by the boot splash; keep systemd's service status
-  # lines off it. Failures remain in the journal and the recovery console.
   boot.plymouth = {
     enable = true;
     theme = "slippios";
@@ -79,18 +71,14 @@ in {
     logo = splashMark;
   };
 
-  # NixOS hardcodes DeviceTimeout=8 before extraConfig; duplicate keys keep the
-  # first value, so replace the generated config outright. Without this the
-  # console sits on screen until the 8s device wait expires.
+  # NixOS hardcodes DeviceTimeout=8 and duplicate keys keep the first value,
+  # so replace the generated config outright.
   boot.initrd.systemd.contents."/etc/plymouth/plymouthd.conf" =
     lib.mkForce { text = plymouthConf; };
   environment.etc."plymouth/plymouthd.conf" =
     lib.mkForce { text = plymouthConf; };
 
-  # LightDM's greeter background, used during autologin before the session
-  # paints the root window. Same value as the Plymouth/shell background.
   services.xserver.displayManager.lightdm.background = themeBackground;
 
-  # Runtime copy of theme/default.nix for the Godot shell.
   environment.etc."slippios/theme.json".source = themeJson;
 }

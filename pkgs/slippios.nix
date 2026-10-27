@@ -7,8 +7,7 @@ buildGoModule {
   src = ../backend;
   vendorHash = null;
 
-  # nix-portable runs unsandboxed, so the Go toolchain can create $HOME/.config
-  # in the shared build root. Give it a disposable HOME instead.
+  # nix-portable runs unsandboxed; give Go a disposable HOME.
   preBuild = ''
     export HOME="$TMPDIR/home"
     mkdir -p "$HOME"

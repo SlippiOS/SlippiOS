@@ -1,9 +1,4 @@
 // Package osupdate stages and installs SlippiOS system updates.
-//
-// The running system is an A/B image: systemd-sysupdate writes the staged
-// store image and UKI to the inactive slot, and boot counting falls back to
-// the previous system if the new one does not finish booting. Downloads use
-// zsync against the active store partition when possible.
 package osupdate
 
 import (
@@ -24,7 +19,6 @@ var (
 	bootIDFile    = "/proc/sys/kernel/random/boot_id"
 )
 
-// Paths describes the update state under /data.
 type Paths struct {
 	DataDir     string
 	StageDir    string

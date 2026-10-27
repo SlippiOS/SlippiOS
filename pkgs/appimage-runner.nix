@@ -4,10 +4,7 @@
   lib,
 }:
 
-# Runs Slippi Dolphin AppImages that are downloaded at runtime, so the image
-# does not need rebuilding for every upstream Dolphin release. Start from
-# nixpkgs' tested AppImage environment and add the input/udev libraries
-# Dolphin needs for controllers.
+# Runs runtime-downloaded Dolphin AppImages without rebuilding the image.
 buildFHSEnv (appimageTools.defaultFhsEnvArgs // {
   name = "slippi-appimage-run";
 

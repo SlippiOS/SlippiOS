@@ -100,7 +100,6 @@ func switchCurrent(paths Paths, tag, destination string) error {
 	return writeJSON(paths.State, state)
 }
 
-// Ensure returns a verified AppImage, downloading the newest release if needed.
 func (p Paths) Ensure(log func(string), force bool) (string, error) {
 	if log == nil {
 		log = func(string) {}

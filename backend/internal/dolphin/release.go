@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// Asset is one GitHub release asset.
 type Asset struct {
 	Name               string `json:"name"`
 	Size               int64  `json:"size"`
@@ -41,7 +40,6 @@ func get(url string, timeout time.Duration) (*http.Response, error) {
 	return response, nil
 }
 
-// LatestRelease returns the newest non-draft release carrying the AppImage.
 func LatestRelease() (string, Asset, error) {
 	response, err := get(API, 20*time.Second)
 	if err != nil {

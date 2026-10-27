@@ -1,4 +1,4 @@
-# Branding
+# Marks
 
 `SlippiLogo.54926e8ab7de3cabc854a38e5022d50f.svg` is the Slippi mark from
 <https://slippi.gg/>, recoloured to Slippi green (`#44A963`).

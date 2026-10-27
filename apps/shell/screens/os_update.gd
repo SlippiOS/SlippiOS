@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Progress while the system update downloads and installs.
 
 var _status: Label
 

@@ -14,7 +14,6 @@ const SchemaVersion = 1
 
 const DefaultUserJSON = "slippi-user.json"
 
-// Paths describes the data layout. Tests use a temporary root.
 type Paths struct {
 	DataDir         string
 	UsersDir        string

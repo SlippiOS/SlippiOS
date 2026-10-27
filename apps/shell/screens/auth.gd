@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## On-TV email/password entry. The browser flow remains available.
 
 const Keyboard := preload("res://widgets/keyboard.gd")
 

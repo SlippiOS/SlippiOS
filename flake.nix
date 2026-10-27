@@ -11,10 +11,7 @@
       cliPackage = pkgs.callPackage ./pkgs/slippios.nix { };
       shellPackage = pkgs.callPackage ./pkgs/slippios-shell.nix { };
 
-      # Sortable, unique, and short enough for a GPT partition label. The
-      # revision is decimal because systemd compares version segments
-      # numerically: a hexadecimal hash that starts with a letter sorts below
-      # one that starts with a digit.
+      # Decimal revision so a letter-leading hex hash cannot sort below a digit.
       version =
         let
           rev = self.rev or self.dirtyRev or null;
@@ -37,9 +34,7 @@
         ];
       };
 
-      # Same image, but left uncompressed. Compression only exists to keep
-      # release downloads under GitHub's asset limit, so local boot tests
-      # skip it and save a few minutes per build.
+      # Uncompressed image for faster local boots.
       nixosConfigurations.slippios-usb-dev = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { slippiosPackages = self.packages.${system}; };
@@ -65,16 +60,12 @@
           autoplay=1
           splash=0
 
-          # Keep the newest session's stderr for field diagnosis. This is
-          # truncated once per boot, not once per launch, so a crash after
-          # Dolphin exits is still captured.
+          # Keep the newest session's stderr for field diagnosis.
           log=/data/system/shell.log
           if ! : >"$log" 2>/dev/null; then
             log=/tmp/slippios-shell.log
           fi
 
-          # Dev VMs can override the shell and CLI without rebuilding the
-          # image: mise run dev:push copies them to /data/dev.
           dev=/data/dev
           if [ -d "$dev" ]; then
             PATH="$dev:$PATH"
@@ -98,8 +89,7 @@
               "$shell_bin" \
                 --fullscreen --rendering-driver opengl3 2>>"$log" || code=$?
 
-            # Godot must be gone before Dolphin opens the adapter: USB access
-            # is exclusive, and the shell's SDL driver claims it.
+            # Godot must exit before Dolphin opens the adapter.
             if [ "$code" -eq 42 ]; then
               "$cli_bin" play || true
               autoplay=0
@@ -127,9 +117,6 @@
               continue
             fi
 
-            # Anything else is a crash. Return to the session script, which
-            # starts Openbox for diagnosis and only then hands over to the
-            # recovery console.
             echo "slippios-shell exited with $code" >>"$log"
             exit "$code"
           done

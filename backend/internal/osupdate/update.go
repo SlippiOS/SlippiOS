@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// Check fetches the release manifest and records whether it is newer.
 func (p Paths) Check() (*CheckResult, error) {
 	current := currentVersion(p)
 	manifest, err := fetchManifest(p)
@@ -39,8 +38,6 @@ func (p Paths) Check() (*CheckResult, error) {
 	}, nil
 }
 
-// Stage downloads and verifies the newest update, then asks the root service
-// to install it with systemd-sysupdate.
 func (p Paths) Stage(log func(string)) (map[string]any, error) {
 	if log == nil {
 		log = func(string) {}
@@ -116,7 +113,6 @@ func (p Paths) stage(log func(string)) (map[string]any, error) {
 	}, nil
 }
 
-// RequestReboot asks the root service to restart the console.
 func (p Paths) RequestReboot() error {
 	if err := os.MkdirAll(p.StageDir, 0o755); err != nil {
 		return err

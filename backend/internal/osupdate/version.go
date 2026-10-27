@@ -56,11 +56,7 @@ func firstByte(s string) int {
 	return int(s[0])
 }
 
-// CompareVersions orders versions the way systemd's strverscmp_improved()
-// does. systemd-boot and systemd-sysupdate use that ordering, so the updater
-// must agree with them before offering a version. It treats '.', '-', '^'
-// and '~' as segment prefixes, compares numeric segments numerically, and
-// ranks a numeric segment above an alphabetic one.
+// CompareVersions matches systemd's strverscmp_improved ordering.
 func CompareVersions(a, b string) int {
 	for {
 		// Unsupported characters separate segments, so drop them before
@@ -87,8 +83,6 @@ func CompareVersions(a, b string) int {
 			return compareInt(firstByte(a), firstByte(b))
 		}
 
-		// '-' marks a release, which is older than '^', '.', or an
-		// unprefixed segment.
 		if hasVersionPrefix(a, '-') != 0 || hasVersionPrefix(b, '-') != 0 {
 			r := compareInt(1-hasVersionPrefix(a, '-'), 1-hasVersionPrefix(b, '-'))
 			if r != 0 {
@@ -98,7 +92,6 @@ func CompareVersions(a, b string) int {
 			b = b[1:]
 		}
 
-		// '^' marks a patched release, newer than '-' but older than '.'.
 		if hasVersionPrefix(a, '^') != 0 || hasVersionPrefix(b, '^') != 0 {
 			r := compareInt(1-hasVersionPrefix(a, '^'), 1-hasVersionPrefix(b, '^'))
 			if r != 0 {
@@ -108,7 +101,6 @@ func CompareVersions(a, b string) int {
 			b = b[1:]
 		}
 
-		// '.' marks a point release, older than an unprefixed segment.
 		if hasVersionPrefix(a, '.') != 0 || hasVersionPrefix(b, '.') != 0 {
 			r := compareInt(1-hasVersionPrefix(a, '.'), 1-hasVersionPrefix(b, '.'))
 			if r != 0 {
@@ -127,7 +119,6 @@ func CompareVersions(a, b string) int {
 			bEnd++
 		}
 		if aEnd > 0 || bEnd > 0 {
-			// A numeric segment is newer than an alphabetic one.
 			aNumeric, bNumeric := 0, 0
 			if aEnd > 0 {
 				aNumeric = 1
@@ -167,7 +158,6 @@ func CompareVersions(a, b string) int {
 			if r := strings.Compare(a[:common], b[:common]); r != 0 {
 				return r
 			}
-			// A longer alphabetic segment is newer.
 			if r := compareInt(aEnd, bEnd); r != 0 {
 				return r
 			}

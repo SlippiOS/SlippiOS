@@ -32,7 +32,6 @@ func (p Paths) LoginStatus(path string) (bool, string) {
 	return true, fmt.Sprint(value["connectCode"])
 }
 
-// InstallLogin copies an imported user.json into Dolphin's user directory.
 func (p Paths) InstallLogin(values map[string]any) (bool, string) {
 	configured := DefaultUserJSON
 	if slippi, ok := values["slippi"].(map[string]any); ok {

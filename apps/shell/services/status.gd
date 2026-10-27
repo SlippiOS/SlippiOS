@@ -1,6 +1,5 @@
 extends RefCounted
 
-## Reads CLI status for the shell.
 
 var app
 

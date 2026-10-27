@@ -13,7 +13,6 @@ fi
 
 case "${1:-}" in
   --all)
-    # Disposable artifacts plus a Nix GC; keep the store and nix-portable.
     find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
     find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
     find "$CACHE" -maxdepth 1 -name '*.iso' -delete
@@ -27,7 +26,6 @@ case "${1:-}" in
     exit 0
     ;;
   --hard)
-    # Full reset: next build re-downloads nix-portable and every dependency.
     # Store paths are read-only, so make them writable before removing.
     chmod -R u+w "$CACHE" "$HOME/.nix-portable" 2>/dev/null || true
     rm -rf "$CACHE" "$HOME/.nix-portable"

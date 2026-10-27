@@ -6,7 +6,6 @@ import (
 	"os/exec"
 )
 
-// ApplyAudio selects the configured PulseAudio sink.
 func ApplyAudio(values map[string]any) error {
 	audio, _ := values["audio"].(map[string]any)
 	sink, _ := audio["sink"].(string)
@@ -19,7 +18,6 @@ func ApplyAudio(values map[string]any) error {
 	return exec.Command("pactl", "set-default-sink", sink).Run()
 }
 
-// Sink describes one PulseAudio output.
 type Sink struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -30,7 +28,6 @@ type pactlSink struct {
 	Description string `json:"description"`
 }
 
-// Sinks lists the available PulseAudio outputs.
 func Sinks() ([]Sink, error) {
 	if _, err := exec.LookPath("pactl"); err != nil {
 		return nil, fmt.Errorf("pactl is not installed")

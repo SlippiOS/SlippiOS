@@ -44,7 +44,6 @@ func alert(lines []string) {
 	_, _ = line("Press Enter to continue…")
 }
 func readPassword() (string, bool) {
-	// Avoid depending on a terminal package; stty is present in the image.
 	previous := exec.Command("stty", "-echo")
 	previous.Stdin = os.Stdin
 	_ = previous.Run()

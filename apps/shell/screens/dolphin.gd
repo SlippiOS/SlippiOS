@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Dolphin graphics and controller settings.
 
 func present(message: String = "") -> void:
 	clear()

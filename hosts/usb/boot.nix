@@ -8,9 +8,6 @@ in {
   system.image.version = lib.mkDefault "dev";
   system.nixos.distroName = "SlippiOS";
 
-  # UEFI only. The removable-media path means the image boots without
-  # writing firmware variables, which is what makes it usable from a USB
-  # stick on arbitrary machines.
   boot.loader.grub.enable = false;
   boot.uki.name = imageId;
 
@@ -36,10 +33,6 @@ in {
     "virtio_blk"
     "virtio_scsi"
     "virtio_net"
-    # Display drivers for the boot splash in VMs. Real hardware uses the
-    # firmware framebuffer through the built-in simpledrm until the native
-    # driver loads in stage 2; including native GPU drivers here would pull
-    # hundreds of megabytes of firmware into the 512M ESP.
     "virtio_gpu"
     "bochs"
     "loop"
@@ -54,8 +47,6 @@ in {
       device = "/dev/disk/by-partlabel/boot";
       fsType = "vfat";
     };
-    # The label includes the image version. The matching UKI embeds this
-    # label, which is how an A/B boot picks its own read-only store.
     "/nix/store" = {
       device = "/dev/disk/by-partlabel/nix-store_${version}";
       fsType = "squashfs";

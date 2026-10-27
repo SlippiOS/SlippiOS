@@ -47,7 +47,6 @@ func (p Paths) SearchDirs() []string {
 				dirs = append(dirs, filepath.Join(base, entry.Name()))
 			}
 		}
-		// /run/media/<user>/<volume> is also common.
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue

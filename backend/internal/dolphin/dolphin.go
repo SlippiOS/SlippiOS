@@ -1,5 +1,4 @@
-// Package dolphin fetches and verifies the newest Slippi Mainline Dolphin
-// release. A failed check or download leaves the current build usable.
+// Package dolphin fetches and verifies Slippi Mainline Dolphin releases.
 package dolphin
 
 import (
@@ -16,13 +15,11 @@ const (
 )
 
 var (
-	// API lists recent upstream releases. Tests replace it with a local server.
 	API = "https://api.github.com/repos/project-slippi/dolphin/releases?per_page=10"
 
 	tagPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 )
 
-// Paths describes the on-disk Dolphin installation.
 type Paths struct {
 	Base     string
 	Versions string

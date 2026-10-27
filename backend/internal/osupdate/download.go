@@ -100,7 +100,6 @@ func (p Paths) download(url, destination, expected string, size int64) error {
 	return os.Rename(partial, destination)
 }
 
-// CurrentStoreDevice returns the block device currently mounted as /nix/store.
 func CurrentStoreDevice() string {
 	file, err := os.Open(procMounts)
 	if err != nil {

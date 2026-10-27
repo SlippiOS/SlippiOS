@@ -1,7 +1,5 @@
 extends Control
 
-## SlippiOS shell app: boot flow, screen routing, and system actions. Screens
-## build the actual pages; services own the CLI and background processes.
 
 const Cli := preload("res://services/cli.gd")
 const NetPage := preload("res://services/net_page.gd")
@@ -55,8 +53,7 @@ func _ready() -> void:
 	net.login_done.connect(_on_net_login_done)
 	update_job.finished.connect(_on_os_update_finished)
 	refresh_status()
-	# The graphical session does not run slippios-session, so apply the saved
-	# display mode here (including re-adding a custom mode after a reboot).
+	# The graphical session, not the terminal session, applies the saved mode.
 	cli(["display", "apply"])
 	if OS.get_environment("SLIPPIOS_SKIP_SPLASH") == "1":
 		after_splash()
@@ -329,7 +326,6 @@ func settings_held() -> bool:
 	for device in Input.get_connected_joypads():
 		if Input.is_joy_button_pressed(device, JOY_BUTTON_A):
 			return true
-	# Keep the menu reachable on a keyboard-only machine.
 	return Input.is_physical_key_pressed(KEY_ENTER)
 
 

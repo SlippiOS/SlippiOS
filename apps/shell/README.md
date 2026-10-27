@@ -44,7 +44,7 @@ godot --headless --path . --export-release "Linux" build/slippios-shell
 ## Runtime contract
 
 - `slippios` must be on `PATH` and return JSON when stdout is piped.
-- Branding is read from `/etc/slippios/theme.json` when present.
+- Theme colors are read from `/etc/slippios/theme.json` when present.
 - Optional environment:
   - `SLIPPIOS_PARSE_ONLY=1`: import/parse only, no CLI or display calls.
   - `SLIPPIOS_SKIP_SPLASH=1`: skip the pulsing boot mark.

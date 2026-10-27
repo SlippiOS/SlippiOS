@@ -1,7 +1,5 @@
 extends RefCounted
 
-## Runs `slippios os update` and turns its status file into progress/finish
-## signals. The app owns navigation; this only manages the process.
 
 signal progress(phase: String, done: int, total: int, error: String)
 signal finished(phase: String, error: String)

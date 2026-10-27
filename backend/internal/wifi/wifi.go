@@ -151,7 +151,6 @@ func Connect(paths settings.Paths, ssid, password string) (Status, error) {
 	return Status{Connected: true, SSID: ssid}, nil
 }
 
-// WaitForConnect is useful for the headless fallback; the shell does not need it.
 func WaitForConnect(timeout time.Duration) Status {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {

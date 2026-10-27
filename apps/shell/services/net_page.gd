@@ -1,7 +1,5 @@
 extends RefCounted
 
-## Owns the `slippios net` setup/upload/login web server and polls its state
-## files. Screens only render; they never manage the process.
 
 signal status_changed(text: String)
 signal stopped(error: String)

@@ -1,6 +1,5 @@
 extends RefCounted
 
-## Shared control builders for shell screens.
 
 var content: VBoxContainer
 

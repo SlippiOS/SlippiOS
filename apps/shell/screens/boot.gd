@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Boot animation. Holds the screen briefly while the mark pulses, then hands
-## off to setup, the menu, or autoplay.
 
 const BootLogo := preload("res://boot_logo.gd")
 const BOOT_HOLD_MS := 2600

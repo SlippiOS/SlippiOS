@@ -230,7 +230,7 @@ manager in the normal path: the Godot shell is the X session, so it has no
 decorations and owns the whole screen. Openbox is only started if the shell
 exits, as a desktop for diagnosis.
 
-`assets/branding/` holds the temporary Slippi mark and how to regenerate the
+`assets/marks/` holds the temporary Slippi mark and how to regenerate the
 raster assets; replace it when the SlippiOS mark exists.
 
 ## Theming

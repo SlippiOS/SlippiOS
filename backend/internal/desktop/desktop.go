@@ -1,3 +1,2 @@
-// Package desktop applies the display and audio preferences from settings to
-// the running X/PulseAudio session.
+// Package desktop applies display and audio settings to X and PulseAudio.
 package desktop

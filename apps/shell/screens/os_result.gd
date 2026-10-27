@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Result screens for the OS update and reboot hand-off.
 
 var mode := "installed"
 var message := ""

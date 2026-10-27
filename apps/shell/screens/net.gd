@@ -1,6 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Browser setup, ISO upload, and sign-in hand-off.
 
 var _status: Label
 

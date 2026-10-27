@@ -3,17 +3,10 @@
 let
   imageId = "slippios";
 in {
-  # The update payload is built from the split image plus the matching UKI
-  # by CI; the on-device updater stages those files in
-  # /data/system/update before invoking systemd-sysupdate.
   systemd.sysupdate = {
     enable = true;
 
     transfers = {
-      # The OS updater downloads and verifies the image into this
-      # directory, then asks systemd-sysupdate to install it. Keeping the
-      # source local is what lets us use zsync instead of downloading the
-      # whole partition every time.
       "10-nix-store" = {
         Source = {
           Type = "regular-file";
@@ -56,13 +49,8 @@ in {
     };
   };
 
-  # The shell asks for updates explicitly; don't install a leftover
-  # payload at an arbitrary time.
   systemd.timers.systemd-sysupdate.wantedBy = lib.mkForce [ ];
 
-  # A staged payload is installed by the updater writing
-  # /data/system/update/request. This keeps the downloader (and the shell)
-  # unprivileged; only this oneshot runs as root.
   systemd.services.slippios-os-update = {
     description = "Install a staged SlippiOS system update.";
     after = [ "slippi-data.service" ];
@@ -72,9 +60,6 @@ in {
       TimeoutStartSec = "30min";
       ExecStart = pkgs.writeShellScript "slippios-os-update" ''
         set -eu
-        # Runs as root from the update request path unit. The request names
-        # the staged version; record it with this boot's ID so the updater can
-        # tell a completed reboot from a rollback.
         export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
         target=$(cat /data/system/update/request)
         boot_id=$(cat /proc/sys/kernel/random/boot_id)
@@ -83,9 +68,8 @@ in {
         error=
         if ${config.systemd.package}/lib/systemd/systemd-sysupdate update; then
           ${config.systemd.package}/bin/udevadm settle || true
-          # A no-op exits successfully without writing anything. Only report
-          # success after both the target partition and a fresh, uncounted
-          # boot image exist; otherwise boot assessment has nothing to try.
+          # A sysupdate no-op exits 0 without writing anything. Require both
+          # the target partition and a fresh boot image before reporting success.
           if [ ! -b "/dev/disk/by-partlabel/nix-store_''${target}" ]; then
             echo "slippios: target partition nix-store_''${target} is missing" >&2
             error="The update did not install; the new system partition is missing."
@@ -115,9 +99,8 @@ in {
   systemd.paths.slippios-os-update = {
     description = "Watch for a staged update request";
     wantedBy = [ "paths.target" ];
-    # Ordering against slippi-data.service here would close a loop:
-    # basic.target -> paths.target -> this path unit -> slippi-data ->
-    # basic.target. The mount unit is enough to know when /data is ready.
+    # Ordering against slippi-data.service would create a target loop.
+    # The mount unit is enough to know when /data is ready.
     after = [ "data.mount" ];
     pathConfig.PathExists = "/data/system/update/request";
   };
@@ -127,7 +110,6 @@ in {
     serviceConfig.Type = "oneshot";
     serviceConfig.ExecStart = pkgs.writeShellScript "slippios-os-reboot" ''
       set -eu
-      # Requested by the updater after staging.
       rm -f /data/system/update/reboot
       ${config.systemd.package}/bin/systemctl reboot --no-block
     '';
@@ -139,9 +121,6 @@ in {
     pathConfig.PathExists = "/data/system/update/reboot";
   };
 
-  # Automatic boot assessment. A newly written UKI gets three attempts;
-  # systemd-bless-boot clears the counter once the boot completes, and
-  # systemd-boot falls back to the previous good UKI otherwise.
   systemd.additionalUpstreamSystemUnits = [
     "systemd-boot-check-no-failures.service"
   ];
