@@ -47,6 +47,10 @@ func _ready() -> void:
 	# CI only imports/parses the project; skip the CLI and display probing.
 	if OS.get_environment("SLIPPIOS_PARSE_ONLY") == "1":
 		return
+	_ensure_gamepad_actions()
+	for device in Input.get_connected_joypads():
+		printerr("joypad %d: %s" % [device, Input.get_joy_name(device)])
+	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_fit_window()
 	_build_base()
 	net.setup_done.connect(_on_net_setup_done)
@@ -65,6 +69,31 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	net.poll(delta)
 	update_job.poll(delta)
+
+
+func _ensure_gamepad_actions() -> void:
+	_add_joy_button("ui_accept", JOY_BUTTON_A)
+	_add_joy_button("ui_cancel", JOY_BUTTON_B)
+	_add_joy_button("ui_up", JOY_BUTTON_DPAD_UP)
+	_add_joy_button("ui_down", JOY_BUTTON_DPAD_DOWN)
+	_add_joy_button("ui_left", JOY_BUTTON_DPAD_LEFT)
+	_add_joy_button("ui_right", JOY_BUTTON_DPAD_RIGHT)
+
+
+func _add_joy_button(action: String, button: int) -> void:
+	if not InputMap.has_action(action):
+		return
+	for existing in InputMap.action_get_events(action):
+		if existing is InputEventJoypadButton and existing.button_index == button:
+			return
+	var event := InputEventJoypadButton.new()
+	event.device = -1
+	event.button_index = button
+	InputMap.action_add_event(action, event)
+
+
+func _on_joy_connection_changed(device: int, connected: bool) -> void:
+	printerr("joypad %d connected=%s" % [device, connected])
 
 
 func _unhandled_input(event: InputEvent) -> void:
