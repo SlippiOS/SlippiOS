@@ -380,17 +380,35 @@ in {
         boot_id=$(cat /proc/sys/kernel/random/boot_id)
         rm -f /data/system/update/request
         mkdir -p /data/system/update
+        error=
         if ${config.systemd.package}/lib/systemd/systemd-sysupdate update; then
-          printf '{"ok":true,"phase":"installed","version":"%s","boot_id":"%s"}\n' \
-            "$target" "$boot_id" > /data/system/update/status.json
-          rm -f /data/system/update/slippios_*.nix-store.raw \
-                /data/system/update/slippios_*.nix-store.raw.part \
-                /data/system/update/slippios_*.efi
+          ${config.systemd.package}/bin/udevadm settle || true
+          # A no-op exits successfully without writing anything. Only report
+          # success after both the target partition and a fresh, uncounted
+          # boot image exist; otherwise boot assessment has nothing to try.
+          if [ ! -b "/dev/disk/by-partlabel/nix-store_''${target}" ]; then
+            echo "slippios: target partition nix-store_''${target} is missing" >&2
+            error="The update did not install; the new system partition is missing."
+          elif [ ! -f "/boot/EFI/Linux/${imageId}_''${target}+3-0.efi" ]; then
+            echo "slippios: boot image ${imageId}_''${target}+3-0.efi is missing" >&2
+            error="The update did not install; the new boot image is missing."
+          else
+            printf '{"ok":true,"phase":"installed","version":"%s","boot_id":"%s"}\n' \
+              "$target" "$boot_id" > /data/system/update/status.json
+            rm -f /data/system/update/slippios_*.nix-store.raw \
+                  /data/system/update/slippios_*.nix-store.raw.part \
+                  /data/system/update/slippios_*.efi
+          fi
         else
-          printf '{"ok":false,"phase":"failed","error":"systemd-sysupdate failed"}\n' \
-            > /data/system/update/status.json
+          error="systemd-sysupdate failed"
+        fi
+        if [ -n "$error" ]; then
+          echo "slippios: $error" >&2
+          printf '{"ok":false,"phase":"failed","version":"%s","boot_id":"%s","error":"%s"}\n' \
+            "$target" "$boot_id" "$error" > /data/system/update/status.json
         fi
         chown player:users /data/system/update/status.json || true
+        [ -z "$error" ]
       '';
     };
   };

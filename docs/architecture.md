@@ -14,6 +14,13 @@ GPT
 
 - `/nix/store` is mounted from the active `nix-store_<version>` partition.
 - The matching UKI embeds that label and is stored in the ESP.
+- Versions are `<commit-epoch>.<revision>`, where `<revision>` is the first
+  seven hexadecimal digits of the commit converted to decimal. systemd-boot
+  and systemd-sysupdate order versions with `strverscmp_improved`, which ranks
+  a numeric segment above an alphabetic one; a hexadecimal hash starting with
+  a letter sorts below one starting with a digit. The old `<epoch>-<hash>`
+  format could therefore make a newer build look older. Legacy hyphen
+  versions sort below the decimal form.
 - `/data` is a separate partition and is never written by system updates.
 - `MELEE-ROMS` is mounted at `/data/isos`; it is the only PC-visible data drive.
 - A first-boot service grows `SLIPPIOS` and its ext4 filesystem to fill the USB.
@@ -40,10 +47,12 @@ falls back to the previous good UKI.
 6. Both are written to `/data/system/update`.
 7. A request file starts `slippios-os-update.service`.
 8. The root service runs `systemd-sysupdate`, which writes the inactive store
-   partition, updates the ESP, sets the boot counter, and writes
-   `/data/system/update/status.json` with the target version and the current
-   boot ID.
-9. The shell offers a restart.
+   partition, updates the ESP, and sets the boot counter. Before recording
+   success, the service requires both the `nix-store_<version>` partition and
+   a fresh `slippios_<version>+3-0.efi` boot image. A successful no-op, which
+   writes nothing, is recorded as a failure instead of a false install.
+9. The service writes `/data/system/update/status.json` with the target
+   version and the current boot ID, and the shell offers a restart.
 10. If the new system boots, `slippios os status` sees the target version
     running and clears the result. If boot assessment rolls back to the
     previous system, the changed boot ID and old version turn the result into
@@ -53,7 +62,7 @@ Manifest fields:
 
 ```json
 {
-  "version": "1792937434-05a864f",
+  "version": "1792937434.113649853",
   "tag": "v1.0.0",
   "nix_store": {
     "name": "slippios_<version>.nix-store.raw",

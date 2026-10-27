@@ -121,16 +121,46 @@ func mustJSON(t *testing.T, value any) []byte {
 	return data
 }
 
-func TestVersionKey(t *testing.T) {
-	cases := map[string]int64{
-		"1792939455-b16a03c": 1792939455,
-		"42":                 42,
-		"unknown":            0,
-		"":                   0,
+func TestCompareVersions(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{
+		{"", "", 0},
+		{"42", "42", 0},
+		{"00123", "123", 0},
+		{"1.0.01", "1.0.1", 0},
+		{"100", "200", -1},
+		{"200", "100", 1},
+		{"999", "1000", -1},
+		{"1.2", "1.10", -1},
+		{"1.0", "1.0.1", -1},
+		{"1.0~rc1", "1.0", -1},
+		{"1.0-1", "1.0.1", -1},
+		{"1.0-1", "1.0^post1", -1},
+		{"1.0^post1", "1.0.1", -1},
+		{"123.a", "123a", -1},
+		{"123.1-1", "123a-1", -1},
+		{"1.0.a", "1.0.1", -1},
+		{"1.0.a", "1.0.b", -1},
+		{"1.0.a", "1.0.aa", -1},
+		// The legacy revision format treats a digit-leading hash as newer
+		// than a letter-leading one, so the later v7 build sorts below v6.
+		{"1793067308-8127a3e", "1793067308-d1d3802", 1},
+		{"1793067308-d1d3802", "1793067308-8127a3e", -1},
+		// Decimal revisions compare by value.
+		{"1793067308.99999", "1793067308.100000", -1},
+		{"1793067308.100000", "1793067308.99999", 1},
+		// A new dot version sorts above every legacy hyphen version with the
+		// same commit epoch.
+		{"1793067308-8127a3e", "1793067308.1", -1},
 	}
-	for value, expected := range cases {
-		if got := VersionKey(value); got != expected {
-			t.Fatalf("VersionKey(%q) = %d, want %d", value, got, expected)
+	for _, test := range cases {
+		if got := CompareVersions(test.a, test.b); got != test.want {
+			t.Errorf("CompareVersions(%q, %q) = %d, want %d", test.a, test.b, got, test.want)
+		}
+		if got := CompareVersions(test.b, test.a); got != -test.want {
+			t.Errorf("CompareVersions(%q, %q) = %d, want %d", test.b, test.a, got, -test.want)
 		}
 	}
 }
@@ -189,6 +219,69 @@ func TestCheckAndStage(t *testing.T) {
 	progress := readJSON(paths.Progress)
 	if progress["phase"] != "installing" {
 		t.Fatalf("progress = %#v", progress)
+	}
+}
+
+func TestCheckUsesSystemdVersionOrder(t *testing.T) {
+	manifest := manifestFor("1793067308.99", []byte("raw"), []byte("uki"))
+	server := updateServer(t, manifest, nil)
+	paths := testPaths(t, "1793067308.100")
+	writeSource(t, paths, server.URL+"/")
+
+	checked, err := paths.Check()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checked.Available {
+		t.Fatalf("older version offered: %#v", checked)
+	}
+	cached := readJSON(paths.Latest)
+	if cached["update_available"] != false {
+		t.Fatalf("latest = %#v", cached)
+	}
+}
+
+func TestCheckOffersDecimalRevision(t *testing.T) {
+	manifest := manifestFor("1793067308.220018690", []byte("raw"), []byte("uki"))
+	server := updateServer(t, manifest, nil)
+	paths := testPaths(t, "1793067308.135428670")
+	writeSource(t, paths, server.URL+"/")
+
+	checked, err := paths.Check()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !checked.Available {
+		t.Fatalf("newer version not offered: %#v", checked)
+	}
+}
+
+func TestStatusUsesSystemdVersionOrder(t *testing.T) {
+	cases := []struct {
+		name     string
+		current  string
+		latest   string
+		expected bool
+	}{
+		{"older decimal", "1793067308.100", "1793067308.99", false},
+		{"newer decimal", "1793067308.135428670", "1793067308.220018690", true},
+		{"older epoch", "1793067309.1", "1793067308.999", false},
+		{"legacy revision", "1793067308-8127a3e", "1793067308-d1d3802", false},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			paths := testPaths(t, test.current)
+			if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeJSON(paths.Latest, map[string]any{"latest": test.latest}); err != nil {
+				t.Fatal(err)
+			}
+			status := paths.Status()
+			if status["update_available"] != test.expected {
+				t.Fatalf("status = %#v", status)
+			}
+		})
 	}
 }
 

@@ -57,6 +57,12 @@ improving the appliance.
   further edits embeds initrd store paths that the earlier store image does not
   contain, so the installed system drops to emergency mode. CI is safe because
   it builds from one clean checkout.
+- Image versions are `<commit-epoch>.<revision>`, with the first seven
+  hexadecimal digits of the commit converted to decimal. systemd-boot and
+  systemd-sysupdate use `strverscmp_improved`, so a revision must be a numeric
+  segment; a hexadecimal hash that starts with a letter sorts below one that
+  starts with a digit. Do not publish builds using the old
+  `<epoch>-<hash>` format.
 
 ## Local cache and cleanup
 

@@ -11,11 +11,19 @@
       cliPackage = pkgs.callPackage ./pkgs/slippios.nix { };
       shellPackage = pkgs.callPackage ./pkgs/slippios-shell.nix { };
 
-      # Sortable, unique, and short enough for a GPT partition label.
+      # Sortable, unique, and short enough for a GPT partition label. The
+      # revision is decimal because systemd compares version segments
+      # numerically: a hexadecimal hash that starts with a letter sorts below
+      # one that starts with a digit.
       version =
-        let rev = self.rev or self.dirtyRev or null; in
+        let
+          rev = self.rev or self.dirtyRev or null;
+          revision = builtins.substring 0 7 rev;
+        in
         if rev != null then
-          "${toString (self.lastModified or 0)}-${builtins.substring 0 7 rev}"
+          "${toString (self.lastModified or 0)}.${
+            toString (builtins.fromTOML "v = 0x${revision}").v
+          }"
         else
           "dev-${toString (self.lastModified or 0)}";
     in {

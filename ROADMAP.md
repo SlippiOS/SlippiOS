@@ -11,7 +11,10 @@ more installation modes.
       after Dolphin exits without a second splash.
 - [x] `/data` grew from 1 GiB to fill a 16 GB disk and survived a reboot.
 - [x] Settings and Update screens render.
-- [ ] OS update: stage, install, reboot, rollback, and failure paths.
+- [x] OS update: staged, installed, rebooted, and rolled back after three
+      failed boots; the shell reported the rollback and `/data` survived.
+- [x] Installer rejects a `systemd-sysupdate` no-op instead of recording a
+      false install.
 
 ## Now — USB image
 
@@ -37,6 +40,8 @@ more installation modes.
       update downloads.
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
+- [ ] Stop offering a version that just failed boot assessment until a newer
+      release appears; the Update screen currently offers it again.
 - [ ] Add a backup/restore path for `/data`.
 - [ ] Test on a second machine to verify hardware binding and login removal.
 
