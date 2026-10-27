@@ -65,6 +65,22 @@ both Microsoft signatures, signs systemd-boot and the UKI, installs the
 shim and MokManager, and writes the enrollment note and shim license.
 Signing is a post-build step so the private key never enters the Nix store.
 
+## Release checklist
+
+1. Generate the production key and certificate once.
+2. Back up the private key offline.
+3. Add `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` as repository secrets.
+4. Tag a release with `v*` or `os-*`, or run the Build Image workflow.
+5. Confirm the release contains the signed image, unsigned image, signed UKI,
+   store image, zsync file, manifest, and `SHA256SUMS`.
+6. Boot the signed image on a real PC with Secure Boot on and complete the MOK
+   enrollment.
+7. Install an update and confirm it boots without re-enrollment.
+
+The workflow fails if the signing secrets are missing. The first signed
+workflow run should be treated as a release test until the assets and hardware
+boot are verified.
+
 ## Testing
 
 Use OVMF Secure Boot:

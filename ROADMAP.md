@@ -75,7 +75,7 @@ still requires Secure Boot off.
 
 - [x] Integrate signing into the release workflow and sign the image and UKI
       before generating the manifest.
-- [x] Document the one-time MOK enrollment in the player guide and keep the
+- [x] Document the one-time MOK enrollment in the user guide and keep the
       unsigned image as a fallback.
 - [ ] Document per-vendor Secure Boot off steps for the unsigned fallback.
 - [ ] Test the signed image on real UEFI hardware with Secure Boot on.

@@ -1,4 +1,4 @@
-# SlippiOS player guide
+# SlippiOS user guide
 
 ## Requirements
 
@@ -119,7 +119,7 @@ First boot signs you in on the browser setup page. Later, use **Account → Sign
 on the console or **Sign in on another device**.
 
 Passwords are not stored. `slippi-user.json` is an auth token, readable only by
-the player user, and bound to the current PC. Moving the USB to another PC
+the `player` user, and bound to the current PC. Moving the USB to another PC
 requires signing in again.
 
 The setup pages are LAN-only, tokenized in the URL, and served over HTTP. Use

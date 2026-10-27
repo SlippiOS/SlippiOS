@@ -8,7 +8,7 @@ upload, and native GameCube-adapter input work. Booting straight into a game
 and opening the menu with hold-A still need real-hardware validation. A signed
 Secure Boot image is in development.
 
-## Players
+## Users
 
 Requirements: a 16 GB USB stick and UEFI boot. The unsigned image requires
 Secure Boot off (a one-time firmware setting). The signed image uses a one-time
@@ -17,7 +17,7 @@ MOK enrollment; see [secure-boot/README.md](secure-boot/README.md).
 1. Download `slippios-usb-<version>.img.xz` from the
    [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
 2. Flash it with balenaEtcher, or extract it with 7-Zip and use Rufus in DD
-   mode. See the [player guide](docs/users.md#flash) for macOS and Linux
+   mode. See the [user guide](docs/users.md#flash) for macOS and Linux
    commands.
 3. Boot the stick.
 4. Scan the setup QR with a phone, or open the address on a computer. Add a
@@ -44,7 +44,7 @@ No Docker or system Nix is required. The build falls back to nix-portable.
 
 ## Docs
 
-- [Player guide](docs/users.md)
+- [User guide](docs/users.md)
 - [Developer guide](docs/developers.md)
 - [Architecture and updates](docs/architecture.md)
 - [Controller support](docs/controllers.md)

@@ -1,6 +1,6 @@
 # SlippiOS developer guide
 
-Disk layout and update protocol: [architecture](architecture.md). Player behavior: [users](users.md).
+Disk layout and update protocol: [architecture](architecture.md). User behavior: [users](users.md).
 
 ## Quick start
 
