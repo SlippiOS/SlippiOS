@@ -89,24 +89,41 @@ elif [[ ! -e result-local-image ]]; then
   exit 1
 fi
 
-unsigned=$(find -L result-local-image -maxdepth 1 -name 'slippios_*.raw' \
+image_raw=$(find -L result-local-image -maxdepth 1 -name 'slippios_*.raw' \
   ! -name '*.nix-store.raw' -print -quit)
-if [[ -z "$unsigned" ]]; then
-  echo "cannot find the full image in result-local-image" >&2
-  exit 1
+image_xz=""
+if [[ -n "$image_raw" ]]; then
+  image_raw=$(readlink -f "$image_raw")
+  version=$(basename "$image_raw")
+  version=${version#slippios_}
+  version=${version%.raw}
+else
+  image_xz=$(find -L result-local-image -maxdepth 1 \
+    -name 'slippios_*.raw.xz' ! -name '*.nix-store.raw.xz' -print -quit)
+  if [[ -z "$image_xz" ]]; then
+    echo "cannot find the full image in result-local-image" >&2
+    exit 1
+  fi
+  image_xz=$(readlink -f "$image_xz")
+  version=$(basename "$image_xz")
+  version=${version#slippios_}
+  version=${version%.raw.xz}
 fi
-unsigned=$(readlink -f "$unsigned")
-version=$(basename "$unsigned")
-version=${version#slippios_}
-version=${version%.raw}
 
-nix_store=$(find -L result-local-image -maxdepth 1 \
+nix_store_raw=$(find -L result-local-image -maxdepth 1 \
   -name "slippios_${version}.nix-store.raw" -print -quit)
-if [[ -z "$nix_store" ]]; then
-  echo "cannot find the nix-store image in result-local-image" >&2
-  exit 1
+nix_store_xz=""
+if [[ -n "$nix_store_raw" ]]; then
+  nix_store_raw=$(readlink -f "$nix_store_raw")
+else
+  nix_store_xz=$(find -L result-local-image -maxdepth 1 \
+    -name "slippios_${version}.nix-store.raw.xz" -print -quit)
+  if [[ -z "$nix_store_xz" ]]; then
+    echo "cannot find the nix-store image in result-local-image" >&2
+    exit 1
+  fi
+  nix_store_xz=$(readlink -f "$nix_store_xz")
 fi
-nix_store=$(readlink -f "$nix_store")
 
 if [[ -z "$TAG" ]]; then
   TAG="os-$version"
@@ -127,6 +144,12 @@ unsigned_name="slippios-usb-${version}-unsigned.img.xz"
 raw_name="slippios_${version}.nix-store.raw"
 uki_name="slippios_${version}.efi"
 signed_raw="$ASSETS_DIR/slippios-usb-${version}-secureboot.raw"
+unsigned="$image_raw"
+decompressed_unsigned=""
+if [[ -z "$unsigned" ]]; then
+  unsigned="$ASSETS_DIR/slippios-${version}-unsigned.raw"
+  decompressed_unsigned="$unsigned"
+fi
 
 rm -f "$ASSETS_DIR/$signed_name" "$ASSETS_DIR/$unsigned_name" \
   "$ASSETS_DIR/$uki_name" "$ASSETS_DIR/manifest.json" \
@@ -136,6 +159,9 @@ cleanup() {
   if [[ "$KEEP_RAW" -eq 0 ]]; then
     rm -f "$signed_raw"
   fi
+  if [[ -n "$decompressed_unsigned" ]]; then
+    rm -f "$decompressed_unsigned"
+  fi
   rm -rf "$ASSETS_DIR/uki"
 }
 trap cleanup EXIT
@@ -144,6 +170,24 @@ echo "Version: $version"
 echo "Tag:     $TAG"
 echo "Assets:  $ASSETS_DIR"
 echo "Key:     $key"
+
+if [[ -n "$decompressed_unsigned" ]]; then
+  echo "Decompressing full image..."
+  xz -d -T0 -c "$image_xz" > "$unsigned"
+  fallocate --dig-holes "$unsigned" 2>/dev/null || true
+fi
+
+if [[ -n "$nix_store_xz" ]]; then
+  echo "Decompressing nix-store image..."
+  nix_store="$ASSETS_DIR/$raw_name"
+  xz -d -T0 -c "$nix_store_xz" > "$nix_store"
+  fallocate --dig-holes "$nix_store" 2>/dev/null || true
+else
+  nix_store="$ASSETS_DIR/$raw_name"
+  if ! ln -f "$nix_store_raw" "$nix_store" 2>/dev/null; then
+    cp -f "$nix_store_raw" "$nix_store"
+  fi
+fi
 
 offset=$(./scripts/nix shell --inputs-from . nixpkgs#parted -c \
   parted -s -m "$unsigned" unit B print | \
@@ -173,14 +217,18 @@ mv "${ukis[0]}" "$ASSETS_DIR/$uki_name"
 
 echo "Compressing signed image..."
 xz -T0 -1 -c "$signed_raw" > "$ASSETS_DIR/$signed_name"
-echo "Compressing unsigned image..."
-xz -T0 -1 -c "$unsigned" > "$ASSETS_DIR/$unsigned_name"
 
-if ! ln -f "$nix_store" "$ASSETS_DIR/$raw_name" 2>/dev/null; then
-  cp -f "$nix_store" "$ASSETS_DIR/$raw_name"
+if [[ -n "$image_xz" ]]; then
+  if ! ln -f "$image_xz" "$ASSETS_DIR/$unsigned_name" 2>/dev/null; then
+    cp -f "$image_xz" "$ASSETS_DIR/$unsigned_name"
+  fi
+else
+  echo "Compressing unsigned image..."
+  xz -T0 -1 -c "$unsigned" > "$ASSETS_DIR/$unsigned_name"
 fi
+
 ./scripts/nix shell --inputs-from . nixpkgs#zsync -c \
-  zsyncmake -u "$raw_name" -o "$ASSETS_DIR/$raw_name.zsync" "$ASSETS_DIR/$raw_name"
+  zsyncmake -u "$raw_name" -o "$ASSETS_DIR/$raw_name.zsync" "$nix_store"
 
 signed_sha=$(sha256sum "$ASSETS_DIR/$signed_name" | cut -d' ' -f1)
 unsigned_sha=$(sha256sum "$ASSETS_DIR/$unsigned_name" | cut -d' ' -f1)
