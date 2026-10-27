@@ -335,7 +335,20 @@ assets=(
   "$ASSETS_DIR/manifest.json"
   "$ASSETS_DIR/SHA256SUMS"
 )
-gh release upload "$TAG" "${assets[@]}" --repo "$repo" --clobber
+for asset in "${assets[@]}"; do
+  if gh release upload "$TAG" "$asset" --repo "$repo" --clobber; then
+    continue
+  fi
+  name=$(basename "$asset")
+  size=$(stat -c '%s' "$asset")
+  remote=$(gh api "repos/$repo/releases/tags/$TAG/assets" \
+    --jq ".[] | select(.name == \"$name\") | .size" 2>/dev/null || true)
+  if [[ "$remote" != "$size" ]]; then
+    echo "failed to upload $name" >&2
+    exit 1
+  fi
+  echo "asset $name is already uploaded" >&2
+done
 
 if [[ "$PUBLISH" -eq 1 ]]; then
   gh release edit "$TAG" --repo "$repo" --draft=false --latest
