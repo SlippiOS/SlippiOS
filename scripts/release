@@ -256,7 +256,7 @@ gh auth status >/dev/null 2>&1 || {
 }
 
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-if gh release view "$TAG" --repo "$repo" >/dev/null 2>&1; then
+if gh api "repos/$repo/releases/tags/$TAG" >/dev/null 2>&1; then
   if [[ "$FORCE" -eq 0 ]]; then
     echo "release $TAG already exists; pass --force to replace its assets" >&2
     exit 1
