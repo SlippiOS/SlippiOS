@@ -93,12 +93,13 @@ Signing is a post-build step so the private key never enters the Nix store.
 2. Back up the private key offline.
 3. Confirm `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` point at the production key,
    or that the default key is in `~/.config/slippios/secureboot`.
-4. Run `mise run release -- --publish`.
+4. Run `mise run release` to create a draft.
 5. Confirm the release contains the signed image, unsigned image, signed UKI,
    store image, zsync file, manifest, and `SHA256SUMS`.
 6. Boot the signed image on a real PC with Secure Boot on and complete the MOK
    enrollment.
 7. Install an update and confirm it boots without re-enrollment.
+8. Publish the draft with `gh release edit <tag> --draft=false --latest`.
 
 The release script refuses to run if the key is missing or the working tree is
 dirty. The first signed release should be treated as a release test until the
