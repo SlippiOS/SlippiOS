@@ -49,6 +49,10 @@ run = "./scripts/fetch-image"
 description = "Sign a local image for Secure Boot (set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT)"
 run = "./scripts/nix shell --inputs-from . nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio nixpkgs#parted nixpkgs#openssl nixpkgs#curl -c ./scripts/sign-image"
 
+[tasks.release]
+description = "Build, sign, and publish a USB release"
+run = "./scripts/release"
+
 [tasks.test]
 description = "Run Go tests and the headless Godot parse"
 run = "./scripts/test"

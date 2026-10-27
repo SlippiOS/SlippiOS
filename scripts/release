@@ -1,0 +1,298 @@
+#!/usr/bin/env bash
+# Build, sign, and publish a SlippiOS USB release.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
+BUILD=1
+DRY_RUN=0
+PUBLISH=0
+FORCE=0
+ALLOW_DIRTY=0
+KEEP_RAW=0
+TAG=""
+ASSETS_DIR=""
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/release [options]
+
+Build the USB image, sign it for Secure Boot, generate the release assets,
+and create a draft GitHub release. Use --publish to make it public.
+
+Options:
+  --no-build          use the existing result-local-image
+  --dry-run           generate assets without uploading
+  --publish           publish the release after uploading
+  --force             replace assets on an existing release
+  --allow-dirty       allow a dirty working tree
+  --tag TAG           release tag (default os-<version>)
+  --assets-dir DIR    output directory (default .cache/release/<version>)
+  --keep-raw          keep the signed raw image
+  -h, --help          show this help
+
+Environment:
+  SLIPPIOS_SB_KEY     PEM private key
+                      (default ~/.config/slippios/secureboot/slippios.key)
+  SLIPPIOS_SB_CERT    PEM certificate for the same key
+                      (default ~/.config/slippios/secureboot/slippios.crt)
+  SLIPPIOS_CACHE      cache root (default .cache)
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-build) BUILD=0 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --publish) PUBLISH=1 ;;
+    --force) FORCE=1 ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
+    --keep-raw) KEEP_RAW=1 ;;
+    --tag) TAG="${2:?missing tag}"; shift ;;
+    --assets-dir) ASSETS_DIR="${2:?missing directory}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+for tool in git jq sha256sum xz; do
+  command -v "$tool" >/dev/null || {
+    echo "$tool is required" >&2
+    exit 1
+  }
+done
+
+key="${SLIPPIOS_SB_KEY:-$HOME/.config/slippios/secureboot/slippios.key}"
+cert="${SLIPPIOS_SB_CERT:-$HOME/.config/slippios/secureboot/slippios.crt}"
+if [[ ! -f "$key" || ! -f "$cert" ]]; then
+  echo "set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT, or install the key at $HOME/.config/slippios/secureboot" >&2
+  exit 1
+fi
+mode=$(stat -c '%a' "$key")
+if [[ "$mode" != "600" && "$mode" != "400" ]]; then
+  echo "warning: $key has mode $mode; use chmod 600" >&2
+fi
+export SLIPPIOS_SB_KEY="$key"
+export SLIPPIOS_SB_CERT="$cert"
+export SLIPPIOS_CACHE="$CACHE"
+
+if [[ "$ALLOW_DIRTY" -eq 0 && -n "$(git status --porcelain)" ]]; then
+  echo "working tree is dirty; commit first or pass --allow-dirty" >&2
+  exit 1
+fi
+
+if [[ "$BUILD" -eq 1 ]]; then
+  SLIPPI_DEV=0 SLIPPI_RESULT=result-local-image ./scripts/build-image
+elif [[ ! -e result-local-image ]]; then
+  echo "result-local-image is missing; run without --no-build" >&2
+  exit 1
+fi
+
+unsigned=$(find -L result-local-image -maxdepth 1 -name 'slippios_*.raw' \
+  ! -name '*.nix-store.raw' -print -quit)
+if [[ -z "$unsigned" ]]; then
+  echo "cannot find the full image in result-local-image" >&2
+  exit 1
+fi
+unsigned=$(readlink -f "$unsigned")
+version=$(basename "$unsigned")
+version=${version#slippios_}
+version=${version%.raw}
+
+nix_store=$(find -L result-local-image -maxdepth 1 \
+  -name "slippios_${version}.nix-store.raw" -print -quit)
+if [[ -z "$nix_store" ]]; then
+  echo "cannot find the nix-store image in result-local-image" >&2
+  exit 1
+fi
+nix_store=$(readlink -f "$nix_store")
+
+if [[ -z "$TAG" ]]; then
+  TAG="os-$version"
+fi
+if [[ -z "$ASSETS_DIR" ]]; then
+  ASSETS_DIR="$CACHE/release/$version"
+fi
+mkdir -p "$ASSETS_DIR"
+
+avail_kb=$(df -Pk "$ASSETS_DIR" | awk 'NR == 2 { print $4 }')
+if (( avail_kb < 20000000 )); then
+  echo "not enough space in $ASSETS_DIR (need ~20 GB, have $((avail_kb / 1024)) MB)" >&2
+  exit 1
+fi
+
+signed_name="slippios-usb-${version}.img.xz"
+unsigned_name="slippios-usb-${version}-unsigned.img.xz"
+raw_name="slippios_${version}.nix-store.raw"
+uki_name="slippios_${version}.efi"
+signed_raw="$ASSETS_DIR/slippios-usb-${version}-secureboot.raw"
+
+rm -f "$ASSETS_DIR/$signed_name" "$ASSETS_DIR/$unsigned_name" \
+  "$ASSETS_DIR/$uki_name" "$ASSETS_DIR/manifest.json" \
+  "$ASSETS_DIR/SHA256SUMS" "$ASSETS_DIR/$raw_name.zsync"
+
+cleanup() {
+  if [[ "$KEEP_RAW" -eq 0 ]]; then
+    rm -f "$signed_raw"
+  fi
+  rm -rf "$ASSETS_DIR/uki"
+}
+trap cleanup EXIT
+
+echo "Version: $version"
+echo "Tag:     $TAG"
+echo "Assets:  $ASSETS_DIR"
+echo "Key:     $key"
+
+offset=$(./scripts/nix shell --inputs-from . nixpkgs#parted -c \
+  parted -s -m "$unsigned" unit B print | \
+  awk -F: '$6 == "boot" { gsub("B", "", $2); print $2; exit }')
+if [[ -z "$offset" ]]; then
+  echo "cannot find the ESP partition" >&2
+  exit 1
+fi
+
+echo "Signing image..."
+./scripts/nix shell --inputs-from . \
+  nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
+  nixpkgs#parted nixpkgs#openssl nixpkgs#curl \
+  -c ./scripts/sign-image "$unsigned" "$signed_raw"
+
+# Use the signed UKI from the image so the update asset matches it exactly.
+rm -rf "$ASSETS_DIR/uki"
+mkdir -p "$ASSETS_DIR/uki"
+./scripts/nix shell --inputs-from . nixpkgs#mtools -c \
+  mcopy -i "$signed_raw@@$offset" "::/EFI/Linux/*.efi" "$ASSETS_DIR/uki/"
+mapfile -t ukis < <(find "$ASSETS_DIR/uki" -maxdepth 1 -type f -name '*.efi' -print)
+if [[ ${#ukis[@]} -ne 1 ]]; then
+  echo "expected one UKI in the image, found ${#ukis[@]}" >&2
+  exit 1
+fi
+mv "${ukis[0]}" "$ASSETS_DIR/$uki_name"
+
+echo "Compressing signed image..."
+xz -T0 -1 -c "$signed_raw" > "$ASSETS_DIR/$signed_name"
+echo "Compressing unsigned image..."
+xz -T0 -1 -c "$unsigned" > "$ASSETS_DIR/$unsigned_name"
+
+if ! ln -f "$nix_store" "$ASSETS_DIR/$raw_name" 2>/dev/null; then
+  cp -f "$nix_store" "$ASSETS_DIR/$raw_name"
+fi
+./scripts/nix shell --inputs-from . nixpkgs#zsync -c \
+  zsyncmake -o "$ASSETS_DIR/$raw_name.zsync" "$ASSETS_DIR/$raw_name"
+
+signed_sha=$(sha256sum "$ASSETS_DIR/$signed_name" | cut -d' ' -f1)
+unsigned_sha=$(sha256sum "$ASSETS_DIR/$unsigned_name" | cut -d' ' -f1)
+raw_sha=$(sha256sum "$ASSETS_DIR/$raw_name" | cut -d' ' -f1)
+uki_sha=$(sha256sum "$ASSETS_DIR/$uki_name" | cut -d' ' -f1)
+signed_size=$(stat -c '%s' "$ASSETS_DIR/$signed_name")
+unsigned_size=$(stat -c '%s' "$ASSETS_DIR/$unsigned_name")
+raw_size=$(stat -c '%s' "$ASSETS_DIR/$raw_name")
+uki_size=$(stat -c '%s' "$ASSETS_DIR/$uki_name")
+
+limit=$((2 * 1024 * 1024 * 1024))
+for size in "$signed_size" "$unsigned_size" "$raw_size"; do
+  if (( size >= limit )); then
+    echo "an asset is at or above GitHub's 2 GiB limit" >&2
+    exit 1
+  fi
+done
+
+jq -n \
+  --arg version "$version" \
+  --arg tag "$TAG" \
+  --arg signed_name "$signed_name" \
+  --arg signed_sha "$signed_sha" \
+  --argjson signed_size "$signed_size" \
+  --arg unsigned_name "$unsigned_name" \
+  --arg unsigned_sha "$unsigned_sha" \
+  --argjson unsigned_size "$unsigned_size" \
+  --arg raw_name "$raw_name" \
+  --arg raw_sha "$raw_sha" \
+  --argjson raw_size "$raw_size" \
+  --arg uki_name "$uki_name" \
+  --arg uki_sha "$uki_sha" \
+  --argjson uki_size "$uki_size" \
+  '{
+    version: $version,
+    tag: $tag,
+    full_image: { name: $signed_name, sha256: $signed_sha, size: $signed_size },
+    unsigned_image: { name: $unsigned_name, sha256: $unsigned_sha, size: $unsigned_size },
+    nix_store: {
+      name: $raw_name,
+      sha256: $raw_sha,
+      size: $raw_size,
+      zsync: ($raw_name + ".zsync")
+    },
+    uki: { name: $uki_name, sha256: $uki_sha, size: $uki_size }
+  }' > "$ASSETS_DIR/manifest.json"
+
+(
+  cd "$ASSETS_DIR"
+  sha256sum "$signed_name" "$unsigned_name" "$raw_name" \
+    "$raw_name.zsync" "$uki_name" manifest.json > SHA256SUMS
+)
+
+echo
+ls -lh "$ASSETS_DIR/$signed_name" "$ASSETS_DIR/$unsigned_name" \
+  "$ASSETS_DIR/$raw_name" "$ASSETS_DIR/$raw_name.zsync" \
+  "$ASSETS_DIR/$uki_name" "$ASSETS_DIR/manifest.json" \
+  "$ASSETS_DIR/SHA256SUMS"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo
+  echo "Dry run: assets are in $ASSETS_DIR"
+  exit 0
+fi
+
+command -v gh >/dev/null || {
+  echo "gh is required to upload" >&2
+  exit 1
+}
+gh auth status >/dev/null 2>&1 || {
+  echo "gh is not authenticated" >&2
+  exit 1
+}
+
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+if gh release view "$TAG" --repo "$repo" >/dev/null 2>&1; then
+  if [[ "$FORCE" -eq 0 ]]; then
+    echo "release $TAG already exists; pass --force to replace its assets" >&2
+    exit 1
+  fi
+else
+  notes=$(cat <<EOF
+SlippiOS USB image ${version}.
+
+Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
+
+The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data.
+EOF
+)
+  gh release create "$TAG" \
+    --repo "$repo" \
+    --draft \
+    --target "$(git rev-parse HEAD)" \
+    --title "SlippiOS $version" \
+    --notes "$notes"
+fi
+
+assets=(
+  "$ASSETS_DIR/$signed_name"
+  "$ASSETS_DIR/$unsigned_name"
+  "$ASSETS_DIR/$raw_name"
+  "$ASSETS_DIR/$raw_name.zsync"
+  "$ASSETS_DIR/$uki_name"
+  "$ASSETS_DIR/manifest.json"
+  "$ASSETS_DIR/SHA256SUMS"
+)
+gh release upload "$TAG" "${assets[@]}" --repo "$repo" --clobber
+
+if [[ "$PUBLISH" -eq 1 ]]; then
+  gh release edit "$TAG" --repo "$repo" --draft=false --latest
+  echo "Published: https://github.com/$repo/releases/tag/$TAG"
+else
+  echo "Draft: https://github.com/$repo/releases/tag/$TAG"
+  echo "Publish with: gh release edit $TAG --draft=false --latest"
+fi

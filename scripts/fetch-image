@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download the newest successful SlippiOS USB image and boot it in QEMU.
+# Download the newest published SlippiOS USB image and boot it in QEMU.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -13,7 +13,7 @@ usage() {
   cat <<'USAGE'
 usage: scripts/fetch-image [--offline] [--dry-run] [--no-run] [--disk-size SIZE]
 
-Downloads the newest successful "Build Image" run, verifies its SHA-256,
+Downloads the newest published release, verifies its SHA-256,
 decompresses it, and boots a writable qcow2 overlay in QEMU with OVMF.
 
 The overlay starts at 16G by default so the SLIPPIOS partition can grow on

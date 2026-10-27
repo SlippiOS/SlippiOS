@@ -26,8 +26,8 @@ reboots and SlippiOS updates.
 ## Updates
 
 The updater writes a new UKI signed with the same key. It boots without
-another enrollment. The release manifest must be built from the signed
-UKI, not the unsigned one.
+another enrollment. The release script extracts the signed UKI from the image,
+so the update asset and the image always match.
 
 The shim and MokManager are part of the image. They are not updated by
 systemd-sysupdate. A shim update needs a new image.
@@ -43,13 +43,26 @@ openssl req -new -x509 -newkey rsa:4096 \
   -days 3650 -nodes -subj "/CN=SlippiOS Secure Boot"
 ```
 
-Keep `slippios.key` out of the repository. For local signing, keep it offline.
-For CI, store the PEM key and certificate as `SLIPPIOS_SB_KEY` and
-`SLIPPIOS_SB_CERT` repository secrets. The release workflow signs the default
-image and UKI on tags. The public certificate is embedded in every image as
-`slippios.cer`.
+Keep `slippios.key` offline and out of the repository. The release script reads
+`SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` if set, otherwise
+`~/.config/slippios/secureboot/slippios.key` and `.crt`. The public certificate
+is embedded in every image as `slippios.cer`.
 
-Sign an unsigned image:
+Build, sign, and create a draft release:
+
+```sh
+mise run release
+```
+
+Use `--dry-run` to build and sign without uploading, and `--publish` to publish
+the draft:
+
+```sh
+mise run release -- --dry-run
+mise run release -- --publish
+```
+
+Sign an unsigned image without publishing:
 
 ```sh
 SLIPPIOS_SB_KEY=/path/to/slippios.key \
@@ -69,17 +82,18 @@ Signing is a post-build step so the private key never enters the Nix store.
 
 1. Generate the production key and certificate once.
 2. Back up the private key offline.
-3. Add `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` as repository secrets.
-4. Tag a release with `v*` or `os-*`, or run the Build Image workflow.
+3. Confirm `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` point at the production key,
+   or that the default key is in `~/.config/slippios/secureboot`.
+4. Run `mise run release -- --publish`.
 5. Confirm the release contains the signed image, unsigned image, signed UKI,
    store image, zsync file, manifest, and `SHA256SUMS`.
 6. Boot the signed image on a real PC with Secure Boot on and complete the MOK
    enrollment.
 7. Install an update and confirm it boots without re-enrollment.
 
-The workflow fails if the signing secrets are missing. The first signed
-workflow run should be treated as a release test until the assets and hardware
-boot are verified.
+The release script refuses to run if the key is missing or the working tree is
+dirty. The first signed release should be treated as a release test until the
+assets and hardware boot are verified.
 
 ## Testing
 

@@ -17,8 +17,9 @@ No Docker or system Nix required.
 ## Tasks
 
 ```sh
-mise run build:image    # USB image, compressed for release
+mise run build:image    # USB image for release
 mise run build:image-dev  # uncompressed image, faster local boots
+mise run release        # build, sign, and create a draft release
 mise run dev:cli -- status   # CLI against that sandbox
 mise run dev:ssh        # SSH into the running dev VM
 mise run dev:push       # build CLI + shell and push them into the dev VM
@@ -135,10 +136,10 @@ Delete the qcow2 named after the image hash to reset the guest.
 
 ## CI
 
-- **Validate:** pushes to `main`; Go tests and headless Godot.
-- **Build Image:** `v*`/`os-*` tags and manual dispatch only. The workflow
-  requires `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` repository secrets and
-  fails without them.
+- **Validate:** pushes to `main`; Go tests, headless Godot, and NixOS
+  evaluation.
+
+Releases are built locally. CI does not build or sign images.
 
 Release assets:
 
@@ -155,12 +156,24 @@ SHA256SUMS
 The default image is signed for Secure Boot. The `-unsigned` image is the
 fallback for machines where the shim cannot boot.
 
-Tag a release:
+Build, sign, and create a draft release:
 
 ```sh
-git tag -a v1.0.0 -m "SlippiOS 1.0.0"
-git push origin v1.0.0
+mise run release
 ```
+
+This builds the image incrementally, signs it with the key in
+`~/.config/slippios/secureboot`, generates the assets, and creates a draft
+release. Pass `--publish` to publish it:
+
+```sh
+mise run release -- --publish
+```
+
+Use `--no-build` to reuse `result-local-image`, `--dry-run` to generate assets
+without uploading, and `--tag` to set the tag. The script refuses a dirty
+working tree unless `--allow-dirty` is passed. It creates the release tag on
+GitHub at the current commit.
 
 ## Repository map
 
@@ -179,6 +192,7 @@ apps/shell/                Godot UI
 pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 scripts/build-image        local image build
+scripts/release            local build, sign, and publish
 scripts/run-image          QEMU/OVMF USB runner
 scripts/fetch-image        release downloader
 scripts/sign-image         Secure Boot signing for an image
@@ -302,7 +316,12 @@ again / Power off / Reboot.
 The signed image uses the Fedora 16.1-7 shim and a SlippiOS MOK key. See
 [secure-boot/README.md](../secure-boot/README.md) for the chain and limits.
 
-Sign a local image:
+`scripts/release` signs the image and extracts the signed UKI from it, so the
+update asset matches the image. It reads the key from `SLIPPIOS_SB_KEY` and
+`SLIPPIOS_SB_CERT`, or from `~/.config/slippios/secureboot/slippios.key` and
+`.crt`. Keep the private key offline and out of the repository.
+
+To sign an image without publishing:
 
 ```sh
 SLIPPIOS_SB_KEY=/path/to/slippios.key \
@@ -312,13 +331,7 @@ SLIPPIOS_SB_CERT=/path/to/slippios.crt \
 
 The script downloads the pinned shim RPM, verifies its SHA-256 and both
 Microsoft signatures, signs systemd-boot and the UKI, and installs the shim,
-MokManager, and `slippios.cer`. Keep the private key out of the repository. The
-release workflow reads it from the `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT`
-secrets.
-
-The release workflow signs the default image and the standalone UKI from the
-`SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` secrets. It also publishes the
-unsigned image as a fallback. The manifest uses the signed UKI.
+MokManager, and `slippios.cer`.
 
 Test with OVMF Secure Boot:
 
@@ -412,5 +425,4 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 
 See the [roadmap](../ROADMAP.md). Current priority is real-hardware USB
 validation; install-to-internal-disk is scheduled after that. The signed Secure
-Boot image is a verified prototype; release signing and Mac boot are still
-open.
+Boot image is a verified prototype; hardware boot and Mac boot are still open.

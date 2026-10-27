@@ -154,10 +154,10 @@ removes the saved login.
 
 ## CI and hosting
 
-- **Validate:** pushes to `main`; Go tests and headless Godot.
-- **Build Image:** tags and manual dispatch; full image + update slot + UKI +
-  zsync + manifest, published as a GitHub release.
-- The release workflow signs the default image and the standalone UKI with the
-  `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` secrets, and publishes the unsigned
-  image as a fallback.
+- **Validate:** pushes to `main`; Go tests, headless Godot, and NixOS
+  evaluation.
+- Releases are built locally with `scripts/release`: full image + update slot +
+  UKI + zsync + manifest, published as a GitHub release.
+- The release script signs the default image, extracts the signed UKI from the
+  image, and publishes the unsigned image as a fallback.
 - Release assets are public only when the repository is public.

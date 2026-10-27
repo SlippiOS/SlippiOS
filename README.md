@@ -6,7 +6,8 @@ shell and keeps games, settings, the Slippi login, and replays on the stick.
 **Status:** alpha. A/B system updates, browser sign-in, Wi-Fi setup, network ISO
 upload, and native GameCube-adapter input work. Booting straight into a game
 and opening the menu with hold-A still need real-hardware validation. A signed
-Secure Boot image is in development.
+Secure Boot image is built locally; the first signed release is pending
+hardware verification.
 
 ## Users
 
