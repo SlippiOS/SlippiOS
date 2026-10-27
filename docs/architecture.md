@@ -41,8 +41,13 @@ falls back to the previous good UKI.
 7. A request file starts `slippios-os-update.service`.
 8. The root service runs `systemd-sysupdate`, which writes the inactive store
    partition, updates the ESP, sets the boot counter, and writes
-   `/data/system/update/status.json`.
+   `/data/system/update/status.json` with the target version and the current
+   boot ID.
 9. The shell offers a restart.
+10. If the new system boots, `slippios os status` sees the target version
+    running and clears the result. If boot assessment rolls back to the
+    previous system, the changed boot ID and old version turn the result into
+    a failed update instead of a stale "installed" prompt.
 
 Manifest fields:
 

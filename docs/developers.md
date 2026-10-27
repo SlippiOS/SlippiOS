@@ -52,6 +52,11 @@ improving the appliance.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
+- For local update tests, build the image and the UKI in one evaluation:
+  `./scripts/nix build ...build.image ...build.uki`. A UKI rebuilt after
+  further edits embeds initrd store paths that the earlier store image does not
+  contain, so the installed system drops to emergency mode. CI is safe because
+  it builds from one clean checkout.
 
 ## Local cache and cleanup
 
