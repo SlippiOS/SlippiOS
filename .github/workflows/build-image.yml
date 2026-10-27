@@ -85,6 +85,7 @@ jobs:
           chmod 600 "$key" "$cert"
 
           version=$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)
+          mkdir -p artifacts
           unsigned=$(find -L result-image -maxdepth 1 -name '*.raw' \
             ! -name '*.nix-store.raw' -print -quit)
           if [[ -z "$unsigned" ]]; then
@@ -93,12 +94,11 @@ jobs:
             test -n "$compressed"
             unsigned="artifacts/slippios-usb-${version}-unsigned.raw"
             xz -d -T0 -c "$compressed" > "$unsigned"
+            fallocate --dig-holes "$unsigned" 2>/dev/null || true
           fi
           uki=$(find -L result-uki -maxdepth 1 -name '*.efi' -print -quit)
           test -n "$unsigned"
           test -n "$uki"
-
-          mkdir -p artifacts
           nix shell --inputs-from . \
             nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
             nixpkgs#parted nixpkgs#openssl nixpkgs#curl \
