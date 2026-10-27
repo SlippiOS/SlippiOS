@@ -8,12 +8,17 @@ var _time := 0.0
 
 func _ready() -> void:
 	# Scale from the display so the mark is consistent from 720p to 4K.
+	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_resize()
+	get_viewport().size_changed.connect(_resize)
+	set_process(true)
+
+
+func _resize() -> void:
 	var screen := get_viewport_rect().size
 	var height := screen.y * SlippiTheme.mark_fraction
 	var width := height * (float(Mark.get_width()) / float(Mark.get_height()))
 	custom_minimum_size = Vector2(width, height)
-	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	set_process(true)
 
 
 func _process(delta: float) -> void:
