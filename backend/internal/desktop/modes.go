@@ -96,6 +96,21 @@ func Modes() (DisplayModes, error) {
 	return info, nil
 }
 
+func CurrentResolution() (int, int, error) {
+	info, err := Modes()
+	if err != nil {
+		return 0, 0, err
+	}
+	var width, height int
+	if _, err := fmt.Sscanf(info.Current, "%dx%d", &width, &height); err != nil {
+		return 0, 0, err
+	}
+	if width <= 0 || height <= 0 {
+		return 0, 0, fmt.Errorf("invalid display resolution %q", info.Current)
+	}
+	return width, height, nil
+}
+
 func edidName(output string) string {
 	matches, err := filepath.Glob("/sys/class/drm/card*-" + output + "/edid")
 	if err != nil || len(matches) == 0 {

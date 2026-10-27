@@ -4,23 +4,36 @@ extends "res://screens/screen.gd"
 func present(message: String = "") -> void:
 	clear()
 	title("SETTING UP", 48)
-	label("Checking the MELEE-ROMS drive…", 0.8)
-	var status := label("", 0.75)
-	await app.get_tree().process_frame
-
 	var result := cli(["isos"])
 	var count := 0
 	for entry in result.get("isos", []):
 		if entry.get("valid", false):
 			count += 1
+	var mounted := bool(result.get("mounted", true))
+	var mount_error := str(result.get("mount_error", ""))
 	if not result.get("ok", true):
-		status.text = "Could not read the MELEE-ROMS drive."
+		label("Could not read the MELEE-ROMS drive.", 0.9)
+	elif not mounted:
+		var detail := "MELEE-ROMS is not mounted."
+		if mount_error != "":
+			detail += " " + mount_error
+		label(detail, 0.9)
 	elif count == 0:
-		status.text = "No Melee images found."
+		label("No Melee images found on MELEE-ROMS.", 0.8)
 	else:
-		status.text = "Found %d Melee %s." % [count, "image" if count == 1 else "images"]
-	await app.get_tree().create_timer(0.8).timeout
-	status.text = "Starting setup…"
+		label("Found %d Melee %s." % [count, "image" if count == 1 else "images"], 0.8)
+	if message != "":
+		label(message, 0.9)
+
+	if app.net.local_ip() == "":
+		label("Connect to Wi-Fi or Ethernet, then retry.", 0.8)
+		button("Wi-Fi settings", app.show_wifi.bind(""))
+		button("Retry", present.bind(""))
+		button("Skip for now", app.skip_setup)
+		focus()
+		return
+
+	label("Starting setup…", 0.75)
 	await app.get_tree().create_timer(0.4).timeout
 	app.start_net("setup", message)
 

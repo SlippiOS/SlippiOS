@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/spf13/cobra"
@@ -58,8 +59,20 @@ func runPlay(mode *modes, options playOptions) error {
 	}
 	iso := paths.ISOPath(raw)
 
+	width, height := 640, 480
+	if w, h, err := desktop.CurrentResolution(); err == nil {
+		width, height = w, h
+	}
 	arguments := dolphinArgs(values)
-	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=True", "-b", "-e", iso)
+	arguments = append(arguments,
+		"-C", "Dolphin.Display.Fullscreen=True",
+		"-C", "Dolphin.Display.BorderlessFullscreen=True",
+		"-C", "Dolphin.Display.RenderWindowAutoSize=False",
+		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowWidth=%d", width),
+		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowHeight=%d", height),
+		"-C", "Dolphin.Display.RenderWindowXPos=0",
+		"-C", "Dolphin.Display.RenderWindowYPos=0",
+		"-b", "-e", iso)
 	returncode, err := runDolphin(paths, appimage, arguments)
 	if err != nil {
 		return mode.fail(err.Error())

@@ -137,13 +137,22 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 - `slippios-shell`: Godot kiosk UI; reads controllers through SDL3 and exits
   before Dolphin claims the GameCube adapter.
 - `slippios net --mode setup`: first-boot browser wizard for game and account.
-- `data-isos.mount`: mounts the `MELEE-ROMS` FAT32 partition at `/data/isos`.
+- `slippios-isos.service`: mounts the `MELEE-ROMS` FAT32 partition at
+  `/data/isos` and records the result in `/data/system/isos-mount`.
 - `slippios-recovery`: tty console if the shell and the Openbox fallback both exit.
 - `slippios-session`: terminal session used for hands-on diagnostics.
 - `slippios`: Go CLI; human output on a TTY, JSON when piped.
 - `slippios-os-update.service`: root installer for staged updates.
 - `slippios-os-reboot.path`: root reboot request.
 - `slippios-data.service`: mounts or creates `/data` and seeds controller profiles.
+
+The normal session runs the shell without a window manager. The session applies
+the saved display mode before starting the shell; the shell opens at the screen
+resolution with a borderless window. Dolphin is launched with the same
+resolution and borderless fullscreen. A lightweight kiosk window manager
+(Openbox or matchbox) is a proposed alternative for fullscreen, focus, and
+dialog handling; it needs performance testing before adoption. See the
+[developer guide](developers.md#window-manager-experiment).
 
 ## Slippi auth
 

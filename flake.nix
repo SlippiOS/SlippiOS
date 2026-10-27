@@ -80,14 +80,24 @@
             cli_bin="$dev/slippios"
           fi
 
+          resolution=$(${pkgs.xrandr}/bin/xrandr --current 2>/dev/null |
+            ${pkgs.gawk}/bin/awk '/ connected/ {
+              for (i = 1; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+\+/) { print $i; exit }
+            }' |
+            ${pkgs.coreutils}/bin/cut -d+ -f1)
+          shell_args=(--rendering-driver opengl3)
+          if [ -n "$resolution" ]; then
+            shell_args=(--resolution "$resolution" "''${shell_args[@]}")
+          fi
+
           while true; do
             code=0
             SLIPPIOS_AUTOPLAY="$autoplay" \
             SLIPPIOS_SKIP_SPLASH="$splash" \
             SDL_JOYSTICK_HIDAPI_GAMECUBE=1 \
             SDL_HIDAPI_LIBUSB_GAMECUBE=1 \
-              "$shell_bin" \
-                --fullscreen --rendering-driver opengl3 2>>"$log" || code=$?
+              "$shell_bin" "''${shell_args[@]}" 2>>"$log" || code=$?
 
             # Godot must exit before Dolphin opens the adapter.
             if [ "$code" -eq 42 ]; then

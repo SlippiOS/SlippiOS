@@ -2,7 +2,11 @@ extends "res://screens/screen.gd"
 
 func present(message: String = "") -> void:
 	clear()
-	title("WI-FI", 44)
+	if app.setup_flow:
+		title("CONNECT", 44)
+		label("Connect to Wi-Fi or plug in Ethernet to continue setup.", 0.8)
+	else:
+		title("WI-FI", 44)
 
 	var status := cli(["wifi", "status"])
 	if status.get("ok", false) and status.get("connected", false):
@@ -19,20 +23,16 @@ func present(message: String = "") -> void:
 		var networks: Array = result.get("networks", [])
 		if networks.is_empty():
 			label("No networks found.", 0.7)
-		var shown := 0
 		for network in networks:
-			if shown >= 8:
-				break
 			var ssid := str(network.get("ssid", ""))
 			var security := str(network.get("security", ""))
 			var network_label := ssid
 			if security != "":
 				network_label += "  (%s)" % security
 			button(network_label, _select.bind(ssid, security))
-			shown += 1
 
 	button("Rescan", present.bind(""))
-	button("Back", app.show_settings.bind(""))
+	button("Back", back)
 	focus()
 
 
@@ -44,4 +44,7 @@ func _select(ssid: String, security: String) -> void:
 
 
 func back() -> void:
-	app.show_settings()
+	if app.setup_flow:
+		app.show_setup()
+	else:
+		app.show_settings()

@@ -87,6 +87,30 @@ still requires Secure Boot off.
       Intel T2 Macs require **Allow booting from external or removable media**;
       pre-T2 Intel Macs can boot USB without a firmware change.
 
+## Later: window manager experiment
+
+The normal session runs without a window manager. The shell applies the saved
+display mode before starting, opens at the screen resolution, and sizes a
+borderless window; Dolphin uses the current X resolution and borderless
+fullscreen. Openbox is only the crash/close fallback.
+
+A lightweight kiosk window manager is a proposed general fix for fullscreen,
+window sizing, focus, and Dolphin dialog placement. Openbox is the first
+candidate because it is already installed and handles
+`_NET_WM_STATE_FULLSCREEN`; `matchbox-window-manager` is a lighter alternative.
+A prototype needs a minimal config with no decorations, no root menu, no
+keybindings, and new-window focus.
+
+- [ ] Prototype a minimal Openbox session in the dev VM.
+- [ ] Measure cold boot time and memory/CPU overhead.
+- [ ] Test the shell at 640x480 and 1280x720.
+- [ ] Test Dolphin fullscreen, settings window, and file dialogs.
+- [ ] Measure input latency and game frame pacing.
+- [ ] Check focus stealing, accidental close, and fallback behavior.
+- [ ] Adopt only if it is clearly better than the targeted no-WM fixes.
+
+Decision: keep no-WM for now.
+
 ## Not planned yet
 
 - Dual-boot alongside Windows or another Linux install.

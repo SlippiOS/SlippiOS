@@ -6,6 +6,8 @@ func present(message: String = "") -> void:
 	var settings: Dictionary = app.status.get("settings", {})
 	var current := text_value(settings.get("iso_path"), "")
 	var result := cli(["isos"])
+	var mounted := bool(result.get("mounted", true))
+	var mount_error := str(result.get("mount_error", ""))
 	var found := false
 	var default_entry: Dictionary = {}
 	var others: Array = []
@@ -25,7 +27,12 @@ func present(message: String = "") -> void:
 		var path := str(entry.get("path", ""))
 		var name := str(entry.get("name", path))
 		button(name, _select.bind(path))
-	if not found:
+	if not mounted:
+		var detail := "MELEE-ROMS is not mounted."
+		if mount_error != "":
+			detail += " " + mount_error
+		label(detail, 0.8)
+	elif not found:
 		label("No Melee images found on MELEE-ROMS.", 0.8)
 	if message != "":
 		label(message, 0.9)

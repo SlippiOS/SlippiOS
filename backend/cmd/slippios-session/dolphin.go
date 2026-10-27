@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
@@ -59,10 +60,20 @@ func launch(paths settings.Paths, values map[string]any, appimage string) {
 	}
 	defer logFile.Close()
 
+	width, height := 640, 480
+	if w, h, err := desktop.CurrentResolution(); err == nil {
+		width, height = w, h
+	}
 	command := exec.Command(
 		"slippi-appimage-run", appimage,
 		"-u", paths.DolphinDir,
 		"-C", "Dolphin.Display.Fullscreen=True",
+		"-C", "Dolphin.Display.BorderlessFullscreen=True",
+		"-C", "Dolphin.Display.RenderWindowAutoSize=False",
+		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowWidth=%d", width),
+		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowHeight=%d", height),
+		"-C", "Dolphin.Display.RenderWindowXPos=0",
+		"-C", "Dolphin.Display.RenderWindowYPos=0",
 		"-C", "Graphics.Hardware.VSync=False",
 		"-b", "-e", iso,
 	)

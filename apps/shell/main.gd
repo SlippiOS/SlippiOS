@@ -38,6 +38,7 @@ var actions
 
 var _screen_node = null
 var _busy := false
+var setup_flow := false
 
 
 func _ready() -> void:
@@ -46,7 +47,7 @@ func _ready() -> void:
 	# CI only imports/parses the project; skip the CLI and display probing.
 	if OS.get_environment("SLIPPIOS_PARSE_ONLY") == "1":
 		return
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	_fit_window()
 	_build_base()
 	net.setup_done.connect(_on_net_setup_done)
 	net.upload_done.connect(_on_net_upload_done)
@@ -54,7 +55,7 @@ func _ready() -> void:
 	update_job.finished.connect(_on_os_update_finished)
 	refresh_status()
 	# The graphical session, not the terminal session, applies the saved mode.
-	cli(["display", "apply"])
+	await _apply_display()
 	if OS.get_environment("SLIPPIOS_SKIP_SPLASH") == "1":
 		after_splash()
 	else:
@@ -80,15 +81,57 @@ func _build_base() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	add_child(margin)
+
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.follow_focus = true
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(scroll)
+
 	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
 
 	content = VBoxContainer.new()
-	content.custom_minimum_size = Vector2(760, 0)
 	content.add_theme_constant_override("separation", 12)
 	center.add_child(content)
 	ui.content = content
+	ui.scroll = scroll
+	_resize_content()
+	get_viewport().size_changed.connect(_resize_content)
+
+
+func _apply_display() -> void:
+	cli(["display", "apply"])
+	await get_tree().create_timer(0.25).timeout
+	_fit_window()
+	_resize_content()
+	await get_tree().process_frame
+
+
+func _fit_window() -> void:
+	var screen := DisplayServer.window_get_current_screen()
+	var size := DisplayServer.screen_get_size(screen)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+	DisplayServer.window_set_position(Vector2i(0, 0))
+	DisplayServer.window_set_size(size)
+
+
+func _resize_content() -> void:
+	if content == null:
+		return
+	var available := get_viewport_rect().size.x - 64.0
+	content.custom_minimum_size.x = clampf(available, 0.0, 760.0)
 
 
 func _present(screen, message: String = "") -> void:
@@ -102,6 +145,7 @@ func show_boot_splash() -> void:
 
 func show_menu() -> void:
 	stop_net()
+	setup_flow = false
 	_present(MenuScreen.new(self))
 
 
@@ -112,6 +156,7 @@ func show_roms(message: String = "") -> void:
 
 func show_setup(message: String = "") -> void:
 	stop_net()
+	setup_flow = true
 	_present(SetupScreen.new(self), message)
 
 
@@ -186,6 +231,9 @@ func show_quit() -> void:
 
 
 func start_net(mode: String, message: String = "") -> void:
+	if net.local_ip() == "":
+		show_wifi("Connect to Wi-Fi or Ethernet, then retry.")
+		return
 	net.start(mode)
 	_present(NetScreen.new(self), message)
 
@@ -196,6 +244,7 @@ func stop_net() -> void:
 
 func skip_setup() -> void:
 	stop_net()
+	setup_flow = false
 	refresh_status()
 	show_menu()
 
@@ -233,6 +282,7 @@ func _present_os_result(mode: String, message: String) -> void:
 
 
 func _on_net_setup_done() -> void:
+	setup_flow = false
 	refresh_status()
 	if needs_setup():
 		show_setup("Setup finished, but the console profile is incomplete.")
@@ -262,6 +312,10 @@ func _on_os_update_finished(phase: String, error: String) -> void:
 func after_splash() -> void:
 	if needs_setup():
 		var settings: Dictionary = status.get("settings", {})
+		if not settings.get("exists", false) and net.local_ip() == "":
+			setup_flow = true
+			show_wifi("Connect to Wi-Fi or plug in Ethernet to continue setup.")
+			return
 		if settings.get("exists", false) and has_valid_isos():
 			show_roms("Default Melee image is missing. Choose one.")
 		else:

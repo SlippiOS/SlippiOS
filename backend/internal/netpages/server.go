@@ -50,6 +50,9 @@ func New(token string, port int, paths settings.Paths) *Server {
 }
 
 func LocalAddress() string {
+	if address := interfaceAddress(); address != "" {
+		return address
+	}
 	connection, err := net.Dial("udp4", "8.8.8.8:80")
 	if err != nil {
 		return "127.0.0.1"
@@ -59,6 +62,36 @@ func LocalAddress() string {
 		return address.IP.String()
 	}
 	return "127.0.0.1"
+}
+
+func interfaceAddress() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addresses, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, address := range addresses {
+			var ip net.IP
+			switch value := address.(type) {
+			case *net.IPNet:
+				ip = value.IP
+			case *net.IPAddr:
+				ip = value.IP
+			}
+			if ip == nil || ip.To4() == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+				continue
+			}
+			return ip.String()
+		}
+	}
+	return ""
 }
 
 func (s *Server) writeStatus(ok bool, extra map[string]any) {

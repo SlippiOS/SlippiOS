@@ -224,6 +224,9 @@ them to `-C System.Section.Key=Value` at launch. The important values:
 - `Graphics.Settings.InternalResolution` is the EFB scale (1 = native).
 - `Graphics.Settings.AspectRatio`: 1 widescreen, 2 4:3, 3 Melee, 4 stretch.
 - `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
+- `Dolphin.Display.RenderWindowWidth`/`RenderWindowHeight`,
+  `BorderlessFullscreen`, and `RenderWindowAutoSize=False` are set from the
+  current X resolution so Melee fills the screen without a window manager.
 - Enums are written as integers; booleans as `True`/`False`.
 
 **Expert mode → Dolphin settings window** still opens the real Dolphin GUI for
@@ -280,13 +283,15 @@ it leaves to the system between releases.
 
 ## Melee ROMs
 
-The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`. It is
-mounted at `/data/isos` after `slippi-data.service` creates the directory. The
-partition is fixed-size; the ext4 `/data` partition after it grows to fill the
-stick. The initrd grows it once (parted, `e2fsck -f`, `resize2fs`) and skips the
-work on later boots when the partition already reaches the end of the disk.
-Images keep their original filenames. SlippiOS validates only the GameCube game
-ID, not a hash.
+The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`.
+`slippios-isos.service` waits for the label, mounts it at `/data/isos`, and
+writes the result to `/data/system/isos-mount`. `slippios isos` reports
+`mounted` and `mount_error`; the shell shows a mount failure instead of an empty
+ROM list. The partition is fixed-size; the ext4 `/data` partition after it grows
+to fill the stick. The initrd grows it once (parted, `e2fsck -f`, `resize2fs`)
+and skips the work on later boots when the partition already reaches the end of
+the disk. Images keep their original filenames. SlippiOS validates only the
+GameCube game ID, not a hash.
 
 ## Boot and game handoff
 
@@ -311,6 +316,32 @@ Openbox also exits, it writes `/data/system/shell-failed`;
 `slippios-recovery.service` then conflicts with the display manager and takes
 over tty1 with a recovery console: last shell log lines, failed units, and Try
 again / Power off / Reboot.
+
+### Window manager experiment
+
+The no-WM session sizes windows explicitly: the session applies the saved
+display mode before the shell starts, the shell opens at the screen resolution
+with a borderless window, and Dolphin uses the current X resolution with
+borderless fullscreen. This keeps the kiosk to one window and avoids
+decorations, focus stealing, and accidental close.
+
+A lightweight kiosk window manager is a proposed general fix for fullscreen,
+window sizing, focus, and Dolphin dialog placement. Openbox is the first
+candidate because it is already installed and handles
+`_NET_WM_STATE_FULLSCREEN`; `matchbox-window-manager` is a lighter alternative.
+A prototype needs a minimal `rc.xml` with no decorations, no root menu, no
+keybindings, and new-window focus.
+
+Before adopting it, performance-test:
+
+- cold boot time and memory/CPU overhead;
+- shell layout at 640x480 and 1280x720;
+- Dolphin fullscreen, settings window, and file dialogs;
+- input latency and game frame pacing;
+- focus stealing, accidental close, and fallback behavior.
+
+Decision: keep no-WM for now. Revisit if the targeted fixes are insufficient or
+multi-window behavior becomes a problem.
 
 ## Secure Boot
 
@@ -354,8 +385,11 @@ slippios audio sinks          # JSON list of PulseAudio outputs
 the terminal session, so both apply the same settings.toml values.
 `slippios display modes` reads the driver's xrandr mode list (which is derived
 from EDID) plus the EDID monitor name; `slippios display mode` and
-`slippios display custom` switch or create modes. The shell applies the saved
-mode at boot, and re-adds a custom CVT mode because X forgets runtime modes.
+`slippios display custom` switch or create modes. The session script applies the
+saved mode before starting the shell, so the X screen is already at the target
+resolution when Godot creates its window. The shell applies it again, sizes a
+borderless window to the screen, and re-adds a custom CVT mode because X forgets
+runtime modes.
 
 ## Wi-Fi
 

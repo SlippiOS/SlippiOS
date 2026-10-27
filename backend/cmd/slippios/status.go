@@ -31,7 +31,10 @@ func statusPayload() map[string]any {
 		raw, _ := values["game"].(map[string]any)["iso"].(string)
 		valid, reason := paths.ISOStatus(raw)
 		summary["iso"] = raw
-		summary["iso_path"] = paths.ISOPath(raw)
+		summary["iso_path"] = ""
+		if raw != "" {
+			summary["iso_path"] = paths.ISOPath(raw)
+		}
 		summary["iso_valid"] = valid
 		summary["iso_reason"] = reason
 		if display, ok := values["display"].(map[string]any); ok {

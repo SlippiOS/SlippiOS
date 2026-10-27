@@ -2,11 +2,14 @@ extends RefCounted
 
 
 var content: VBoxContainer
+var scroll: ScrollContainer
 
 
 func clear() -> void:
 	if content == null:
 		return
+	if scroll != null:
+		scroll.scroll_vertical = 0
 	for child in content.get_children():
 		content.remove_child(child)
 		child.queue_free()

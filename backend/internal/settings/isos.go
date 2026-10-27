@@ -12,6 +12,9 @@ import (
 var meleeID = regexp.MustCompile(`^GAL[A-Z0-9]01`)
 
 func (p Paths) ISOStatus(value string) (bool, string) {
+	if value == "" {
+		return false, "not configured"
+	}
 	iso := p.ISOPath(value)
 	file, err := os.Open(iso)
 	if err != nil {

@@ -141,11 +141,16 @@ func _read_json(path: String) -> Dictionary:
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
 
-func _local_ip() -> String:
+func local_ip() -> String:
 	for address in IP.get_local_addresses():
 		if address.contains(".") and not address.begins_with("127.") and not address.begins_with("169.254."):
 			return address
-	return "127.0.0.1"
+	return ""
+
+
+func _local_ip() -> String:
+	var address := local_ip()
+	return address if address != "" else "127.0.0.1"
 
 
 func data_dir() -> String:

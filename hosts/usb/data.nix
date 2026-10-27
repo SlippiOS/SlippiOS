@@ -3,18 +3,43 @@
 let
   version = config.system.image.version;
 in {
-  systemd.mounts = [{
-    what = "/dev/disk/by-label/MELEE-ROMS";
-    where = "/data/isos";
-    type = "vfat";
-    options = "nofail,uid=1000,gid=100,fmask=0133,dmask=0022";
+  systemd.services.slippios-isos = {
+    description = "Mount the MELEE-ROMS partition";
     wantedBy = [ "multi-user.target" ];
-    unitConfig = {
-      After = [ "slippi-data.service" ];
-      Requires = [ "slippi-data.service" ];
-      Before = [ "display-manager.service" ];
+    after = [ "slippi-data.service" ];
+    requires = [ "slippi-data.service" ];
+    before = [ "display-manager.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
     };
-  }];
+    script = ''
+      set -eu
+      isos=/data/isos
+      status=/data/system/isos-mount
+      ${pkgs.coreutils}/bin/mkdir -p "$isos"
+      if ${pkgs.util-linux}/bin/mountpoint -q "$isos"; then
+        echo "mounted" > "$status"
+        exit 0
+      fi
+      error=""
+      i=0
+      while [ "$i" -lt 100 ]; do
+        if [ -b /dev/disk/by-label/MELEE-ROMS ]; then
+          if output=$(${pkgs.util-linux}/bin/mount -L MELEE-ROMS \
+            -o uid=1000,gid=100,fmask=0133,dmask=0022 "$isos" 2>&1); then
+            echo "mounted" > "$status"
+            exit 0
+          fi
+          error=$output
+        fi
+        ${pkgs.coreutils}/bin/sleep 0.1
+        i=$((i + 1))
+      done
+      echo "''${error:-MELEE-ROMS not found}" > "$status"
+      echo "slippios-isos: ''${error:-MELEE-ROMS not found}" >&2
+    '';
+  };
 
   # systemd-repart cannot cap a partition at 100% or repair the GPT backup
   # header. parted -f and resize2fs handle both.

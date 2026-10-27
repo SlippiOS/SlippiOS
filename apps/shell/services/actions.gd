@@ -81,7 +81,10 @@ func connect_wifi(ssid: String, password: String) -> void:
 	var result: Dictionary = app.cli(["wifi", "connect", "--ssid", ssid, "--password", password])
 	if result.get("ok", false):
 		app.refresh_status()
-		app.show_wifi("Connected to %s" % ssid)
+		if app.setup_flow:
+			app.show_setup("Wi-Fi connected.")
+		else:
+			app.show_wifi("Connected to %s" % ssid)
 	elif password == "":
 		app.show_wifi("Could not connect: %s" % str(result.get("error", "unknown error")))
 	else:

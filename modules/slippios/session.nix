@@ -12,6 +12,7 @@ let
     ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
     ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot} || true
     ${pkgs.xset}/bin/xset s off -dpms || true
+    ${slippiosPackages.cli}/bin/slippios display apply || true
     ${shell}/bin/slippios-shell
     ${pkgs.openbox}/bin/openbox &
     wm=$!
