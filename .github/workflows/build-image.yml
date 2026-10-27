@@ -7,15 +7,24 @@ on:
       - "v*"
       - "os-*"
 
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   image:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # The release step creates a GitHub release. This job only runs on tags
+    # and manual dispatch, never on pull requests.
     permissions:
       contents: write
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Free disk space
         run: |
@@ -24,7 +33,7 @@ jobs:
           sudo apt-get clean
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
@@ -89,9 +98,9 @@ jobs:
             echo "### SlippiOS USB image"
             echo ""
             echo "- Version: \`$(nix eval --raw .#nixosConfigurations.slippios-usb.config.system.image.version)\`"
-            echo "- Full image: \`$(basename "$image")\` — $((image_bytes / 1024 / 1024)) MiB"
-            echo "- Store slot: \`$(basename "$raw")\` — $((raw_bytes / 1024 / 1024)) MiB"
-            echo "- UKI: \`$(basename "$uki")\` — $((uki_bytes / 1024 / 1024)) MiB"
+            echo "- Full image: \`$(basename "$image")\`: $((image_bytes / 1024 / 1024)) MiB"
+            echo "- Store slot: \`$(basename "$raw")\`: $((raw_bytes / 1024 / 1024)) MiB"
+            echo "- UKI: \`$(basename "$uki")\`: $((uki_bytes / 1024 / 1024)) MiB"
             echo ""
             if (( image_bytes >= limit )); then
               echo "> Full image is at or above GitHub's 2 GiB release-asset limit."

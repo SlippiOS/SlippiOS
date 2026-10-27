@@ -9,26 +9,43 @@ on:
       - "backend/**"
       - "flake.nix"
       - "flake.lock"
-      - "modules/**"
       - "hosts/**"
+      - "modules/**"
       - "pkgs/**"
+      - "theme/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
       - name: Test Go backend
-        working-directory: backend
-        run: nix shell --inputs-from . nixpkgs#go -c go test ./...
+        run: |
+          nix shell --inputs-from . nixpkgs#go -c sh -c '
+            cd backend
+            test -z "$(gofmt -l cmd internal)" || { gofmt -l cmd internal; exit 1; }
+            go vet ./...
+            go test ./...
+          '
 
       - name: Validate Godot shell
         env:
@@ -36,3 +53,8 @@ jobs:
         run: |
           nix shell --inputs-from . nixpkgs#godot_4 -c sh -c \
             'godot --headless --path apps/shell --import && godot --headless --path apps/shell --quit'
+
+      - name: Evaluate NixOS configurations
+        run: |
+          nix eval --raw .#nixosConfigurations.slippios-usb.config.system.build.toplevel.drvPath
+          nix eval --raw .#nixosConfigurations.slippios-usb-dev.config.system.build.toplevel.drvPath
