@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Melee image picker.
-
 func present(message: String = "") -> void:
 	clear()
 	title("MELEE ROMS", 48)

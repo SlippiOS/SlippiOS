@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Settings hub.
-
 func present(message: String = "") -> void:
 	clear()
 	title("SETTINGS", 44)

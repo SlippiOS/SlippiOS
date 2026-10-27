@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Audio output picker.
-
 func present(_message: String = "") -> void:
 	clear()
 	title("AUDIO OUTPUT", 40)

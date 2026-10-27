@@ -1,4 +1,4 @@
-// Command slippios is the Go control-plane spike.
+// Command slippios is the SlippiOS control CLI.
 package main
 
 import (

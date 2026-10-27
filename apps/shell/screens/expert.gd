@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Expert tools.
-
 func present(_message: String = "") -> void:
 	clear()
 	title("EXPERT TOOLS", 40)

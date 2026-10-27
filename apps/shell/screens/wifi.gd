@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Wi-Fi network picker.
-
 func present(message: String = "") -> void:
 	clear()
 	title("WI-FI", 44)

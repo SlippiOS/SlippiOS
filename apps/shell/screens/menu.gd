@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Main menu.
-
 func present(_message: String = "") -> void:
 	clear()
 	title("SLIPPIOS", 64)

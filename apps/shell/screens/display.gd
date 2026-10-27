@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Display mode picker.
-
 const MAX_MODE_ROWS := 24
 
 

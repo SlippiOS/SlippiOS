@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Power-off confirmation.
-
 func present(_message: String = "") -> void:
 	clear()
 	title("POWER OFF", 44)

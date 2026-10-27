@@ -1,7 +1,5 @@
 extends "res://screens/screen.gd"
 
-## Wi-Fi password entry.
-
 const Keyboard := preload("res://widgets/keyboard.gd")
 
 var ssid := ""
