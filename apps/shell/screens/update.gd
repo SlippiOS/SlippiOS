@@ -21,6 +21,8 @@ func present(_message: String = "") -> void:
 		var current := text_value(os_check.get("current"), "unknown")
 		var latest := text_value(os_check.get("latest"), "unknown")
 		label("System: %s" % current, 0.8)
+		if os_status.get("phase") == "failed":
+			label(text_value(os_status.get("error"), "Last system update failed."), 0.8)
 		if os_check.get("update_available", false):
 			label("Available: %s" % latest, 0.8)
 			button("Install system update", app.start_os_update)

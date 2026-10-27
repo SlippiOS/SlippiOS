@@ -35,6 +35,7 @@ var (
 	sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	versionPrefix = regexp.MustCompile(`^([0-9]+)`)
 	procMounts    = "/proc/mounts"
+	bootIDFile    = "/proc/sys/kernel/random/boot_id"
 )
 
 // Paths describes the update state under /data.
@@ -285,6 +286,16 @@ func currentVersion(paths Paths) string {
 	return value
 }
 
+// currentBootID identifies the running boot, so an install can tell a
+// completed reboot from a rollback to the previous system.
+func currentBootID() string {
+	data, err := os.ReadFile(bootIDFile)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
 // VersionKey is the leading integer of a build version, used for ordering.
 func VersionKey(value string) int64 {
 	match := versionPrefix.FindStringSubmatch(value)
@@ -375,11 +386,40 @@ func (p Paths) Status() map[string]any {
 	if value, ok := service["phase"].(string); ok && value != "" {
 		phase = value
 	}
-	// Once the running version is the one the last update targeted, any
-	// installed/failed result is stale: a successful boot supersedes a failed
-	// install, and the installer clears its own installed result.
-	if phase == "installed" || phase == "failed" {
-		if latestVersion, ok := latest.(string); ok && latestVersion != "" && latestVersion == current {
+	latestVersion, _ := latest.(string)
+	target, _ := service["version"].(string)
+	if target == "" {
+		// Status written by an older installer does not name its target.
+		target = latestVersion
+	}
+
+	switch phase {
+	case "installed":
+		if target != "" && target == current {
+			// The staged update is now running.
+			service = map[string]any{}
+			_ = os.Remove(p.StatusFile)
+			_ = os.Remove(p.Progress)
+			phase = "idle"
+		} else if target != "" && target != current {
+			recorded, _ := service["boot_id"].(string)
+			if recorded != "" && recorded != currentBootID() {
+				// The console rebooted but came back on another version:
+				// boot assessment rolled the update back.
+				service = map[string]any{
+					"ok":    false,
+					"phase": "failed",
+					"error": "The updated system did not boot; the previous system was restored.",
+				}
+				phase = "failed"
+				_ = writeJSON(p.StatusFile, service)
+				_ = os.Remove(p.Progress)
+			}
+		}
+	case "failed":
+		// Once the running version is the one the last update targeted, the
+		// failure is stale (for example after a manual install).
+		if latestVersion != "" && latestVersion == current {
 			service = map[string]any{}
 			_ = os.Remove(p.StatusFile)
 			_ = os.Remove(p.Progress)

@@ -305,6 +305,77 @@ func TestStatusClearsFailedUpdateAfterBoot(t *testing.T) {
 	}
 }
 
+func TestStatusKeepsInstalledBeforeReboot(t *testing.T) {
+	paths := testPaths(t, "100")
+	oldBootID := bootIDFile
+	bootIDFile = filepath.Join(paths.DataDir, "boot_id")
+	defer func() { bootIDFile = oldBootID }()
+	if err := os.WriteFile(bootIDFile, []byte("boot-1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.Latest, map[string]any{"latest": "200"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.StatusFile, map[string]any{
+		"ok": true, "phase": "installed", "version": "200", "boot_id": "boot-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	status := paths.Status()
+	if status["phase"] != "installed" {
+		t.Fatalf("status = %#v", status)
+	}
+	if _, err := os.Stat(paths.StatusFile); err != nil {
+		t.Fatalf("installed status removed before reboot: %v", err)
+	}
+}
+
+func TestStatusDetectsRollbackAfterBoot(t *testing.T) {
+	paths := testPaths(t, "100")
+	oldBootID := bootIDFile
+	bootIDFile = filepath.Join(paths.DataDir, "boot_id")
+	defer func() { bootIDFile = oldBootID }()
+	if err := os.WriteFile(bootIDFile, []byte("boot-2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.Latest, map[string]any{"latest": "200", "update_available": true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.StatusFile, map[string]any{
+		"ok": true, "phase": "installed", "version": "200", "boot_id": "boot-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeJSON(paths.Progress, map[string]any{"phase": "installing"}); err != nil {
+		t.Fatal(err)
+	}
+
+	status := paths.Status()
+	if status["phase"] != "failed" {
+		t.Fatalf("status = %#v", status)
+	}
+	if status["error"] != "The updated system did not boot; the previous system was restored." {
+		t.Fatalf("error = %v", status["error"])
+	}
+	if status["update_available"] != true {
+		t.Fatalf("update should be retryable: %#v", status)
+	}
+	if _, err := os.Stat(paths.Progress); !os.IsNotExist(err) {
+		t.Fatal("progress file still exists")
+	}
+	persisted := readJSON(paths.StatusFile)
+	if persisted["phase"] != "failed" {
+		t.Fatalf("rollback not persisted: %#v", persisted)
+	}
+}
+
 func TestStatusReportsFailure(t *testing.T) {
 	paths := testPaths(t, "100")
 	if err := os.MkdirAll(paths.StageDir, 0o755); err != nil {

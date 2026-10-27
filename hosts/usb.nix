@@ -372,12 +372,17 @@ in {
       TimeoutStartSec = "30min";
       ExecStart = pkgs.writeShellScript "slippios-os-update" ''
         set -eu
-        # Runs as root from the update request path unit.
+        # Runs as root from the update request path unit. The request names
+        # the staged version; record it with this boot's ID so the updater can
+        # tell a completed reboot from a rollback.
         export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
+        target=$(cat /data/system/update/request)
+        boot_id=$(cat /proc/sys/kernel/random/boot_id)
         rm -f /data/system/update/request
         mkdir -p /data/system/update
         if ${config.systemd.package}/lib/systemd/systemd-sysupdate update; then
-          printf '{"ok":true,"phase":"installed"}\n' > /data/system/update/status.json
+          printf '{"ok":true,"phase":"installed","version":"%s","boot_id":"%s"}\n' \
+            "$target" "$boot_id" > /data/system/update/status.json
           rm -f /data/system/update/slippios_*.nix-store.raw \
                 /data/system/update/slippios_*.nix-store.raw.part \
                 /data/system/update/slippios_*.efi
