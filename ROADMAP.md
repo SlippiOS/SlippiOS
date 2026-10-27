@@ -13,8 +13,9 @@ more installation modes.
 - [x] Settings and Update screens render.
 - [x] OS update: staged, installed, rebooted, and rolled back after three
       failed boots; the shell reported the rollback and `/data` survived.
-- [x] Installer rejects a `systemd-sysupdate` no-op instead of recording a
-      false install.
+- [x] Upgraded v6 to v8 with the decimal version format; `/data` survived and
+      the installer rejected a `systemd-sysupdate` no-op instead of recording
+      a false install.
 
 ## Now — USB image
 
