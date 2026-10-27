@@ -162,6 +162,17 @@ func runDolphin(paths settings.Paths, appimage string, arguments []string) (int,
 
 	args := append([]string{appimage, "-u", paths.DolphinDir}, arguments...)
 	command := exec.Command("slippi-appimage-run", args...)
+	cacheDir := filepath.Join(paths.ProfileDir, "cache")
+	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
+		filtered := environment[:0]
+		for _, value := range environment {
+			if strings.HasPrefix(value, "XDG_CACHE_HOME=") {
+				continue
+			}
+			filtered = append(filtered, value)
+		}
+		environment = append(filtered, "XDG_CACHE_HOME="+cacheDir)
+	}
 	command.Env = environment
 
 	logDir := filepath.Join(paths.ProfileDir, "logs")

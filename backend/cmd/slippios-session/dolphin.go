@@ -77,7 +77,19 @@ func launch(paths settings.Paths, values map[string]any, appimage string) {
 		"-C", "Graphics.Hardware.VSync=False",
 		"-b", "-e", iso,
 	)
-	command.Env = environmentWithRuntime()
+	environment := environmentWithRuntime()
+	cacheDir := filepath.Join(paths.ProfileDir, "cache")
+	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
+		filtered := environment[:0]
+		for _, value := range environment {
+			if strings.HasPrefix(value, "XDG_CACHE_HOME=") {
+				continue
+			}
+			filtered = append(filtered, value)
+		}
+		environment = append(filtered, "XDG_CACHE_HOME="+cacheDir)
+	}
+	command.Env = environment
 	command.Stdout = logFile
 	command.Stderr = logFile
 	runErr := command.Run()
