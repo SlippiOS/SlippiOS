@@ -1,6 +1,6 @@
 # Roadmap
 
-Current priority: make the USB appliance reliable on real hardware before adding
+Current priority: make the USB image reliable on real hardware before adding
 more installation modes.
 
 ## Verified in QEMU
@@ -17,9 +17,10 @@ more installation modes.
       the installer rejected a `systemd-sysupdate` no-op instead of recording
       a false install.
 
-## Now — USB image
+## Now: USB image
 
-- [ ] Flash a 16 GB USB stick and boot on real UEFI hardware with Secure Boot off.
+- [ ] Flash a 16 GB USB stick and boot on real UEFI hardware with Secure Boot
+      off (a one-time firmware setting).
 - [ ] Confirm Windows and macOS see and mount `MELEE-ROMS`.
 - [ ] Copy vanilla Melee, Training Mode CE, and one modded ISO; confirm all three
       fit and appear with their original filenames.
@@ -34,12 +35,12 @@ more installation modes.
 - [ ] Confirm `/data` grows to fill the stick and survives reboots.
 - [ ] Test an OS update end to end: stage, install, reboot, and rollback.
 
-## Next — release confidence
+## Next: release confidence
 
 - [ ] Make the repository public (release downloads currently 404 for
       unauthenticated devices), publish a release, and verify unauthenticated
       update downloads. Secure Boot is not a release gate; see
-      [Secure Boot and Mac boot](#later--secure-boot-and-mac-boot).
+      [Secure Boot and Mac boot](#later-secure-boot-and-mac-boot).
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
 - [ ] Stop offering a version that just failed boot assessment until a newer
@@ -47,7 +48,7 @@ more installation modes.
 - [ ] Add a backup/restore path for `/data`.
 - [ ] Test on a second machine to verify hardware binding and login removal.
 
-## Later — install to internal disk
+## Later: install to internal disk
 
 - [ ] Add an **Install to internal disk** mode to the USB shell.
 - [ ] Require explicit target-disk selection and erase confirmation.
@@ -58,9 +59,9 @@ more installation modes.
 - [ ] Initial scope: UEFI only, erase the whole target disk, fresh install.
 - [ ] Decide later whether dual boot and USB-data migration are in scope.
 
-## Later — Secure Boot and Mac boot
+## Later: Secure Boot and Mac boot
 
-Current images require Secure Boot off. That is a one-time firmware setting per
+Current images require Secure Boot off. This is a one-time firmware setting per
 PC, and the player guide documents it. Public releases do not wait for Secure
 Boot support.
 
@@ -73,7 +74,7 @@ Boot support.
       only fully automatic path, but it needs a legal entity, an EV code-signing
       certificate, hardware key storage, shim-review approval, and Microsoft
       signing.
-- [ ] Investigate Mac boot support. Apple Silicon cannot run this x86_64 image;
+- [ ] Investigate Mac boot support. Apple Silicon cannot run this x86_64 image.
       Intel T2 Macs require **Allow booting from external or removable media**;
       pre-T2 Intel Macs can boot USB without a firmware change.
 

@@ -1,5 +1,5 @@
 {
-  description = "SlippiOS: a console-style NixOS appliance for Slippi Melee";
+  description = "SlippiOS: a Melee console built on NixOS";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 

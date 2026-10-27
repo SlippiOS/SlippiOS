@@ -2,9 +2,9 @@
 
 ## Requirements
 
-- 16 GB or larger USB stick.
-- UEFI boot. Secure Boot off (one-time firmware setting).
-- Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
+- A 16 GB or larger USB stick.
+- UEFI boot with Secure Boot off (a one-time firmware setting).
+- A Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
 - Network access for Slippi sign-in and the first Dolphin download.
 
 ## Flash
@@ -12,8 +12,8 @@
 Download `slippios-usb-<version>.img.xz` and `SHA256SUMS` from the
 [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
 
-The image is xz-compressed. It is **not** double-clickable on every desktop;
-use one of the methods below.
+The download is an xz-compressed image. Most desktops cannot open it by
+double-clicking, so use one of the methods below.
 
 Verify the download first:
 
@@ -79,8 +79,8 @@ and reconnect the stick, or check that the image finished writing.
 4. Wait for setup. The data partition grows to fill the stick.
 5. Scan the setup QR with a phone, or open the shown address on any computer on
    the same network.
-6. **Step 1 — Game:** choose one of the images on `MELEE-ROMS`, or upload another.
-7. **Step 2 — Account:** sign in to Slippi, or choose **Skip for offline play**.
+6. **Step 1: Game.** Choose one of the images on `MELEE-ROMS`, or upload another.
+7. **Step 2: Account.** Sign in to Slippi, or choose **Skip for offline play**.
 8. The console starts the selected image automatically.
 
 The setup page is a two-step browser wizard. It works on a phone, tablet, or
@@ -118,7 +118,7 @@ First boot signs you in on the browser setup page. Later, use **Account → Sign
 on the console or **Sign in on another device**.
 
 Passwords are not stored. `slippi-user.json` is an auth token, readable only by
-the appliance user, and bound to the current PC. Moving the USB to another PC
+the player user, and bound to the current PC. Moving the USB to another PC
 requires signing in again.
 
 The setup pages are LAN-only, tokenized in the URL, and served over HTTP. Use
@@ -177,31 +177,31 @@ yet.
 
 ## Troubleshooting
 
-**“Network page stopped”** — the setup page exited. The console shows the
+**The network page stopped.** The setup page exited. The console shows the
 reason. Press **Skip for now** to reach the menu, or reboot to retry the
 wizard. Only one page can run at a time.
 
-**Setup page does not load** — the device and console must be on the same network.
-Disable VPN/client isolation. In the QEMU VM, use
+**The setup page does not load.** The device and console must be on the same
+network. Disable VPN or client isolation. In the QEMU VM, use
 `http://localhost:8080/<token>/` from the host.
 
-**No Melee image** — the file must be a GameCube Melee `.iso` with ID `GALE01`,
+**No Melee image.** The file must be a GameCube Melee `.iso` with ID `GALE01`,
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
 or reboot to reopen the setup page.
 
-**The console shows a recovery menu instead of the shell** — the graphical shell
+**The console shows a recovery menu instead of the shell.** The graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and
-the failed system units, and offers **Try again**, **Power off**, and
+the failed systemd units, and offers **Try again**, **Power off**, and
 **Reboot**. The full log is `/data/system/shell.log` on the `SLIPPIOS` data
 partition. If only the shell crashed, you get an Openbox desktop instead.
 
-**Nothing persists** — use the USB `.img.xz` release, not a live environment.
+**Nothing persists.** Use the USB `.img.xz` release, not a live environment.
 
-**Does not boot** — disable Secure Boot in the firmware settings and select the
-USB device in the UEFI boot menu. This is a one-time setting per PC unless a
-firmware update resets it; SlippiOS does not currently ship a Secure Boot-signed
+**It does not boot.** Turn off Secure Boot in the firmware settings and select
+the USB device in the UEFI boot menu. This is a one-time setting per PC unless a
+firmware update resets it. SlippiOS does not currently ship a Secure Boot-signed
 boot chain.
 
-**Update check fails** — check network access to GitHub and retry.
+**The update check fails.** Check network access to GitHub and retry.
 
-**End-of-support warning** — update the system or flash a current release.
+**End-of-support warning.** Update the system or flash a current release.

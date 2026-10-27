@@ -36,7 +36,7 @@ The image is written to `result-local-image/` (git-ignored).
 `/data/users/default/settings.toml` stays TOML. It is small, human-editable for
 recovery from another machine, and has a maintained Go decoder. JSON remains the
 shell/CLI protocol; changing the config format would add migration work without
-improving the appliance.
+improving the system.
 
 ## Build notes
 
@@ -60,9 +60,9 @@ improving the appliance.
 - Image versions are `<commit-epoch>.<revision>`, with the first seven
   hexadecimal digits of the commit converted to decimal. systemd-boot and
   systemd-sysupdate use `strverscmp_improved`, so a revision must be a numeric
-  segment; a hexadecimal hash that starts with a letter sorts below one that
-  starts with a digit. Do not publish builds using the old
-  `<epoch>-<hash>` format.
+  segment. A hexadecimal hash that starts with a letter sorts below one that
+  starts with a digit. Do not publish builds using the old `<epoch>-<hash>`
+  format.
 
 ## Local cache and cleanup
 
@@ -95,7 +95,7 @@ Nix source tree. Image changes (NixOS modules, packages) still need
 `build:image-dev`.
 
 `scripts/dev` builds a throwaway data tree with a tiny fake Melee image
-(`GALE01` header, not a playable disc) and a settings.toml. The CLI, ISO
+(`GALE01` header, not a playable disc) and a `settings.toml`. The CLI, ISO
 checks, and Dolphin runner can be exercised there without an image build.
 
 `mise run test` starts the shell headlessly with `SLIPPIOS_PARSE_ONLY=1`, so
@@ -122,9 +122,9 @@ SLIPPI_DISPLAY=none SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 SLIPPI_DISK_SIZE=32G mise run run:image
 ```
 
-QEMU has no Wi-Fi hardware, so `wpa_supplicant.service` stays in its
-"wait for a wireless interface" loop and eventually reports failure. That is
-expected; the boot console no longer shows service status lines.
+QEMU has no Wi-Fi hardware, so `wpa_supplicant.service` stays in its "wait for a
+wireless interface" loop and eventually reports failure. That is expected; the
+boot console no longer shows service status lines.
 
 Host port 8080 forwards to the guest. Use
 `http://localhost:8080/<token>/` from the host. QEMU user networking does not
@@ -134,8 +134,8 @@ Delete the qcow2 named after the image hash to reset the guest.
 
 ## CI
 
-- **Validate** — pushes to `main`; Go tests and headless Godot.
-- **Build Image** — `v*`/`os-*` tags and manual dispatch only.
+- **Validate:** pushes to `main`; Go tests and headless Godot.
+- **Build Image:** `v*`/`os-*` tags and manual dispatch only.
 
 Release assets:
 
@@ -159,13 +159,15 @@ git push origin v1.0.0
 
 ```text
 flake.nix                  NixOS configs and app packages
-hosts/usb.nix              A/B USB image, sysupdate, data growth
-modules/slippios.nix       kiosk, user, data mount, boot hooks
+hosts/usb.nix              USB image composition
+hosts/usb/                 boot, data, image, services, and update modules
+modules/slippios.nix       base module composition
+modules/slippios/          theme, session, data, and system modules
 backend/                   Go CLI, session fallback, auth, updates, LAN pages
 apps/shell/                Godot UI
-  main.gd                  app state, boot flow, routing, system actions
+  main.gd                  app state, boot flow, screen routing, update orchestration
   screens/                 one screen module per flow
-  services/                CLI wrapper, browser setup server, OS update job
+  services/                CLI, browser setup, update job, UI builders, status, actions
   widgets/                 shared controls
 pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
@@ -204,9 +206,9 @@ anything the curated list does not cover (controller bindings, profiles).
 
 ## Boot splash
 
-Plymouth uses a charge-style `two-step` theme: `modules/slippios.nix` renders 24
-throbber frames from the mark with a sine opacity, and the C throbber plugin
-animates them over two seconds. This avoids the script plugin's refresh
+Plymouth uses a charge-style `two-step` theme: `modules/slippios/theme.nix`
+renders 24 throbber frames from the mark with a sine opacity, and the C throbber
+plugin animates them over two seconds. This avoids the script plugin's refresh
 callback, which did not animate in QEMU's frame-buffer fallback.
 
 Plymouth frames are a fixed 324 px high (30% of 1080p), because two-step themes
@@ -214,12 +216,12 @@ cannot scale per display. The Godot splash does scale: it sizes the mark to 30%
 of the screen height and pulses it.
 
 The initrd loads `virtio_gpu` and `bochs` so Plymouth has a framebuffer in a VM
-before stage 2; physical machines use the firmware framebuffer through the
+before stage 2. Physical machines use the firmware framebuffer through the
 built-in `simpledrm` until the native driver loads. NixOS hardcodes
 `DeviceTimeout=8` in `plymouthd.conf`, which leaves console text on screen until
-the wait expires; the module replaces that file with `DeviceTimeout=1` in both
-the initrd and stage 2. With `loglevel=0` and `ShowStatus=no`, the splash covers
-the console immediately and no TTY lines leak through.
+the wait expires; the theme module replaces that file with `DeviceTimeout=1` in
+both the initrd and stage 2. With `loglevel=0` and `ShowStatus=no`, the splash
+covers the console immediately and no TTY lines leak through.
 
 When the session starts, the X session script paints
 `apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so
@@ -235,7 +237,7 @@ raster assets; replace it when the SlippiOS mark exists.
 
 `theme/default.nix` is the single source of truth for the background, surface,
 accent and text colors, plus the splash mark size and pulse. Nix uses it for the
-Plymouth theme, LightDM's greeter background and the X root color. The module
+Plymouth theme, LightDM's greeter background, and the X root color. The module
 also installs it as `/etc/slippios/theme.json`; the `SlippiTheme` Godot autoload
 reads that file at startup and applies the clear color and UI colors. The
 compiled fallback in `theme.gd` keeps the dev sandbox usable without the file.
@@ -257,8 +259,9 @@ The USB image creates a 5 GiB FAT32 partition labelled `MELEE-ROMS`. It is
 mounted at `/data/isos` after `slippi-data.service` creates the directory. The
 partition is fixed-size; the ext4 `/data` partition after it grows to fill the
 stick. The initrd grows it once (parted, `e2fsck -f`, `resize2fs`) and skips the
-work on later boots when the partition already reaches the end of the disk. Images keep their original filenames. SlippiOS validates only the
-GameCube game ID, not a hash.
+work on later boots when the partition already reaches the end of the disk.
+Images keep their original filenames. SlippiOS validates only the GameCube game
+ID, not a hash.
 
 ## Boot and game handoff
 
@@ -318,7 +321,7 @@ slippios os update
 slippios os reboot
 ```
 
-`osupdate.go` fetches `manifest.json`, zsyncs the store image against the active
+The updater fetches `manifest.json`, zsyncs the store image against the active
 `/nix/store` device, verifies SHA-256, downloads the UKI, and writes a request
 file. A root oneshot runs `systemd-sysupdate`. The shell polls
 `/data/system/update/status.json` and offers a restart.
@@ -334,19 +337,20 @@ Range requests for zsync.
 
 ## Network pages
 
-The first-boot setup page is a two-step browser wizard served by `slippios net --mode
-setup`: game image, then Slippi account or offline. The shell shows only the QR
-and progress; the browser writes the normal `settings.toml` and login files.
+The first-boot setup page is a two-step browser wizard served by
+`slippios net --mode setup`: game image, then Slippi account or offline. The
+shell shows only the QR and progress; the browser writes the normal
+`settings.toml` and login files.
 
 The shell reads:
 
-- `/data/system/net-status.json` — server URL or startup error.
-- `/data/system/setup.json` — `game_ready`, `account_ready`, `done`, and error.
-- `/data/system/net-upload.json` — written after a validated upload.
+- `/data/system/net-status.json`: server URL or startup error.
+- `/data/system/setup.json`: `game_ready`, `account_ready`, `done`, and error.
+- `/data/system/net-upload.json`: written after a validated upload.
 
 When `setup.json` reports `done`, the shell stops the server and launches Melee.
 Port 8080 is retried for five seconds. `--mode iso` and `--mode login` remain for
-the older single-purpose pages used by tests/account flows. The wizard works
+the older single-purpose pages used by tests and account flows. The wizard works
 from any LAN device, not just a phone.
 
 ## Debugging
@@ -365,4 +369,5 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 ## Known work
 
 See the [roadmap](../ROADMAP.md). Current priority is real-hardware USB
-validation; install-to-internal-disk is scheduled after that.
+validation; install-to-internal-disk is scheduled after that. Secure Boot and
+Mac boot are later investigations.

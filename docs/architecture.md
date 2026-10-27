@@ -17,10 +17,10 @@ GPT
 - Versions are `<commit-epoch>.<revision>`, where `<revision>` is the first
   seven hexadecimal digits of the commit converted to decimal. systemd-boot
   and systemd-sysupdate order versions with `strverscmp_improved`, which ranks
-  a numeric segment above an alphabetic one; a hexadecimal hash starting with
-  a letter sorts below one starting with a digit. The old `<epoch>-<hash>`
-  format could therefore make a newer build look older. Legacy hyphen
-  versions sort below the decimal form.
+  a numeric segment above an alphabetic one. A hexadecimal hash starting with
+  a letter sorts below one starting with a digit, so the old `<epoch>-<hash>`
+  format could make a newer build look older. Legacy hyphen versions sort
+  below the decimal form.
 - `/data` is a separate partition and is never written by system updates.
 - `MELEE-ROMS` is mounted at `/data/isos`; it is the only PC-visible data drive.
 - A first-boot service grows `SLIPPIOS` and its ext4 filesystem to fill the USB.
@@ -31,6 +31,9 @@ GPT
 2. The newest UKI is selected by version.
 3. The initrd mounts the matching squashfs store and the root ext4.
 4. Stage 2 starts the kiosk, mounts `/data`, and launches the Godot shell.
+
+The boot chain is unsigned. Current images require Secure Boot off; see
+[the roadmap](../ROADMAP.md#later-secure-boot-and-mac-boot).
 
 Each updated UKI carries a three-attempt boot counter. `systemd-bless-boot`
 removes it after a successful boot. If the counter reaches zero, systemd-boot
@@ -66,13 +69,13 @@ Manifest fields:
   "tag": "v1.0.0",
   "nix_store": {
     "name": "slippios_<version>.nix-store.raw",
-    "sha256": "…",
+    "sha256": "...",
     "size": 1992294400,
     "zsync": "slippios_<version>.nix-store.raw.zsync"
   },
   "uki": {
     "name": "slippios_<version>.efi",
-    "sha256": "…",
+    "sha256": "...",
     "size": 40100000
   }
 }
@@ -111,16 +114,16 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 
 ## Components
 
-- `slippios-shell` — Godot kiosk UI; reads controllers through SDL3 and exits
+- `slippios-shell`: Godot kiosk UI; reads controllers through SDL3 and exits
   before Dolphin claims the GameCube adapter.
-- `slippios net --mode setup` — first-boot browser wizard for game and account.
-- `data-isos.mount` — mounts `MELEE-ROMS` FAT32 at `/data/isos`.
-- `slippios-recovery` — tty console if the shell and the Openbox fallback both exit.
-- `slippios-session` — terminal session used for hands-on diagnostics.
-- `slippios` — Go CLI; human output on a TTY, JSON when piped.
-- `slippios-os-update.service` — root installer for staged updates.
-- `slippios-os-reboot.path` — root reboot request.
-- `slippios-data.service` — mounts/creates `/data`, seeds controller profiles.
+- `slippios net --mode setup`: first-boot browser wizard for game and account.
+- `data-isos.mount`: mounts the `MELEE-ROMS` FAT32 partition at `/data/isos`.
+- `slippios-recovery`: tty console if the shell and the Openbox fallback both exit.
+- `slippios-session`: terminal session used for hands-on diagnostics.
+- `slippios`: Go CLI; human output on a TTY, JSON when piped.
+- `slippios-os-update.service`: root installer for staged updates.
+- `slippios-os-reboot.path`: root reboot request.
+- `slippios-data.service`: mounts or creates `/data` and seeds controller profiles.
 
 ## Slippi auth
 
@@ -131,7 +134,7 @@ removes the saved login.
 
 ## CI and hosting
 
-- **Validate** on pushes: Go tests and headless Godot.
-- **Build Image** on tags/manual: full image + update slot + UKI + zsync +
-  manifest, published as a GitHub release.
+- **Validate:** pushes to `main`; Go tests and headless Godot.
+- **Build Image:** tags and manual dispatch; full image + update slot + UKI +
+  zsync + manifest, published as a GitHub release.
 - Release assets are public only when the repository is public.
