@@ -180,7 +180,7 @@ if ! ln -f "$nix_store" "$ASSETS_DIR/$raw_name" 2>/dev/null; then
   cp -f "$nix_store" "$ASSETS_DIR/$raw_name"
 fi
 ./scripts/nix shell --inputs-from . nixpkgs#zsync -c \
-  zsyncmake -o "$ASSETS_DIR/$raw_name.zsync" "$ASSETS_DIR/$raw_name"
+  zsyncmake -u "$raw_name" -o "$ASSETS_DIR/$raw_name.zsync" "$ASSETS_DIR/$raw_name"
 
 signed_sha=$(sha256sum "$ASSETS_DIR/$signed_name" | cut -d' ' -f1)
 unsigned_sha=$(sha256sum "$ASSETS_DIR/$unsigned_name" | cut -d' ' -f1)
