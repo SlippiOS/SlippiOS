@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	"github.com/SlippiOS/SlippiOS/backend/internal/netpages"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/spf13/cobra"
 )
@@ -54,6 +55,7 @@ func statusPayload() map[string]any {
 		"login":    map[string]any{"signed_in": login, "detail": loginDetail},
 		"dolphin":  map[string]any{"current": currentDolphin},
 		"adapter":  map[string]any{"present": adapter},
+		"network":  map[string]any{"address": netpages.LocalAddress()},
 	}
 }
 

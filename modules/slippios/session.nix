@@ -10,7 +10,7 @@ let
     trap 'exit 0' TERM INT HUP
 
     ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
-    ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot} || true
+    ${pkgs.xwallpaper}/bin/xwallpaper --max ${splashBoot} || true
     ${pkgs.xset}/bin/xset s off -dpms || true
     ${pkgs.openbox}/bin/openbox --config-file /etc/xdg/openbox/rc.xml &
     wm=$!
