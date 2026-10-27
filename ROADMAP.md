@@ -3,6 +3,16 @@
 Current priority: make the USB appliance reliable on real hardware before adding
 more installation modes.
 
+## Verified in QEMU
+
+- [x] Cold-boot splash, browser wizard QR, and **Skip for now**.
+- [x] Menu, `Melee ROMs`, and default-image selection persisted in `settings.toml`.
+- [x] Cold-boot autoplay, Dolphin first-launch download, and reopening the shell
+      after Dolphin exits without a second splash.
+- [x] `/data` grew from 1 GiB to fill a 16 GB disk and survived a reboot.
+- [x] Settings and Update screens render.
+- [ ] OS update: stage, install, reboot, rollback, and failure paths.
+
 ## Now — USB image
 
 - [ ] Flash a 16 GB USB stick and boot on real UEFI hardware with Secure Boot off.
@@ -22,7 +32,9 @@ more installation modes.
 
 ## Next — release confidence
 
-- [ ] Publish a public release and verify unauthenticated update downloads.
+- [ ] Make the repository public (release downloads currently 404 for
+      unauthenticated devices), publish a release, and verify unauthenticated
+      update downloads.
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
 - [ ] Add a backup/restore path for `/data`.
