@@ -173,7 +173,8 @@ mise run release -- --publish
 Use `--no-build` to reuse `result-local-image`, `--dry-run` to generate assets
 without uploading, and `--tag` to set the tag. The script refuses a dirty
 working tree unless `--allow-dirty` is passed. It creates the release tag on
-GitHub at the current commit.
+GitHub at the current commit. Assets are written to
+`.cache/release/<version>/` (git-ignored).
 
 ## Repository map
 
