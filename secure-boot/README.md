@@ -48,6 +48,15 @@ Keep `slippios.key` offline and out of the repository. The release script reads
 `~/.config/slippios/secureboot/slippios.key` and `.crt`. The public certificate
 is embedded in every image as `slippios.cer`.
 
+The production certificate SHA-256 fingerprint is:
+
+```text
+B6:C7:CF:F2:FC:B0:0F:73:48:5F:49:67:C1:79:1A:01:B5:07:2A:68:F0:37:57:70:BE:E6:34:2F:8C:5F:72:F2
+```
+
+Check a certificate with
+`openssl x509 -in slippios.crt -noout -fingerprint -sha256`.
+
 Build, sign, and create a draft release:
 
 ```sh
