@@ -1,0 +1,10 @@
+{
+  "variables": [
+    {
+      "name": "MokTimeout",
+      "guid": "605dab50-e046-4300-abb6-3dd810dd8b23",
+      "attr": 7,
+      "data": "1e000000"
+    }
+  ]
+}

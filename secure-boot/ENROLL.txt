@@ -1,0 +1,18 @@
+SlippiOS Secure Boot setup
+
+SlippiOS uses a Microsoft-signed shim from Fedora and a SlippiOS key
+enrolled in MOK. You only need to do this once per PC.
+
+1. Boot the stick with Secure Boot on.
+2. When the shim reports "Verification failed: (0x1A) Security Violation",
+   press OK.
+3. When the "Shim UEFI key management" screen appears, press any key
+   before the countdown ends.
+4. Choose "Enroll key from disk".
+5. Choose the "BOOT" volume.
+6. Choose "slippios.cer".
+7. Choose "Continue", then "Yes".
+8. Choose "Reboot".
+
+The key is now trusted on this PC. Future SlippiOS updates use the same
+key and do not require another enrollment.

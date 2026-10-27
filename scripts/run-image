@@ -21,6 +21,7 @@ Environment:
   SLIPPI_DISK_SIZE   virtual disk size (default 16G)
   SLIPPI_DISPLAY     QEMU display backend (default gtk, use none for headless)
   SLIPPI_VGA         std (default) or virtio (DRM/KMS like real hardware)
+  SLIPPI_SECURE_BOOT 1 to use OVMF Secure Boot firmware and vars
   SLIPPI_SSH_PORT    host port forwarded to the dev VM's SSH (default 2222)
   SLIPPI_MONITOR     QEMU monitor socket (default ~/.cache/slippios/<id>.sock)
 
@@ -74,12 +75,20 @@ if [[ ! -f "$overlay" ]]; then
   qemu-img create -f qcow2 -F raw -b "$raw" "$overlay" "$DISK_SIZE"
 fi
 
+secure_boot="${SLIPPI_SECURE_BOOT:-0}"
+code_name="OVMF_CODE.fd"
+vars_name="OVMF_VARS.fd"
+if [[ "$secure_boot" == "1" ]]; then
+  code_name="OVMF_CODE.secboot.fd"
+  vars_name="OVMF_VARS.secboot.fd"
+fi
+
 code=""
 vars=""
 for prefix in /usr/share/OVMF /usr/share/edk2/ovmf /usr/share/edk2-ovmf /usr/share/qemu; do
-  if [[ -f "$prefix/OVMF_CODE.fd" && -f "$prefix/OVMF_VARS.fd" ]]; then
-    code="$prefix/OVMF_CODE.fd"
-    vars="$prefix/OVMF_VARS.fd"
+  if [[ -f "$prefix/$code_name" && -f "$prefix/$vars_name" ]]; then
+    code="$prefix/$code_name"
+    vars="$prefix/$vars_name"
     break
   fi
 done
@@ -88,7 +97,7 @@ if [[ -z "$code" ]]; then
   exit 1
 fi
 
-vars_copy="$CACHE/OVMF_VARS-$(basename "$raw").fd"
+vars_copy="$CACHE/OVMF_VARS-$(basename "$raw")-${secure_boot}.fd"
 if [[ ! -f "$vars_copy" ]]; then
   cp "$vars" "$vars_copy"
 fi

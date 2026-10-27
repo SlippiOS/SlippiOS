@@ -3,7 +3,8 @@
 ## Requirements
 
 - A 16 GB or larger USB stick.
-- UEFI boot with Secure Boot off (a one-time firmware setting).
+- UEFI boot. The unsigned image needs Secure Boot off (a one-time firmware
+  setting). The signed image needs a one-time MOK enrollment.
 - A Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
 - Network access for Slippi sign-in and the first Dolphin download.
 
@@ -175,6 +176,18 @@ when possible and fall back to a full download.
 Reflashing the whole USB erases this partition. There is no automatic backup
 yet.
 
+## Secure Boot
+
+The signed image boots with Secure Boot on. The first boot needs a one-time
+MOK enrollment per PC. See [the enrollment steps](../secure-boot/ENROLL.txt).
+
+After enrollment, updates use the same key and do not ask again. Some PCs
+require **Allow Microsoft 3rd Party UEFI CA**; Intel T2 Macs require
+**Allow booting from external or removable media**; Apple Silicon cannot run
+this x86_64 image.
+
+If the shim cannot boot, use the unsigned image with Secure Boot off.
+
 ## Troubleshooting
 
 **The network page stopped.** The setup page exited. The console shows the
@@ -197,10 +210,10 @@ partition. If only the shell crashed, you get an Openbox desktop instead.
 
 **Nothing persists.** Use the USB `.img.xz` release, not a live environment.
 
-**It does not boot.** Turn off Secure Boot in the firmware settings and select
-the USB device in the UEFI boot menu. This is a one-time setting per PC unless a
-firmware update resets it. SlippiOS does not currently ship a Secure Boot-signed
-boot chain.
+**It does not boot.** Select the USB device in the UEFI boot menu. The unsigned
+image requires Secure Boot off. The signed image requires a one-time MOK
+enrollment; see [the enrollment steps](../secure-boot/ENROLL.txt). Some
+firmware also requires **Allow Microsoft 3rd Party UEFI CA**.
 
 **The update check fails.** Check network access to GitHub and retry.
 

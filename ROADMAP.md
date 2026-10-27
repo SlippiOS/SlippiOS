@@ -16,11 +16,16 @@ more installation modes.
 - [x] Upgraded v6 to v8 with the decimal version format; `/data` survived and
       the installer rejected a `systemd-sysupdate` no-op instead of recording
       a false install.
+- [x] Secure Boot: Fedora 16.1-7 dual-signed shim, SlippiOS MOK key, signed
+      systemd-boot and UKI; first-boot enrollment and a re-signed UKI boot
+      verified under OVMF.
 
 ## Now: USB image
 
 - [ ] Flash a 16 GB USB stick and boot on real UEFI hardware with Secure Boot
       off (a one-time firmware setting).
+- [ ] Boot the signed image with Secure Boot on and complete the one-time MOK
+      enrollment.
 - [ ] Confirm Windows and macOS see and mount `MELEE-ROMS`.
 - [ ] Copy vanilla Melee, Training Mode CE, and one modded ISO; confirm all three
       fit and appear with their original filenames.
@@ -39,8 +44,8 @@ more installation modes.
 
 - [ ] Make the repository public (release downloads currently 404 for
       unauthenticated devices), publish a release, and verify unauthenticated
-      update downloads. Secure Boot is not a release gate; see
-      [Secure Boot and Mac boot](#later-secure-boot-and-mac-boot).
+      update downloads. Secure Boot is not a release gate; the signed image is
+      a separate asset. See [Secure Boot and Mac boot](#later-secure-boot-and-mac-boot).
 - [ ] Test update failure paths: no network, bad checksum, interrupted download.
 - [ ] Test power loss during writes and boot-counter rollback.
 - [ ] Stop offering a version that just failed boot assessment until a newer
@@ -61,19 +66,21 @@ more installation modes.
 
 ## Later: Secure Boot and Mac boot
 
-Current images require Secure Boot off. This is a one-time firmware setting per
-PC, and the player guide documents it. Public releases do not wait for Secure
-Boot support.
+The signed image prototype uses a Fedora 16.1-7 shim, dual-signed by Microsoft
+UEFI CA 2011 and 2023, plus a SlippiOS MOK key. The first boot requires a
+one-time MOK enrollment per PC; updates use the same key. The unsigned image
+still requires Secure Boot off.
 
-- [ ] Document per-vendor Secure Boot off steps in the player guide.
-- [ ] Evaluate reusing a Microsoft-signed distro shim with a one-time MOK
-      enrollment. This avoids Microsoft signing, but every PC gets a blue
-      MokManager screen, some firmware needs **Allow Microsoft 3rd Party UEFI
-      CA** enabled, and CA/dbx updates can force re-enrollment.
-- [ ] Evaluate a custom shim with an embedded SlippiOS certificate. This is the
-      only fully automatic path, but it needs a legal entity, an EV code-signing
-      certificate, hardware key storage, shim-review approval, and Microsoft
-      signing.
+- [ ] Integrate signing into the release workflow and sign the image and UKI
+      before generating the manifest.
+- [ ] Document the one-time MOK enrollment in the player guide and keep the
+      unsigned image as a fallback.
+- [ ] Document per-vendor Secure Boot off steps for the unsigned fallback.
+- [ ] Test the signed image on real UEFI hardware with Secure Boot on.
+- [ ] Evaluate a custom Microsoft-signed shim with an embedded SlippiOS
+      certificate for zero-interaction boot. This needs a legal entity, an EV
+      code-signing certificate, hardware key storage, shim-review approval, and
+      Microsoft signing.
 - [ ] Investigate Mac boot support. Apple Silicon cannot run this x86_64 image.
       Intel T2 Macs require **Allow booting from external or removable media**;
       pre-T2 Intel Macs can boot USB without a firmware change.

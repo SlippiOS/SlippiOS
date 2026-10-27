@@ -120,6 +120,7 @@ the monitor socket.
 ```sh
 SLIPPI_DISPLAY=none SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 SLIPPI_DISK_SIZE=32G mise run run:image
+SLIPPI_SECURE_BOOT=1 SLIPPI_DISPLAY=none mise run run:image
 ```
 
 QEMU has no Wi-Fi hardware, so `wpa_supplicant.service` stays in its "wait for a
@@ -174,6 +175,8 @@ pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 scripts/build-image        local image build
 scripts/run-image          QEMU/OVMF USB runner
 scripts/fetch-image        release downloader
+scripts/sign-image         Secure Boot signing for an image
+secure-boot/               shim, enrollment note, and signing docs
 ```
 
 ## Shell binary
@@ -287,6 +290,36 @@ Openbox also exits, it writes `/data/system/shell-failed`;
 over tty1 with a recovery console: last shell log lines, failed units, and Try
 again / Power off / Reboot.
 
+## Secure Boot
+
+The signed image uses the Fedora 16.1-7 shim and a SlippiOS MOK key. See
+[secure-boot/README.md](../secure-boot/README.md) for the chain and limits.
+
+Sign a local image:
+
+```sh
+SLIPPIOS_SB_KEY=/path/to/slippios.key \
+SLIPPIOS_SB_CERT=/path/to/slippios.crt \
+  mise run sign:image -- result-local-image/slippios_<version>.raw signed.raw
+```
+
+The script downloads the pinned shim RPM, verifies its SHA-256 and both
+Microsoft signatures, signs systemd-boot and the UKI, and installs the shim,
+MokManager, and `slippios.cer`. Keep the private key offline.
+
+The release workflow still publishes the unsigned image. Signing must be
+integrated before a signed release asset is published, and the manifest must
+use the signed UKI.
+
+Test with OVMF Secure Boot:
+
+```sh
+SLIPPI_SECURE_BOOT=1 SLIPPI_DISPLAY=none mise run run:image
+```
+
+The first boot shows the shim verification error and MokManager. Enroll
+`slippios.cer`; later boots and updates use the MOK key.
+
 ## Display and audio
 
 ```sh
@@ -369,5 +402,6 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 ## Known work
 
 See the [roadmap](../ROADMAP.md). Current priority is real-hardware USB
-validation; install-to-internal-disk is scheduled after that. Secure Boot and
-Mac boot are later investigations.
+validation; install-to-internal-disk is scheduled after that. The signed Secure
+Boot image is a verified prototype; release signing and Mac boot are still
+open.

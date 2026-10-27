@@ -32,12 +32,22 @@ GPT
 3. The initrd mounts the matching squashfs store and the root ext4.
 4. Stage 2 starts the kiosk, mounts `/data`, and launches the Godot shell.
 
-The boot chain is unsigned. Current images require Secure Boot off; see
+The unsigned image has no Secure Boot chain and requires Secure Boot off. The
+signed image uses a Fedora shim and a one-time MOK enrollment; see
 [the roadmap](../ROADMAP.md#later-secure-boot-and-mac-boot).
 
 Each updated UKI carries a three-attempt boot counter. `systemd-bless-boot`
 removes it after a successful boot. If the counter reaches zero, systemd-boot
 falls back to the previous good UKI.
+
+### Secure Boot
+
+The signed image installs the Fedora 16.1-7 shim as `EFI/BOOT/BOOTX64.EFI`. The
+shim is dual-signed by Microsoft UEFI CA 2011 and 2023. It loads `grubx64.efi`,
+a SlippiOS-signed systemd-boot, which loads the SlippiOS-signed UKI. The
+SlippiOS certificate is enrolled in MOK on first boot; updates use the same key
+and do not require re-enrollment. The shim and MokManager are part of the image
+and are not updated by systemd-sysupdate.
 
 ## System update
 
@@ -137,4 +147,6 @@ removes the saved login.
 - **Validate:** pushes to `main`; Go tests and headless Godot.
 - **Build Image:** tags and manual dispatch; full image + update slot + UKI +
   zsync + manifest, published as a GitHub release.
+- The release workflow currently publishes the unsigned image. Secure Boot
+  signing is a local step until it is integrated into the workflow.
 - Release assets are public only when the repository is public.
