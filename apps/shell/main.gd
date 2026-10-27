@@ -3,14 +3,12 @@ extends Control
 ## SlippiOS shell app: boot flow, screen routing, and system actions. Screens
 ## build the actual pages; services own the CLI and background processes.
 
-const GAME_EXIT := 42
-const DOLPHIN_EXIT := 43
-const TERMINAL_EXIT := 44
-const EDITOR_EXIT := 45
-
 const Cli := preload("res://services/cli.gd")
 const NetPage := preload("res://services/net_page.gd")
 const UpdateJob := preload("res://services/update_job.gd")
+const Ui := preload("res://services/ui.gd")
+const ShellStatus := preload("res://services/status.gd")
+const Actions := preload("res://services/actions.gd")
 
 const BootScreen := preload("res://screens/boot.gd")
 const MenuScreen := preload("res://screens/menu.gd")
@@ -36,12 +34,17 @@ var status: Dictionary = {}
 var content: VBoxContainer
 var net = NetPage.new()
 var update_job = UpdateJob.new()
+var ui = Ui.new()
+var shell_status
+var actions
 
 var _screen_node = null
 var _busy := false
 
 
 func _ready() -> void:
+	shell_status = ShellStatus.new(self)
+	actions = Actions.new(self)
 	# CI only imports/parses the project; skip the CLI and display probing.
 	if OS.get_environment("SLIPPIOS_PARSE_ONLY") == "1":
 		return
@@ -88,6 +91,7 @@ func _build_base() -> void:
 	content.custom_minimum_size = Vector2(760, 0)
 	content.add_theme_constant_override("separation", 12)
 	center.add_child(content)
+	ui.content = content
 
 
 func _present(screen, message: String = "") -> void:
@@ -282,114 +286,43 @@ func on_play() -> void:
 
 
 func launch_game() -> void:
-	if _busy:
-		return
-	if needs_setup():
-		show_setup("No valid game image yet.")
-		return
-	_busy = true
-	_screen_node = null
-	clear()
-	add_title("LAUNCHING", 44)
-	add_label("Preparing Slippi Dolphin…", 0.8)
-	await get_tree().process_frame
-
-	# Fetch/verify Dolphin while this screen is still visible. The wrapper
-	# starts the game after Godot exits, releasing the adapter for Dolphin.
-	# Keep stderr out of the captured output: download progress is not JSON.
-	var result := cli(["update"], false)
-	if not result.get("ok", false):
-		_busy = false
-		clear()
-		add_title("COULD NOT START", 44)
-		add_label(str(result.get("error", "Could not prepare Slippi Dolphin.")), 0.9)
-		add_button("Back", show_menu)
-		focus_first()
-		return
-	get_tree().quit(GAME_EXIT)
+	await actions.launch_game()
 
 
 func open_dolphin_settings() -> void:
-	_busy = true
-	_screen_node = null
-	clear()
-	add_title("LAUNCHING", 44)
-	add_label("Preparing Slippi Dolphin…", 0.8)
-	await get_tree().process_frame
-
-	# Same hand-off as Play: make sure Dolphin is installed, then let the
-	# wrapper start its settings window after Godot releases the adapter.
-	var result := cli(["update"], false)
-	if not result.get("ok", false):
-		_busy = false
-		clear()
-		add_title("COULD NOT START", 44)
-		add_label(str(result.get("error", "Could not prepare Slippi Dolphin.")), 0.9)
-		add_button("Back", show_menu)
-		focus_first()
-		return
-	get_tree().quit(DOLPHIN_EXIT)
+	await actions.open_dolphin_settings()
 
 
 func open_terminal() -> void:
-	_screen_node = null
-	clear()
-	add_title("TERMINAL", 44)
-	add_label("Opening a terminal…", 0.8)
-	await get_tree().process_frame
-	get_tree().quit(TERMINAL_EXIT)
+	await actions.open_terminal()
 
 
 func open_editor() -> void:
-	_screen_node = null
-	clear()
-	add_title("TEXT EDITOR", 44)
-	add_label("Opening settings.toml…", 0.8)
-	await get_tree().process_frame
-	get_tree().quit(EDITOR_EXIT)
+	await actions.open_editor()
 
 
 func connect_wifi(ssid: String, password: String) -> void:
-	var result := cli(["wifi", "connect", "--ssid", ssid, "--password", password])
-	if result.get("ok", false):
-		refresh_status()
-		show_wifi("Connected to %s" % ssid)
-	elif password == "":
-		show_wifi("Could not connect: %s" % str(result.get("error", "unknown error")))
-	else:
-		show_wifi_password(ssid, str(result.get("error", "Could not connect.")))
+	actions.connect_wifi(ssid, password)
 
 
 func refresh_status() -> void:
-	status = cli(["status"])
+	shell_status.refresh()
 
 
 func needs_setup() -> bool:
-	var settings: Dictionary = status.get("settings", {})
-	return not settings.get("exists", false) or not settings.get("iso_valid", false)
+	return shell_status.needs_setup()
 
 
 func has_valid_isos() -> bool:
-	var result := cli(["isos"])
-	for entry in result.get("isos", []):
-		if entry.get("valid", false):
-			return true
-	return false
+	return shell_status.has_valid_isos()
 
 
 func expert_enabled() -> bool:
-	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
-	return bool(settings.get("expert", {}).get("enabled", false))
+	return shell_status.expert_enabled()
 
 
 func status_text() -> String:
-	var settings: Dictionary = status.get("settings", {})
-	var login: Dictionary = status.get("login", {})
-	var dolphin: Dictionary = status.get("dolphin", {})
-	var game: String = "ready" if settings.get("iso_valid", false) else str(settings.get("iso_reason", "not configured"))
-	var account: String = "signed in" if login.get("signed_in", false) else "not signed in"
-	var version: String = text_value(dolphin.get("current"), "not installed")
-	return "Game: %s\nLogin: %s\nDolphin: %s" % [game, account, version]
+	return shell_status.text()
 
 
 func settings_held() -> bool:
@@ -405,61 +338,28 @@ func cli(args: Array, read_stderr: bool = true) -> Dictionary:
 
 
 func text_value(value: Variant, fallback: String) -> String:
-	if value == null:
-		return fallback
-	var text := str(value)
-	return fallback if text == "" else text
+	return ui.text_value(value, fallback)
 
 
 func clear() -> void:
-	for child in content.get_children():
-		content.remove_child(child)
-		child.queue_free()
+	ui.clear()
 
 
 func add_title(text: String, size: int = 56) -> Label:
-	var node := Label.new()
-	node.text = text
-	node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	node.add_theme_font_size_override("font_size", size)
-	content.add_child(node)
-	return node
+	return ui.add_title(text, size)
 
 
 func add_label(text: String, alpha: float = 0.65) -> Label:
-	var node := Label.new()
-	node.text = text
-	node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	node.modulate = Color(1, 1, 1, alpha)
-	content.add_child(node)
-	return node
+	return ui.add_label(text, alpha)
 
 
 func add_button(text: String, callback: Callable, height: int = 50) -> Button:
-	var node := Button.new()
-	node.text = text
-	node.custom_minimum_size = Vector2(0, height)
-	node.pressed.connect(callback)
-	content.add_child(node)
-	return node
+	return ui.add_button(text, callback, height)
 
 
 func add_content(node: Control) -> void:
-	content.add_child(node)
+	ui.add_content(node)
 
 
 func focus_first() -> void:
-	var first := _find_button(content)
-	if first != null:
-		first.grab_focus()
-
-
-func _find_button(node: Node) -> Button:
-	if node is Button:
-		return node
-	for child in node.get_children():
-		var found := _find_button(child)
-		if found != null:
-			return found
-	return null
+	ui.focus_first()
