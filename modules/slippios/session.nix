@@ -6,17 +6,19 @@ let
   splashBoot = ../../apps/shell/assets/slippi-boot.png;
 
   session = pkgs.writeShellScript "slippios-x-session" ''
-    # A display-manager stop is not a crash; do not start Openbox.
+    # A display-manager stop is not a crash.
     trap 'exit 0' TERM INT HUP
 
     ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
     ${pkgs.xwallpaper}/bin/xwallpaper --zoom ${splashBoot} || true
     ${pkgs.xset}/bin/xset s off -dpms || true
+    ${pkgs.openbox}/bin/openbox --config-file /etc/xdg/openbox/rc.xml &
+    wm=$!
+    ${pkgs.coreutils}/bin/sleep 0.5
     ${slippiosPackages.cli}/bin/slippios display apply || true
     ${shell}/bin/slippios-shell
-    ${pkgs.openbox}/bin/openbox &
-    wm=$!
-    sleep 1
+    # The shell wrapper handles games and tools. If it exits unexpectedly,
+    # leave Openbox running and open a terminal for diagnosis.
     ${pkgs.xterm}/bin/xterm -fa Monospace -fs 14 &
     term=$!
     wait "$wm"

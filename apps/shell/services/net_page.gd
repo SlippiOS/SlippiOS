@@ -142,6 +142,10 @@ func _read_json(path: String) -> Dictionary:
 
 
 func local_ip() -> String:
+	var output: Array = []
+	var code := OS.execute("nmcli", PackedStringArray(["-t", "-f", "STATE", "general"]), output, true)
+	if code != 0 or output.is_empty() or str(output[0]).strip_edges() != "connected":
+		return ""
 	for address in IP.get_local_addresses():
 		if address.contains(".") and not address.begins_with("127.") and not address.begins_with("169.254."):
 			return address

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_menu xmlns="http://openbox.org/3.4/menu">
+  <menu id="root-menu" label="SlippiOS">
+    <item label="SlippiOS shell">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/slippios-shell</command>
+      </action>
+    </item>
+    <item label="Terminal">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/xterm -fa Monospace -fs 14</command>
+      </action>
+    </item>
+    <item label="Text editor">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/xterm -fa Monospace -fs 14 -e /run/current-system/sw/bin/nano /data/users/default/settings.toml</command>
+      </action>
+    </item>
+    <item label="Dolphin settings">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/slippios dolphin config</command>
+      </action>
+    </item>
+    <separator />
+    <item label="Reboot">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/slippios os reboot</command>
+      </action>
+    </item>
+    <item label="Power off">
+      <action name="Execute">
+        <command>/run/current-system/sw/bin/slippios poweroff</command>
+      </action>
+    </item>
+  </menu>
+</openbox_menu>
