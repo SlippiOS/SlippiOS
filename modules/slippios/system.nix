@@ -1,7 +1,15 @@
 { pkgs, slippiosPackages, ... }:
 
+let
+  amdgpuFirmware = pkgs.runCommand "amdgpu-firmware" { } ''
+    mkdir -p $out/lib/firmware
+    cp -r ${pkgs.linux-firmware}/lib/firmware/amdgpu $out/lib/firmware/
+  '';
+in
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  hardware.firmware = [ amdgpuFirmware ];
 
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"

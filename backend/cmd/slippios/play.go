@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -77,6 +78,7 @@ func runPlay(mode *modes, options playOptions) error {
 	if err != nil {
 		return mode.fail(err.Error())
 	}
+	logPath := filepath.Join(paths.ProfileDir, "logs", "dolphin.log")
 	return mode.emit(map[string]any{
 		"ok": returncode == 0, "iso": iso, "returncode": returncode,
 	}, func() {
@@ -84,6 +86,7 @@ func runPlay(mode *modes, options playOptions) error {
 			mode.println("Dolphin exited cleanly.")
 		} else {
 			mode.printf("Dolphin exited with status %d.\n", returncode)
+			mode.println("Log: " + logPath)
 		}
 	})
 }
@@ -160,8 +163,24 @@ func runDolphin(paths settings.Paths, appimage string, arguments []string) (int,
 	args := append([]string{appimage, "-u", paths.DolphinDir}, arguments...)
 	command := exec.Command("slippi-appimage-run", args...)
 	command.Env = environment
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+
+	logDir := filepath.Join(paths.ProfileDir, "logs")
+	logPath := filepath.Join(logDir, "dolphin.log")
+	var logFile *os.File
+	if err := os.MkdirAll(logDir, 0o755); err == nil {
+		if file, err := os.Create(logPath); err == nil {
+			logFile = file
+			defer logFile.Close()
+		}
+	}
+	if logFile != nil {
+		command.Stdout = logFile
+		command.Stderr = logFile
+	} else {
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+	}
+
 	if err := command.Run(); err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {

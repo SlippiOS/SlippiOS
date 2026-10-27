@@ -100,13 +100,13 @@
 
             # Godot must exit before Dolphin opens the adapter.
             if [ "$code" -eq 42 ]; then
-              "$cli_bin" play || true
+              "$cli_bin" play >>"$log" 2>&1 || true
               autoplay=0
               splash=1
               continue
             fi
             if [ "$code" -eq 43 ]; then
-              "$cli_bin" dolphin config || true
+              "$cli_bin" dolphin config >>"$log" 2>&1 || true
               autoplay=0
               splash=1
               continue
