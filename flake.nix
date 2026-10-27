@@ -80,18 +80,17 @@
             cli_bin="$dev/slippios"
           fi
 
-          resolution=$(${pkgs.xrandr}/bin/xrandr --current 2>/dev/null |
-            ${pkgs.gawk}/bin/awk '/ connected/ {
-              for (i = 1; i <= NF; i++)
-                if ($i ~ /^[0-9]+x[0-9]+\+/) { print $i; exit }
-            }' |
-            ${pkgs.coreutils}/bin/cut -d+ -f1)
-          shell_args=(--rendering-driver opengl3)
-          if [ -n "$resolution" ]; then
-            shell_args=(--resolution "$resolution" "''${shell_args[@]}")
-          fi
-
           while true; do
+            resolution=$(${pkgs.xrandr}/bin/xrandr --current 2>/dev/null |
+              ${pkgs.gawk}/bin/awk '/ connected/ {
+                for (i = 1; i <= NF; i++)
+                  if ($i ~ /^[0-9]+x[0-9]+\+/) { print $i; exit }
+              }' |
+              ${pkgs.coreutils}/bin/cut -d+ -f1)
+            shell_args=(--rendering-driver opengl3)
+            if [ -n "$resolution" ]; then
+              shell_args=(--resolution "$resolution" "''${shell_args[@]}")
+            fi
             code=0
             SLIPPIOS_AUTOPLAY="$autoplay" \
             SLIPPIOS_SKIP_SPLASH="$splash" \
@@ -122,6 +121,11 @@
             if [ "$code" -eq 45 ]; then
               ${pkgs.xterm}/bin/xterm -fullscreen -fa Monospace -fs 16 \
                 -e ${pkgs.nano}/bin/nano /data/users/default/settings.toml || true
+              autoplay=0
+              splash=1
+              continue
+            fi
+            if [ "$code" -eq 46 ]; then
               autoplay=0
               splash=1
               continue

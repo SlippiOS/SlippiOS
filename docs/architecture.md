@@ -148,10 +148,11 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 
 The normal session runs the shell without a window manager. The session applies
 the saved display mode before starting the shell; the shell opens at the screen
-resolution with a borderless window. Dolphin is launched with the same
-resolution and borderless fullscreen. A lightweight kiosk window manager
-(Openbox or matchbox) is a proposed alternative for fullscreen, focus, and
-dialog handling; it needs performance testing before adoption. See the
+resolution with a borderless window. Changing the mode from the shell restarts
+it so the viewport is rebuilt at the new resolution. Dolphin is launched with
+the same resolution and borderless fullscreen. A lightweight kiosk window
+manager (Openbox or matchbox) is a proposed alternative for fullscreen, focus,
+and dialog handling; it needs performance testing before adoption. See the
 [developer guide](developers.md#window-manager-experiment).
 
 ## Slippi auth

@@ -340,6 +340,10 @@ func launch_game() -> void:
 	await actions.launch_game()
 
 
+func restart_shell() -> void:
+	get_tree().quit(46)
+
+
 func open_dolphin_settings() -> void:
 	await actions.open_dolphin_settings()
 

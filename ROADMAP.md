@@ -104,6 +104,7 @@ keybindings, and new-window focus.
 - [ ] Prototype a minimal Openbox session in the dev VM.
 - [ ] Measure cold boot time and memory/CPU overhead.
 - [ ] Test the shell at 640x480 and 1280x720.
+- [ ] Test runtime resolution changes.
 - [ ] Test Dolphin fullscreen, settings window, and file dialogs.
 - [ ] Measure input latency and game frame pacing.
 - [ ] Check focus stealing, accidental close, and fallback behavior.

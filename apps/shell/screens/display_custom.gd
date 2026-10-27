@@ -26,7 +26,7 @@ func _apply(spec: String) -> void:
 	if not result.get("ok", false):
 		present(str(result.get("error", "The display rejected that mode.")))
 		return
-	app.show_settings("Custom mode applied: %s." % value)
+	app.restart_shell()
 
 
 func back() -> void:

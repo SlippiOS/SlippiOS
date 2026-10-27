@@ -81,7 +81,7 @@ func _select(resolution: String, rate: String) -> void:
 		app.show_display("Could not switch mode: %s" %
 			str(result.get("error", "unknown error")))
 		return
-	app.show_settings("Display set to %s @ %s Hz." % [resolution, rate])
+	app.restart_shell()
 
 
 func back() -> void:

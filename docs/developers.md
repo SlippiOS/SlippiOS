@@ -304,6 +304,7 @@ Godot never launches Dolphin itself. It exits with a code and the
 | 43 | `slippios dolphin config` (Dolphin settings window), then reopen |
 | 44 | xterm running a login shell, then reopen |
 | 45 | xterm running nano on settings.toml, then reopen |
+| 46 | restart the shell at the new display resolution |
 | anything else | exit; the X session starts Openbox |
 
 This releases the GameCube adapter for Dolphin instead of leaving it claimed by
@@ -322,8 +323,9 @@ again / Power off / Reboot.
 The no-WM session sizes windows explicitly: the session applies the saved
 display mode before the shell starts, the shell opens at the screen resolution
 with a borderless window, and Dolphin uses the current X resolution with
-borderless fullscreen. This keeps the kiosk to one window and avoids
-decorations, focus stealing, and accidental close.
+borderless fullscreen. A live resolution change restarts the shell so the
+viewport is rebuilt at the new size. This keeps the kiosk to one window and
+avoids decorations, focus stealing, and accidental close.
 
 A lightweight kiosk window manager is a proposed general fix for fullscreen,
 window sizing, focus, and Dolphin dialog placement. Openbox is the first
@@ -336,6 +338,7 @@ Before adopting it, performance-test:
 
 - cold boot time and memory/CPU overhead;
 - shell layout at 640x480 and 1280x720;
+- runtime resolution changes;
 - Dolphin fullscreen, settings window, and file dialogs;
 - input latency and game frame pacing;
 - focus stealing, accidental close, and fallback behavior.
@@ -389,7 +392,8 @@ from EDID) plus the EDID monitor name; `slippios display mode` and
 saved mode before starting the shell, so the X screen is already at the target
 resolution when Godot creates its window. The shell applies it again, sizes a
 borderless window to the screen, and re-adds a custom CVT mode because X forgets
-runtime modes.
+runtime modes. Changing the mode from the shell exits with code 46; the wrapper
+recomputes the screen resolution and reopens the shell at the new size.
 
 ## Wi-Fi
 
