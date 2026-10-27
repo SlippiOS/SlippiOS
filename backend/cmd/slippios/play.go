@@ -2,9 +2,7 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,39 +10,51 @@ import (
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
-func playCommand(args []string, mode modes) {
-	flags := flag.NewFlagSet("play", flag.ContinueOnError)
-	flags.SetOutput(io.Discard)
-	requireLogin := flags.Bool("require-login", false, "refuse to start without a saved login")
-	if err := flags.Parse(args); err != nil {
-		fail(err.Error())
-	}
+type playOptions struct {
+	requireLogin bool
+}
 
+func newPlayCommand(mode *modes) *cobra.Command {
+	options := playOptions{}
+	command := &cobra.Command{
+		Use:   "play",
+		Short: "Launch Slippi Dolphin with the selected image",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPlay(mode, options)
+		},
+	}
+	command.Flags().BoolVar(&options.requireLogin, "require-login", false, "refuse to start without a saved login")
+	return command
+}
+
+func runPlay(mode *modes, options playOptions) error {
 	paths := settings.DefaultPaths()
-	if installed, _ := paths.InstallLogin(settings.Defaults()); !installed && *requireLogin {
-		fail("not signed in")
+	if installed, _ := paths.InstallLogin(settings.Defaults()); !installed && options.requireLogin {
+		return mode.fail("not signed in")
 	}
 	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(mode.stderr(), message)
 	}, false)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 
 	values, err := paths.Load()
 	if err != nil {
-		fail("no game image")
+		return mode.fail("no game image")
 	}
 	game, _ := values["game"].(map[string]any)
 	raw, _ := game["iso"].(string)
 	if raw == "" {
-		fail("no game image")
+		return mode.fail("no game image")
 	}
 	valid, reason := paths.ISOStatus(raw)
 	if !valid {
-		fail(reason)
+		return mode.fail(reason)
 	}
 	iso := paths.ISOPath(raw)
 
@@ -52,15 +62,15 @@ func playCommand(args []string, mode modes) {
 	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=True", "-b", "-e", iso)
 	returncode, err := runDolphin(paths, appimage, arguments)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
-	emit(map[string]any{
+	return mode.emit(map[string]any{
 		"ok": returncode == 0, "iso": iso, "returncode": returncode,
-	}, mode, func() {
+	}, func() {
 		if returncode == 0 {
-			fmt.Println("Dolphin exited cleanly.")
+			mode.println("Dolphin exited cleanly.")
 		} else {
-			fmt.Printf("Dolphin exited with status %d.\n", returncode)
+			mode.printf("Dolphin exited with status %d.\n", returncode)
 		}
 	})
 }

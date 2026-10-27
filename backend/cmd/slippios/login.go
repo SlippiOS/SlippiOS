@@ -2,18 +2,42 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/auth"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
 type credentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type loginOptions struct {
+	email    string
+	password string
+	stdin    bool
+	file     string
+}
+
+func newLoginCommand(mode *modes) *cobra.Command {
+	options := loginOptions{}
+	command := &cobra.Command{
+		Use:   "login",
+		Short: "Sign in to Slippi",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runLogin(mode, options)
+		},
+	}
+	command.Flags().StringVar(&options.email, "email", "", "Slippi account email")
+	command.Flags().StringVar(&options.password, "password", "", "Slippi account password")
+	command.Flags().BoolVar(&options.stdin, "stdin", false, "read {email,password} JSON from stdin")
+	command.Flags().StringVar(&options.file, "file", "", "read {email,password} JSON from a file")
+	return command
 }
 
 func readCredentials(path string, fromStdin bool) (credentials, error) {
@@ -42,47 +66,37 @@ func readCredentials(path string, fromStdin bool) (credentials, error) {
 	return value, nil
 }
 
-func loginCommand(args []string, mode modes) {
-	flags := flag.NewFlagSet("login", flag.ContinueOnError)
-	flags.SetOutput(io.Discard)
-	email := flags.String("email", "", "Slippi account email")
-	password := flags.String("password", "", "Slippi account password")
-	fromStdin := flags.Bool("stdin", false, "read {email,password} JSON from stdin")
-	file := flags.String("file", "", "read {email,password} JSON from a file")
-	if err := flags.Parse(args); err != nil {
-		fail(err.Error())
-	}
-
-	credentials, err := readCredentials(*file, *fromStdin)
+func runLogin(mode *modes, options loginOptions) error {
+	credentials, err := readCredentials(options.file, options.stdin)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	if credentials.Email == "" {
-		credentials.Email = *email
+		credentials.Email = options.email
 	}
 	if credentials.Password == "" {
-		credentials.Password = *password
+		credentials.Password = options.password
 	}
 	if credentials.Email == "" || credentials.Password == "" {
-		fail("email and password are required")
+		return mode.fail("email and password are required")
 	}
 
 	user, err := auth.Login(credentials.Email, credentials.Password)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 
 	paths := settings.DefaultPaths()
 	if err := os.MkdirAll(paths.ProfileDir, 0o755); err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	data, err := json.MarshalIndent(user, "", "  ")
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	target := paths.Resolve(settings.DefaultUserJSON)
 	if err := os.WriteFile(target, data, 0o600); err != nil {
-		fail(fmt.Sprintf("cannot write %s: %v", target, err))
+		return mode.fail(fmt.Sprintf("cannot write %s: %v", target, err))
 	}
 	_ = os.Chmod(target, 0o600)
 
@@ -100,7 +114,7 @@ func loginCommand(args []string, mode modes) {
 	if !installed {
 		payload["error"] = detail
 	}
-	emit(payload, mode, func() {
-		fmt.Printf("Signed in as %s (%s)\n", user.DisplayName, user.ConnectCode)
+	return mode.emit(payload, func() {
+		mode.printf("Signed in as %s (%s)\n", user.DisplayName, user.ConnectCode)
 	})
 }

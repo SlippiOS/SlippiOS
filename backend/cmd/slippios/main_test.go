@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -68,21 +68,15 @@ func TestLoginCommandInstallsLogin(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("SLIPPIOS_DATA", root)
 
-	old := os.Stdout
-	reader, writer, err := os.Pipe()
-	if err != nil {
+	var output bytes.Buffer
+	mode := &modes{json: true, out: &output, err: &output}
+	if err := runLogin(mode, loginOptions{email: "player@example.com", password: "secret"}); err != nil {
 		t.Fatal(err)
 	}
-	os.Stdout = writer
-	loginCommand([]string{"--email", "player@example.com", "--password", "secret"}, modes{json: true})
-	_ = writer.Close()
-	os.Stdout = old
-	output, _ := io.ReadAll(reader)
-	reader.Close()
 
 	var payload map[string]any
-	if err := json.Unmarshal(output, &payload); err != nil {
-		t.Fatalf("output = %q: %v", output, err)
+	if err := json.Unmarshal(output.Bytes(), &payload); err != nil {
+		t.Fatalf("output = %q: %v", output.String(), err)
 	}
 	if payload["ok"] != true || payload["connect_code"] != "PLR#1" {
 		t.Fatalf("payload = %#v", payload)
@@ -95,5 +89,49 @@ func TestLoginCommandInstallsLogin(t *testing.T) {
 	}
 	if !strings.Contains(string(installed), `"playKey": "key"`) {
 		t.Fatalf("installed = %s", installed)
+	}
+}
+
+func TestCommandTree(t *testing.T) {
+	root := newRootCommand()
+	paths := [][]string{
+		{"status"},
+		{"settings"},
+		{"settings", "show"},
+		{"settings", "set"},
+		{"isos"},
+		{"login"},
+		{"net"},
+		{"update"},
+		{"os"},
+		{"os", "check"},
+		{"os", "status"},
+		{"os", "update"},
+		{"os", "reboot"},
+		{"play"},
+		{"dolphin"},
+		{"dolphin", "config"},
+		{"dolphin", "reset"},
+		{"display"},
+		{"display", "apply"},
+		{"display", "modes"},
+		{"display", "mode"},
+		{"display", "custom"},
+		{"audio"},
+		{"audio", "sinks"},
+		{"poweroff"},
+		{"wifi"},
+		{"wifi", "scan"},
+		{"wifi", "status"},
+		{"wifi", "connect"},
+	}
+	for _, path := range paths {
+		command, _, err := root.Find(path)
+		if err != nil {
+			t.Fatalf("find %v: %v", path, err)
+		}
+		if command == nil {
+			t.Fatalf("missing command %v", path)
+		}
 	}
 }

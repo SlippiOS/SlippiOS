@@ -2,40 +2,53 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
-	"fmt"
-	"io"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/netpages"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
-func netCommand(args []string) {
-	flags := flag.NewFlagSet("net", flag.ContinueOnError)
-	flags.SetOutput(io.Discard)
-	token := flags.String("token", "", "URL token")
-	port := flags.Int("port", 8080, "listen port")
-	mode := flags.String("mode", "setup", "setup, iso, or login")
-	if err := flags.Parse(args); err != nil {
-		fail(err.Error())
+type netOptions struct {
+	token string
+	port  int
+	mode  string
+}
+
+func newNetCommand(mode *modes) *cobra.Command {
+	options := netOptions{port: 8080, mode: "setup"}
+	command := &cobra.Command{
+		Use:   "net",
+		Short: "Serve the LAN setup pages",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runNet(mode, options)
+		},
 	}
-	if *token == "" {
-		fail("--token is required")
+	command.Flags().StringVar(&options.token, "token", "", "URL token")
+	command.Flags().IntVar(&options.port, "port", 8080, "listen port")
+	command.Flags().StringVar(&options.mode, "mode", "setup", "setup, iso, or login")
+	return command
+}
+
+func runNet(mode *modes, options netOptions) error {
+	if options.token == "" {
+		return mode.fail("--token is required")
 	}
-	switch *mode {
+	switch options.mode {
 	case "setup", "iso", "login":
 	default:
-		fail("unknown net mode: " + *mode)
+		return mode.fail("unknown net mode: " + options.mode)
 	}
-	server := netpages.New(*token, *port, settings.DefaultPaths())
-	server.Mode = *mode
+	server := netpages.New(options.token, options.port, settings.DefaultPaths())
+	server.Mode = options.mode
 	url, err := server.Start()
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	line, _ := json.Marshal(map[string]any{"ok": true, "url": url})
-	fmt.Println(string(line))
+	mode.println(string(line))
 	if err := server.Serve(); err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
+	return nil
 }

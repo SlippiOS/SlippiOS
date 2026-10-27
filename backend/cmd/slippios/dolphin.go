@@ -7,49 +7,67 @@ import (
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
-func dolphinCommand(args []string, mode modes) {
-	if len(args) == 0 {
-		fail("usage: slippios dolphin config|reset")
+func newDolphinCommand(mode *modes) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "dolphin",
+		Short: "Open or reset Dolphin",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return mode.fail("usage: slippios dolphin config|reset")
+		},
 	}
-	switch args[0] {
-	case "config":
-		dolphinConfigCommand(mode)
-	case "reset":
-		config := filepath.Join(settings.DefaultPaths().DolphinDir, "Config")
-		for _, name := range []string{"Dolphin.ini", "GFX.ini", "GCPadNew.ini"} {
-			_ = os.Remove(filepath.Join(config, name))
-		}
-		emit(map[string]any{"ok": true}, mode, func() {
-			fmt.Println("Dolphin configuration reset.")
-		})
-	default:
-		fail("usage: slippios dolphin config|reset")
-	}
+	command.AddCommand(&cobra.Command{
+		Use:   "config",
+		Short: "Open Dolphin's settings window",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDolphinConfig(mode)
+		},
+	})
+	command.AddCommand(&cobra.Command{
+		Use:   "reset",
+		Short: "Reset Dolphin's configuration",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDolphinReset(mode)
+		},
+	})
+	return command
 }
 
-// dolphinConfigCommand opens Dolphin's own settings window so users can bind
+func runDolphinReset(mode *modes) error {
+	config := filepath.Join(settings.DefaultPaths().DolphinDir, "Config")
+	for _, name := range []string{"Dolphin.ini", "GFX.ini", "GCPadNew.ini"} {
+		_ = os.Remove(filepath.Join(config, name))
+	}
+	return mode.emit(map[string]any{"ok": true}, func() {
+		mode.println("Dolphin configuration reset.")
+	})
+}
+
+// runDolphinConfig opens Dolphin's own settings window so users can bind
 // controllers or change graphics options.
-func dolphinConfigCommand(mode modes) {
+func runDolphinConfig(mode *modes) error {
 	paths := settings.DefaultPaths()
 	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(mode.stderr(), message)
 	}, false)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	values, err := settings.DefaultPaths().Load()
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
 	arguments := dolphinArgs(values)
 	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=False")
 	returncode, err := runDolphin(paths, appimage, arguments)
 	if err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
-	emit(map[string]any{"ok": returncode == 0, "returncode": returncode}, mode, func() {
-		fmt.Println("Dolphin closed.")
+	return mode.emit(map[string]any{"ok": returncode == 0, "returncode": returncode}, func() {
+		mode.println("Dolphin closed.")
 	})
 }

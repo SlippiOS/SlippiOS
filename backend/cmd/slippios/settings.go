@@ -1,56 +1,80 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
-func settingsCommand(args []string, mode modes) {
+func newSettingsCommand(mode *modes) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "settings",
+		Short: "Show or change settings",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSettingsShow(mode)
+		},
+	}
+	command.AddCommand(&cobra.Command{
+		Use:   "show",
+		Short: "Show settings",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSettingsShow(mode)
+		},
+	})
+	command.AddCommand(&cobra.Command{
+		Use:   "set <section.key> <value>",
+		Short: "Set one setting",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSettingsSet(mode, args[0], args[1])
+		},
+	})
+	return command
+}
+
+func runSettingsShow(mode *modes) error {
 	paths := settings.DefaultPaths()
-	if len(args) == 0 || args[0] == "show" {
-		values, err := paths.Load()
-		if err != nil {
-			if _, statErr := os.Stat(paths.SettingsFile); statErr != nil {
-				values = settings.Defaults()
-				err = nil
-			}
+	values, err := paths.Load()
+	if err != nil {
+		if _, statErr := os.Stat(paths.SettingsFile); statErr != nil {
+			values = settings.Defaults()
+			err = nil
 		}
-		if err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		emit(map[string]any{"ok": true, "settings": values}, mode, func() {
-			fmt.Printf("Game:      %v\n", values["game"].(map[string]any)["iso"])
-			display := values["display"].(map[string]any)
-			fmt.Printf("Display:   %v Hz, %v\n", display["refresh_hz"], display["resolution"])
-			fmt.Printf("Audio:     %v\n", values["audio"].(map[string]any)["sink"])
-			fmt.Printf("Network:   %v\n", values["network"].(map[string]any)["ssid"])
-		})
-		return
 	}
-	if args[0] != "set" || len(args) < 3 {
-		fail("usage: slippios settings set section.key value")
+	if err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
-	key, value := args[1], args[2]
+	return mode.emit(map[string]any{"ok": true, "settings": values}, func() {
+		mode.printf("Game:      %v\n", values["game"].(map[string]any)["iso"])
+		display := values["display"].(map[string]any)
+		mode.printf("Display:   %v Hz, %v\n", display["refresh_hz"], display["resolution"])
+		mode.printf("Audio:     %v\n", values["audio"].(map[string]any)["sink"])
+		mode.printf("Network:   %v\n", values["network"].(map[string]any)["ssid"])
+	})
+}
+
+func runSettingsSet(mode *modes, key, value string) error {
+	paths := settings.DefaultPaths()
 	section, name, ok := strings.Cut(key, ".")
 	if !ok {
-		fail("setting must be section.key")
+		return mode.fail("setting must be section.key")
 	}
 	values, err := paths.Load()
 	if err != nil {
 		if _, statErr := os.Stat(paths.SettingsFile); statErr == nil {
-			fail(err.Error())
+			return mode.fail(err.Error())
 		}
 		values = settings.Defaults()
 	}
 	valuesSection, ok := values[section].(map[string]any)
 	if !ok {
-		fail("unknown setting " + key)
+		return mode.fail("unknown setting " + key)
 	}
 	if name == "iso" {
 		path := paths.ISOPath(value)
@@ -81,13 +105,13 @@ func settingsCommand(args []string, mode modes) {
 		case bool:
 			parsed, err := strconv.ParseBool(value)
 			if err != nil {
-				fail(key + " must be true or false")
+				return mode.fail(key + " must be true or false")
 			}
 			valuesSection[name] = parsed
 		case int64:
 			number, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				fail(key + " must be a number")
+				return mode.fail(key + " must be a number")
 			}
 			valuesSection[name] = number
 		default:
@@ -95,9 +119,9 @@ func settingsCommand(args []string, mode modes) {
 		}
 	}
 	if err := paths.Save(values); err != nil {
-		fail(err.Error())
+		return mode.fail(err.Error())
 	}
-	emit(map[string]any{"ok": true, "settings": values}, mode, func() {
-		fmt.Println("Saved", key)
+	return mode.emit(map[string]any{"ok": true, "settings": values}, func() {
+		mode.println("Saved", key)
 	})
 }

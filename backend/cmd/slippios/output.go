@@ -2,56 +2,74 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 )
+
+var errFailed = errors.New("command failed")
 
 type modes struct {
 	json  bool
 	human bool
+	out   io.Writer
+	err   io.Writer
 }
 
-func parseModes(args []string) ([]string, modes) {
-	result := make([]string, 0, len(args))
-	mode := modes{}
-	for _, argument := range args {
-		switch argument {
-		case "--json":
-			mode.json = true
-		case "--human":
-			mode.human = true
-		default:
-			result = append(result, argument)
-		}
+func (m modes) stdout() io.Writer {
+	if m.out != nil {
+		return m.out
 	}
-	return result, mode
+	return os.Stdout
 }
 
-func isTTY() bool {
-	info, err := os.Stdout.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
+func (m modes) stderr() io.Writer {
+	if m.err != nil {
+		return m.err
+	}
+	return os.Stderr
 }
 
-func emit(payload map[string]any, mode modes, human func()) {
-	jsonMode := mode.json || (!mode.human && !isTTY())
+func (m modes) printf(format string, args ...any) {
+	fmt.Fprintf(m.stdout(), format, args...)
+}
+
+func (m modes) println(args ...any) {
+	fmt.Fprintln(m.stdout(), args...)
+}
+
+func (m modes) emit(payload map[string]any, human func()) error {
+	jsonMode := m.json || (!m.human && !isTTY(m.stdout()))
 	if jsonMode {
-		encoder := json.NewEncoder(os.Stdout)
+		encoder := json.NewEncoder(m.stdout())
 		encoder.SetIndent("", "")
 		_ = encoder.Encode(payload)
 		if ok, _ := payload["ok"].(bool); !ok {
-			os.Exit(1)
+			return errFailed
 		}
-		return
+		return nil
 	}
 	if ok, _ := payload["ok"].(bool); !ok {
 		message, _ := payload["error"].(string)
-		fmt.Fprintln(os.Stderr, "error:", message)
-		os.Exit(1)
+		fmt.Fprintln(m.stderr(), "error:", message)
+		return errFailed
 	}
-	human()
+	if human != nil {
+		human()
+	}
+	return nil
 }
 
-func fail(message string) {
-	emit(map[string]any{"ok": false, "error": message}, modes{}, func() {})
-	os.Exit(1)
+func (m modes) fail(message string) error {
+	return m.emit(map[string]any{"ok": false, "error": message}, nil)
+}
+
+func isTTY(writer io.Writer) bool {
+	file, ok := writer.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }

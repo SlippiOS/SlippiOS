@@ -1,100 +1,127 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
 
-func displayCommand(args []string, mode modes) {
-	if len(args) == 0 {
-		fail("usage: slippios display apply|modes|custom <WxH[@Hz]>")
+func newDisplayCommand(mode *modes) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "display",
+		Short: "Change the display mode",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return mode.fail("usage: slippios display apply|modes|mode|custom")
+		},
+	}
+	command.AddCommand(&cobra.Command{
+		Use:   "apply",
+		Short: "Apply the saved display and audio settings",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDisplayApply(mode)
+		},
+	})
+	command.AddCommand(&cobra.Command{
+		Use:   "modes",
+		Short: "List the modes the display advertises",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDisplayModes(mode)
+		},
+	})
+	command.AddCommand(&cobra.Command{
+		Use:   "mode <WxH> <Hz>",
+		Short: "Switch to an advertised mode",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDisplayMode(mode, args[0], args[1])
+		},
+	})
+	command.AddCommand(&cobra.Command{
+		Use:   "custom <WxH[@Hz]>",
+		Short: "Add and switch to a custom mode",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDisplayCustom(mode, args[0])
+		},
+	})
+	return command
+}
+
+func runDisplayApply(mode *modes) error {
+	paths := settings.DefaultPaths()
+	values, err := paths.Load()
+	if err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	if err := desktop.ApplyDisplay(values); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	// Audio is best effort: a missing sink must not fail the display change.
+	_ = desktop.ApplyAudio(values)
+	return mode.emit(map[string]any{"ok": true}, func() {
+		mode.println("Display settings applied.")
+	})
+}
+
+func runDisplayModes(mode *modes) error {
+	available, err := desktop.Modes()
+	if err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	return mode.emit(map[string]any{
+		"ok":        true,
+		"output":    available.Output,
+		"current":   available.Current,
+		"rate":      available.Rate,
+		"edid_name": available.EDIDName,
+		"modes":     available.Modes,
+	}, func() {
+		mode.printf("Display: %s (%s)\n", available.Output, available.EDIDName)
+		for _, entry := range available.Modes {
+			mode.printf("  %s  %v\n", entry.Resolution, entry.Rates)
+		}
+	})
+}
+
+func runDisplayMode(mode *modes, resolution, rate string) error {
+	if err := desktop.SetMode(resolution, rate); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
 	paths := settings.DefaultPaths()
-	switch args[0] {
-	case "apply":
-		values, err := paths.Load()
-		if err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		if err := desktop.ApplyDisplay(values); err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		// Audio is best effort: a missing sink must not fail the display change.
-		_ = desktop.ApplyAudio(values)
-		emit(map[string]any{"ok": true}, mode, func() {
-			fmt.Println("Display settings applied.")
-		})
-	case "modes":
-		modes, err := desktop.Modes()
-		if err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		emit(map[string]any{
-			"ok":        true,
-			"output":    modes.Output,
-			"current":   modes.Current,
-			"rate":      modes.Rate,
-			"edid_name": modes.EDIDName,
-			"modes":     modes.Modes,
-		}, mode, func() {
-			fmt.Printf("Display: %s (%s)\n", modes.Output, modes.EDIDName)
-			for _, entry := range modes.Modes {
-				fmt.Printf("  %s  %v\n", entry.Resolution, entry.Rates)
-			}
-		})
-	case "mode":
-		if len(args) != 3 {
-			fail("usage: slippios display mode <WxH> <Hz>")
-		}
-		if err := desktop.SetMode(args[1], args[2]); err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		values, err := paths.Load()
-		if err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		display, _ := values["display"].(map[string]any)
-		display["resolution"] = args[1]
-		display["rate"] = args[2]
-		display["custom"] = ""
-		if err := paths.Save(values); err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		emit(map[string]any{"ok": true, "resolution": args[1], "rate": args[2]}, mode, func() {
-			fmt.Printf("Display set to %s @ %s Hz.\n", args[1], args[2])
-		})
-	case "custom":
-		if len(args) != 2 {
-			fail("usage: slippios display custom <WxH[@Hz]>")
-		}
-		if err := desktop.ApplyCustomMode(args[1]); err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		values, err := paths.Load()
-		if err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		display, _ := values["display"].(map[string]any)
-		display["resolution"] = "custom"
-		display["custom"] = args[1]
-		if err := paths.Save(values); err != nil {
-			emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-			return
-		}
-		emit(map[string]any{"ok": true, "custom": args[1]}, mode, func() {
-			fmt.Println("Custom mode applied:", args[1])
-		})
-	default:
-		fail("usage: slippios display apply|modes|custom <WxH[@Hz]>")
+	values, err := paths.Load()
+	if err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
+	display, _ := values["display"].(map[string]any)
+	display["resolution"] = resolution
+	display["rate"] = rate
+	display["custom"] = ""
+	if err := paths.Save(values); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	return mode.emit(map[string]any{"ok": true, "resolution": resolution, "rate": rate}, func() {
+		mode.printf("Display set to %s @ %s Hz.\n", resolution, rate)
+	})
+}
+
+func runDisplayCustom(mode *modes, spec string) error {
+	if err := desktop.ApplyCustomMode(spec); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	paths := settings.DefaultPaths()
+	values, err := paths.Load()
+	if err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	display, _ := values["display"].(map[string]any)
+	display["resolution"] = "custom"
+	display["custom"] = spec
+	if err := paths.Save(values); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	return mode.emit(map[string]any{"ok": true, "custom": spec}, func() {
+		mode.println("Custom mode applied:", spec)
+	})
 }

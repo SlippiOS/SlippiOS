@@ -1,14 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/spf13/cobra"
 )
+
+func newStatusCommand(mode *modes) *cobra.Command {
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show settings, login, Dolphin, and adapter status",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			payload := statusPayload()
+			return mode.emit(payload, func() { printStatus(mode, payload) })
+		},
+	}
+}
 
 func statusPayload() map[string]any {
 	paths := settings.DefaultPaths()
@@ -71,46 +83,41 @@ func dolphinCurrent() string {
 	return ""
 }
 
-func printStatus(payload map[string]any) {
+func printStatus(mode *modes, payload map[string]any) {
 	summary := payload["settings"].(map[string]any)
 	state := "missing"
 	if summary["exists"] == true {
 		state = "ok"
 	}
-	fmt.Printf("Settings:  %s (%s)\n", summary["path"], state)
+	mode.printf("Settings:  %s (%s)\n", summary["path"], state)
 	if summary["iso"] != nil {
 		gameState := "ok"
 		if summary["iso_valid"] != true {
 			gameState, _ = summary["iso_reason"].(string)
 		}
-		fmt.Printf("Game:      %s (%s)\n", summary["iso_path"], gameState)
+		mode.printf("Game:      %s (%s)\n", summary["iso_path"], gameState)
 		if summary["refresh_hz"] != nil {
-			fmt.Printf("Display:   %v Hz\n", summary["refresh_hz"])
+			mode.printf("Display:   %v Hz\n", summary["refresh_hz"])
 		}
 	} else {
-		fmt.Println("Game:      not configured")
+		mode.println("Game:      not configured")
 	}
 	login := payload["login"].(map[string]any)
 	if login["signed_in"] == true {
-		fmt.Printf("Login:     signed in (%s)\n", login["detail"])
+		mode.printf("Login:     signed in (%s)\n", login["detail"])
 	} else {
-		fmt.Println("Login:     not signed in")
+		mode.println("Login:     not signed in")
 	}
-	dolphin := payload["dolphin"].(map[string]any)
-	current, _ := dolphin["current"].(string)
+	dolphinInfo := payload["dolphin"].(map[string]any)
+	current, _ := dolphinInfo["current"].(string)
 	if current == "" {
 		current = "not installed"
 	}
-	fmt.Printf("Dolphin:   %s\n", current)
+	mode.printf("Dolphin:   %s\n", current)
 	adapter := payload["adapter"].(map[string]any)
 	if adapter["present"] == true {
-		fmt.Println("Adapter:   connected")
+		mode.println("Adapter:   connected")
 	} else {
-		fmt.Println("Adapter:   not connected")
+		mode.println("Adapter:   not connected")
 	}
-}
-
-func statusCommand(mode modes) {
-	payload := statusPayload()
-	emit(payload, mode, func() { printStatus(payload) })
 }

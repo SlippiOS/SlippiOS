@@ -1,19 +1,33 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
+	"github.com/spf13/cobra"
 )
 
-func audioCommand(args []string, mode modes) {
-	if len(args) == 0 || args[0] != "sinks" {
-		fail("usage: slippios audio sinks")
+func newAudioCommand(mode *modes) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "audio",
+		Short: "List audio outputs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return mode.fail("usage: slippios audio sinks")
+		},
 	}
+	command.AddCommand(&cobra.Command{
+		Use:   "sinks",
+		Short: "List PulseAudio outputs",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAudioSinks(mode)
+		},
+	})
+	return command
+}
+
+func runAudioSinks(mode *modes) error {
 	sinks, err := desktop.Sinks()
 	if err != nil {
-		emit(map[string]any{"ok": false, "error": err.Error()}, mode, func() {})
-		return
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
 	list := make([]map[string]any, 0, len(sinks))
 	for _, sink := range sinks {
@@ -22,9 +36,9 @@ func audioCommand(args []string, mode modes) {
 			"description": sink.Description,
 		})
 	}
-	emit(map[string]any{"ok": true, "sinks": list}, mode, func() {
+	return mode.emit(map[string]any{"ok": true, "sinks": list}, func() {
 		for _, sink := range sinks {
-			fmt.Println(sink.Name)
+			mode.println(sink.Name)
 		}
 	})
 }
