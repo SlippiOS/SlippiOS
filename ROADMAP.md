@@ -89,19 +89,19 @@ still requires Secure Boot off.
 
 ## Later: window manager experiment
 
-The normal session runs without a window manager. The shell applies the saved
-display mode before starting, opens at the screen resolution, and sizes a
-borderless window; Dolphin uses the current X resolution and borderless
-fullscreen. Openbox is only the crash/close fallback.
+`main` runs without a window manager. The shell applies the saved display mode
+before starting, opens at the screen resolution, and sizes a borderless window;
+Dolphin uses the current X resolution and borderless fullscreen. Openbox is
+only the crash/close fallback.
 
-A lightweight kiosk window manager is a proposed general fix for fullscreen,
-window sizing, focus, and Dolphin dialog placement. Openbox is the first
-candidate because it is already installed and handles
+The `openbox` branch starts a minimal Openbox before the shell. Its config
+removes decorations and keybindings and limits the root menu to the shell,
+terminal, text editor, Dolphin settings, reboot, and power off. Openbox is the
+first candidate because it is already installed and handles
 `_NET_WM_STATE_FULLSCREEN`; `matchbox-window-manager` is a lighter alternative.
-A prototype needs a minimal config with no decorations, no root menu, no
-keybindings, and new-window focus.
 
-- [ ] Prototype a minimal Openbox session in the dev VM.
+- [x] Prototype a minimal Openbox session on the `openbox` branch.
+- [ ] Test on real hardware and measure performance.
 - [ ] Measure cold boot time and memory/CPU overhead.
 - [ ] Test the shell at 640x480 and 1280x720.
 - [ ] Test runtime resolution changes.
@@ -110,7 +110,8 @@ keybindings, and new-window focus.
 - [ ] Check focus stealing, accidental close, and fallback behavior.
 - [ ] Adopt only if it is clearly better than the targeted no-WM fixes.
 
-Decision: keep no-WM for now.
+Decision: `main` keeps no-WM. The `openbox` branch is the hardware test; merge
+it only if performance and focus behavior are acceptable.
 
 ## Not planned yet
 

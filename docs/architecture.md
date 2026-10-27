@@ -139,21 +139,21 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 - `slippios net --mode setup`: first-boot browser wizard for game and account.
 - `slippios-isos.service`: mounts the `MELEE-ROMS` FAT32 partition at
   `/data/isos` and records the result in `/data/system/isos-mount`.
-- `slippios-recovery`: tty console if the shell and the Openbox fallback both exit.
+- `slippios-recovery`: tty console if the shell and Openbox both exit.
 - `slippios-session`: terminal session used for hands-on diagnostics.
 - `slippios`: Go CLI; human output on a TTY, JSON when piped.
 - `slippios-os-update.service`: root installer for staged updates.
 - `slippios-os-reboot.path`: root reboot request.
 - `slippios-data.service`: mounts or creates `/data` and seeds controller profiles.
 
-The normal session runs the shell without a window manager. The session applies
-the saved display mode before starting the shell; the shell opens at the screen
+`main` runs the shell without a window manager. The session applies the saved
+display mode before starting the shell; the shell opens at the screen
 resolution with a borderless window. Changing the mode from the shell restarts
 it so the viewport is rebuilt at the new resolution. Dolphin is launched with
-the same resolution and borderless fullscreen. A lightweight kiosk window
-manager (Openbox or matchbox) is a proposed alternative for fullscreen, focus,
-and dialog handling; it needs performance testing before adoption. See the
-[developer guide](developers.md#window-manager-experiment).
+the same resolution and borderless fullscreen. The `openbox` branch starts a
+minimal Openbox before the shell and uses the same explicit sizing as a
+fallback; it is the hardware test for fullscreen, focus, and dialog handling.
+See the [developer guide](developers.md#window-manager-experiment).
 
 ## Slippi auth
 

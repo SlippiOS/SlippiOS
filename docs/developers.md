@@ -311,30 +311,31 @@ This releases the GameCube adapter for Dolphin instead of leaving it claimed by
 SDL. The wrapper reopens Godot with `SLIPPIOS_AUTOPLAY=0` and
 `SLIPPIOS_SKIP_SPLASH=1`, so the splash is cold-boot only.
 
-The normal X session runs the shell directly, without a window manager. On a
-crash the session script starts Openbox so the machine can be diagnosed. If
-Openbox also exits, it writes `/data/system/shell-failed`;
-`slippios-recovery.service` then conflicts with the display manager and takes
-over tty1 with a recovery console: last shell log lines, failed units, and Try
-again / Power off / Reboot.
+On `main`, the normal X session runs the shell directly, without a window
+manager. The `openbox` branch starts a minimal Openbox before the shell and
+keeps it running as the fallback desktop. If the shell wrapper exits, the
+session opens a terminal; if Openbox exits, it writes
+`/data/system/shell-failed`; `slippios-recovery.service` then conflicts with the
+display manager and takes over tty1 with a recovery console: last shell log
+lines, failed units, and Try again / Power off / Reboot.
 
 ### Window manager experiment
 
-The no-WM session sizes windows explicitly: the session applies the saved
+The `main` branch sizes windows explicitly: the session applies the saved
 display mode before the shell starts, the shell opens at the screen resolution
 with a borderless window, and Dolphin uses the current X resolution with
 borderless fullscreen. A live resolution change restarts the shell so the
 viewport is rebuilt at the new size. This keeps the kiosk to one window and
 avoids decorations, focus stealing, and accidental close.
 
-A lightweight kiosk window manager is a proposed general fix for fullscreen,
-window sizing, focus, and Dolphin dialog placement. Openbox is the first
-candidate because it is already installed and handles
-`_NET_WM_STATE_FULLSCREEN`; `matchbox-window-manager` is a lighter alternative.
-A prototype needs a minimal `rc.xml` with no decorations, no root menu, no
-keybindings, and new-window focus.
+The `openbox` branch starts a minimal Openbox before the shell and keeps the
+explicit sizing as a fallback. Its `rc.xml` disables decorations and
+keybindings and limits the root menu to the shell, terminal, text editor,
+Dolphin settings, reboot, and power off. Openbox is the first candidate because
+it is already installed and handles `_NET_WM_STATE_FULLSCREEN`;
+`matchbox-window-manager` is a lighter alternative.
 
-Before adopting it, performance-test:
+Before adopting the branch, performance-test:
 
 - cold boot time and memory/CPU overhead;
 - shell layout at 640x480 and 1280x720;
@@ -343,8 +344,8 @@ Before adopting it, performance-test:
 - input latency and game frame pacing;
 - focus stealing, accidental close, and fallback behavior.
 
-Decision: keep no-WM for now. Revisit if the targeted fixes are insufficient or
-multi-window behavior becomes a problem.
+Decision: `main` keeps no-WM. The `openbox` branch is the hardware test; merge
+it only if performance and focus behavior are acceptable.
 
 ## Secure Boot
 
