@@ -1,0 +1,154 @@
+package main
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+)
+
+func playCommand(args []string, mode modes) {
+	flags := flag.NewFlagSet("play", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	requireLogin := flags.Bool("require-login", false, "refuse to start without a saved login")
+	if err := flags.Parse(args); err != nil {
+		fail(err.Error())
+	}
+
+	paths := settings.DefaultPaths()
+	if installed, _ := paths.InstallLogin(settings.Defaults()); !installed && *requireLogin {
+		fail("not signed in")
+	}
+	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
+		fmt.Fprintln(os.Stderr, message)
+	}, false)
+	if err != nil {
+		fail(err.Error())
+	}
+
+	values, err := paths.Load()
+	if err != nil {
+		fail("no game image")
+	}
+	game, _ := values["game"].(map[string]any)
+	raw, _ := game["iso"].(string)
+	if raw == "" {
+		fail("no game image")
+	}
+	valid, reason := paths.ISOStatus(raw)
+	if !valid {
+		fail(reason)
+	}
+	iso := paths.ISOPath(raw)
+
+	arguments := dolphinArgs(values)
+	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=True", "-b", "-e", iso)
+	returncode, err := runDolphin(paths, appimage, arguments)
+	if err != nil {
+		fail(err.Error())
+	}
+	emit(map[string]any{
+		"ok": returncode == 0, "iso": iso, "returncode": returncode,
+	}, mode, func() {
+		if returncode == 0 {
+			fmt.Println("Dolphin exited cleanly.")
+		} else {
+			fmt.Printf("Dolphin exited with status %d.\n", returncode)
+		}
+	})
+}
+
+// dolphinArgs maps the curated Dolphin settings onto Dolphin's command-line
+// config layer. Enum values are the integers Dolphin stores in its INIs.
+func dolphinArgs(values map[string]any) []string {
+	dolphin, _ := values["dolphin"].(map[string]any)
+	text := func(key, fallback string) string {
+		value, _ := dolphin[key].(string)
+		if value == "" {
+			return fallback
+		}
+		return value
+	}
+	number := func(key string, fallback int64) int64 {
+		switch value := dolphin[key].(type) {
+		case int64:
+			return value
+		case int:
+			return int64(value)
+		}
+		return fallback
+	}
+	flag := func(key string) bool {
+		value, _ := dolphin[key].(bool)
+		return value
+	}
+	boolText := func(value bool) string {
+		if value {
+			return "True"
+		}
+		return "False"
+	}
+
+	arguments := []string{
+		"-C", "Dolphin.Core.GFXBackend=" + text("backend", "Vulkan"),
+		"-C", "Graphics.Settings.InternalResolution=" + strconv.FormatInt(number("resolution", 3), 10),
+		"-C", "Graphics.Settings.AspectRatio=" + strconv.FormatInt(number("aspect", 3), 10),
+		"-C", "Graphics.Settings.MSAA=" + strconv.FormatInt(number("msaa", 1), 10),
+		"-C", "Graphics.Hardware.VSync=" + boolText(flag("vsync")),
+		"-C", "Dolphin.DSP.Backend=" + text("audio_backend", "Cubeb"),
+		"-C", "Dolphin.Core.AudioLatency=" + strconv.FormatInt(number("audio_latency", 20), 10),
+	}
+	switch text("controller", "adapter") {
+	case "adapter":
+		// The Wii U adapter provides all four ports.
+		for port := 0; port < 4; port++ {
+			arguments = append(arguments,
+				"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=12", port))
+		}
+	case "keyboard":
+		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=7")
+	default:
+		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=6")
+	}
+	return arguments
+}
+
+// runDolphin starts the Slippi AppImage with the shared user directory and
+// returns its exit status.
+func runDolphin(paths settings.Paths, appimage string, arguments []string) (int, error) {
+	environment := os.Environ()
+	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
+	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
+		hasRuntime := false
+		for _, value := range environment {
+			if strings.HasPrefix(value, "XDG_RUNTIME_DIR=") {
+				hasRuntime = true
+				break
+			}
+		}
+		if !hasRuntime {
+			environment = append(environment, "XDG_RUNTIME_DIR="+runtime)
+		}
+	}
+
+	args := append([]string{appimage, "-u", paths.DolphinDir}, arguments...)
+	command := exec.Command("slippi-appimage-run", args...)
+	command.Env = environment
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			return exitError.ExitCode(), nil
+		}
+		return 0, err
+	}
+	return 0, nil
+}
