@@ -418,6 +418,10 @@ func restart_shell() -> void:
 	get_tree().quit(46)
 
 
+func quit_shell() -> void:
+	get_tree().quit(0)
+
+
 func open_dolphin_settings() -> void:
 	await actions.open_dolphin_settings()
 
