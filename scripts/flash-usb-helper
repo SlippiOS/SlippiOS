@@ -4,6 +4,11 @@
 # configured USB device. It takes no arguments so the sudoers rule stays narrow.
 set -euo pipefail
 
+if [[ $# -ne 0 ]]; then
+  echo "usage: slippios-flash" >&2
+  exit 2
+fi
+
 config="/etc/slippios/flash.conf"
 if [[ ! -r "$config" ]]; then
   echo "missing $config; run scripts/flash-usb enable" >&2

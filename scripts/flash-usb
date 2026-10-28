@@ -121,7 +121,11 @@ disable() {
 
 status() {
   echo "Helper:  $([[ -x "$HELPER" ]] && echo installed || echo missing)"
-  echo "Sudoers: $([[ -f "$SUDOERS" ]] && echo installed || echo missing)"
+  if sudo -n -l "$HELPER" >/dev/null 2>&1; then
+    echo "Sudoers: installed"
+  else
+    echo "Sudoers: missing"
+  fi
   if [[ -r "$CONFIG" ]]; then
     # shellcheck disable=SC1090
     source "$CONFIG"
