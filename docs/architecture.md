@@ -1,5 +1,10 @@
 # SlippiOS architecture
 
+The base and update model is recorded in
+[ADR-0001](decisions/0001-nixos-image-based-updates.md): NixOS is the image
+builder and package substrate, while systemd-sysupdate provides image-based A/B
+updates. NixOS generations are not the update or rollback unit.
+
 ## Disk layout
 
 ```text
@@ -39,6 +44,11 @@ signed image uses a Fedora shim and a one-time MOK enrollment; see
 Each updated UKI carries a three-attempt boot counter. `systemd-bless-boot`
 removes it after a successful boot. If the counter reaches zero, systemd-boot
 falls back to the previous good UKI.
+
+systemd-boot titles UKI entries with `PRETTY_NAME`, which this image sets to
+`SlippiOS <version>`. NixOS generation entries are not used. An update removes
+stale `nixos-generation-*.conf` files from older images so the menu shows only
+the A/B UKIs.
 
 ### Secure Boot
 

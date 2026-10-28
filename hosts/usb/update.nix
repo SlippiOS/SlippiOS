@@ -68,6 +68,9 @@ in {
         error=
         if ${config.systemd.package}/lib/systemd/systemd-sysupdate update; then
           ${config.systemd.package}/bin/udevadm settle || true
+          # Older images installed NixOS generation entries. This image boots
+          # UKIs, so those entries only add noise and can outrank the UKI.
+          rm -f /boot/loader/entries/nixos-generation-*.conf
           # A sysupdate no-op exits 0 without writing anything. Require both
           # the target partition and a fresh boot image before reporting success.
           if [ ! -b "/dev/disk/by-partlabel/nix-store_''${target}" ]; then

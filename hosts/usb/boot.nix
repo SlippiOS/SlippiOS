@@ -7,6 +7,9 @@ in {
   system.image.id = imageId;
   system.image.version = lib.mkDefault "dev";
   system.nixos.distroName = "SlippiOS";
+  # systemd-boot titles UKI entries with PRETTY_NAME. Show the SlippiOS
+  # version instead of the NixOS release, which is not the update identity.
+  system.nixos.extraOSReleaseArgs.PRETTY_NAME = "SlippiOS ${version}";
 
   boot.loader.grub.enable = false;
   boot.uki.name = imageId;
