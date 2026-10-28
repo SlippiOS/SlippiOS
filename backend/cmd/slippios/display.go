@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"os/exec"
+
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/spf13/cobra"
@@ -49,6 +52,12 @@ func newDisplayCommand(mode *modes) *cobra.Command {
 	return command
 }
 
+func applyWallpaper() {
+	command := exec.Command("/run/current-system/sw/bin/slippios-wallpaper")
+	command.Env = os.Environ()
+	_ = command.Run()
+}
+
 func runDisplayApply(mode *modes) error {
 	paths := settings.DefaultPaths()
 	values, err := paths.Load()
@@ -58,6 +67,7 @@ func runDisplayApply(mode *modes) error {
 	if err := desktop.ApplyDisplay(values); err != nil {
 		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
+	applyWallpaper()
 	// Audio is best effort: a missing sink must not fail the display change.
 	_ = desktop.ApplyAudio(values)
 	return mode.emit(map[string]any{"ok": true}, func() {
@@ -89,6 +99,7 @@ func runDisplayMode(mode *modes, resolution, rate string) error {
 	if err := desktop.SetMode(resolution, rate); err != nil {
 		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
+	applyWallpaper()
 	paths := settings.DefaultPaths()
 	values, err := paths.Load()
 	if err != nil {
@@ -110,6 +121,7 @@ func runDisplayCustom(mode *modes, spec string) error {
 	if err := desktop.ApplyCustomMode(spec); err != nil {
 		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
+	applyWallpaper()
 	paths := settings.DefaultPaths()
 	values, err := paths.Load()
 	if err != nil {

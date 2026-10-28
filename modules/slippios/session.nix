@@ -5,11 +5,19 @@ let
   theme = import ../../theme/default.nix;
   splashBoot = ../../apps/shell/assets/slippi-boot.png;
 
+  wallpaper = pkgs.writeShellScriptBin "slippios-wallpaper" ''
+    if [ -z "''${DISPLAY:-}" ]; then
+      exit 0
+    fi
+    ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
+    ${pkgs.xwallpaper}/bin/xwallpaper --maximize ${splashBoot} || true
+  '';
+
   session = pkgs.writeShellScript "slippios-x-session" ''
     # A display-manager stop is not a crash.
     trap 'exit 0' TERM INT HUP
 
-    ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
+    ${wallpaper}/bin/slippios-wallpaper
     ${pkgs.xset}/bin/xset s off -dpms || true
     ${pkgs.openbox}/bin/openbox --config-file /etc/xdg/openbox/rc.xml &
     wm=$!
@@ -17,7 +25,7 @@ let
     ${slippiosPackages.cli}/bin/slippios display apply || true
     # Set the splash after the display mode is applied so it scales to the
     # final resolution instead of being cropped by a later mode change.
-    ${pkgs.xwallpaper}/bin/xwallpaper --maximize ${splashBoot} || true
+    ${wallpaper}/bin/slippios-wallpaper
     ${shell}/bin/slippios-shell
     # The shell wrapper handles games and tools. If it exits unexpectedly,
     # leave Openbox running and open a terminal for diagnosis.
@@ -67,6 +75,8 @@ let
     done
   '';
 in {
+  environment.systemPackages = [ wallpaper ];
+
   services.xserver = {
     enable = true;
     displayManager.session = [{
