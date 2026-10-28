@@ -2,12 +2,6 @@
 
 # Development-only additions. Never import this from the release host.
 {
-  # Test the CachyOS kernel on dev images before changing the release.
-  slippios.kernel = {
-    enable = true;
-    variant = "lts";
-  };
-
   # The diagnostics and firmware need more room than the release store.
   # Keep the update slot the same size, otherwise a dev-to-dev update cannot
   # fit into the inactive partition.

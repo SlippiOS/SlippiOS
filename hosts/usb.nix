@@ -11,10 +11,10 @@
     ./usb/update.nix
   ];
 
-  # The LTS CachyOS kernel was the fastest of the tested kernels and had the
-  # most stable 4-player frame pacing. Dev configurations can override this.
+  # BORE was fastest in the clean singles and 4-player tests. Singles is the
+  # priority, so release images use BORE. Dev configurations can override it.
   slippios.kernel = {
     enable = true;
-    variant = "lts";
+    variant = "bore";
   };
 }

@@ -1,4 +1,4 @@
-# ADR-0003: Use the CachyOS LTS kernel
+# ADR-0003: Use the CachyOS BORE kernel
 
 | | |
 |---|---|
@@ -10,7 +10,7 @@
 
 SlippiOS ships one kernel for every machine that boots the image. Melee is
 latency-sensitive and CPU-bound at 1x native resolution, so the kernel choice
-matters more than the GPU driver for 4-player frame pacing.
+matters more than the GPU driver for frame pacing.
 
 We compared three kernels on the EM680 (Ryzen 7 6800U, Radeon 680M) with the
 same settings:
@@ -27,8 +27,8 @@ stopping the shell, both CachyOS kernels boosted to about 4.4 GHz.
 
 | Kernel | Singles | 4-player | CPU max |
 |---|---:|---:|---:|
-| CachyOS LTS 6.18.55 | 0.9940 | 0.8596 | 4.42 GHz |
 | CachyOS BORE 7.3.0 | 0.9945 | 0.8633 | 4.40 GHz |
+| CachyOS LTS 6.18.55 | 0.9940 | 0.8596 | 4.42 GHz |
 | Stock NixOS 6.18.57 | 0.9822 | 0.7992 | 3.06 GHz |
 
 The stock result was measured with the shell running, so treat it as
@@ -37,26 +37,25 @@ while the CachyOS kernels use `always`.
 
 ## Decision
 
-Release images use the CachyOS LTS kernel (`linux-cachyos-lts`, 6.18 series).
-Dev configurations may override the variant for testing. The CachyOS binary
-cache is used so the kernel is substituted instead of compiled.
+Release images use the CachyOS BORE kernel (`linux-cachyos-bore`, 7.3.0). BORE
+was fastest in both clean replays. The margins are small — 0.05% on singles and
+0.4% on 4-player — but singles is the priority, and BORE also won 4-player.
 
-LTS and BORE are effectively tied on this hardware: the differences are
-0.05% on singles and 0.4% on 4-player, which is within run-to-run noise. LTS is
-the safer release choice because it stays on a long-term branch and is the
-variant the CachyOS project supports for longer.
+LTS remains the fallback for comparison and for anyone who prefers the longer
+support branch. Dev configurations can override the kernel variant. The
+CachyOS binary cache is used so the kernel is substituted instead of compiled.
 
 ## Consequences
 
-**Positive:** The release gets the kernel that was fastest or tied-fastest in
-the clean comparison, on a maintained LTS branch. The CachyOS cache keeps image
-builds fast. The benchmark harness now stops the shell, so future comparisons
-measure the emulator instead of the UI.
+**Positive:** The release gets the kernel that won both measured workloads,
+including the priority singles case. The CachyOS cache keeps image builds fast.
+The benchmark harness now stops the shell, so future comparisons measure the
+emulator instead of the UI.
 
-**Negative:** The image is tied to the CachyOS kernel packaging and its cache.
-BORE remains interesting for newer hardware but does not justify a non-LTS
-kernel for a small, noisy difference. The stock-kernel result was not rerun
-after the shell fix.
+**Negative:** BORE is on a newer kernel branch than LTS, so it has a shorter
+support window and more churn. The performance margin is small enough that
+other hardware could reverse it. We accept that risk because the image ships a
+tested kernel and updates are controlled; LTS is available as a fallback.
 
 **Neutral:** The shell's idle CPU cost is a separate issue. It affects every
 kernel and should be reduced for the release (frame cap or Godot
@@ -64,14 +63,14 @@ low-processor mode), but it does not change the kernel ranking.
 
 ## Alternatives considered
 
-**Stock NixOS 6.18.57** - For: no third-party kernel source, simplest update
-story. Against: slower in the comparison, `madvise` THP, and no CachyOS
-gaming patches. Why not chosen: both CachyOS kernels were ahead.
+**CachyOS LTS 6.18.55** - For: longer support branch and effectively tied in
+the clean comparison. Against: it lost both replays, including singles. Why not
+chosen: BORE won the priority metric, and the stability difference is a
+judgment call rather than a measured advantage.
 
-**CachyOS BORE 7.3.0** - For: marginally faster in the clean run. Against: a
-newer kernel branch, no meaningful gain outside noise, and more churn for a
-fixed release. Why not chosen: the difference does not justify the support
-surface.
+**Stock NixOS 6.18.57** - For: no third-party kernel source, simplest update
+story. Against: slower in the comparison, `madvise` THP, and no CachyOS gaming
+patches. Why not chosen: both CachyOS kernels were ahead.
 
 **Compile our own kernel** - For: full control. Against: slow builds, a large
 maintenance burden, and no evidence of a gain over the cached CachyOS builds.
