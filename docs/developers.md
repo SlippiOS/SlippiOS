@@ -508,3 +508,23 @@ SLIPPI_SERIAL=/tmp/slippios-serial.log mise run run:image
 See the [roadmap](../ROADMAP.md). Current priority is real-hardware USB
 validation; install-to-internal-disk is scheduled after that. The signed Secure
 Boot image is a verified prototype; hardware boot and Mac boot are still open.
+
+## Publishing releases to R2
+
+The updater defaults to the public R2 bucket:
+
+```text
+https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/manifest.json
+```
+
+Generate the signed assets with `scripts/release --dry-run --keep-raw`, then
+publish the asset directory:
+
+```sh
+scripts/publish-r2 .cache/release/<version>
+```
+
+The script reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
+uploads the full/unsigned images, store image, UKI, and checksums before
+`manifest.json`. R2 has no GitHub 2 GiB asset limit, so the full image can be a
+single file.

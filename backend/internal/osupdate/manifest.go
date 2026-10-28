@@ -165,7 +165,7 @@ func parseManifest(data []byte) (*Manifest, error) {
 }
 
 func source(paths Paths) (string, string) {
-	base := ""
+	base := defaultBase
 	manifest := defaultManifest
 	config := readJSON(paths.Source)
 	if configured, ok := stringValue(config["base"]); ok && configured != "" {
@@ -176,6 +176,9 @@ func source(paths Paths) (string, string) {
 		}
 	} else if custom, ok := stringValue(config["manifest"]); ok && custom != "" {
 		manifest = custom
+		if strings.HasSuffix(custom, "manifest.json") {
+			base = strings.TrimSuffix(custom, "manifest.json")
+		}
 	}
 	return base, manifest
 }

@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	defaultManifest = "https://github.com/SlippiOS/SlippiOS/releases/latest/download/manifest.json"
+	defaultBase     = "https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/"
+	defaultManifest = defaultBase + "manifest.json"
 	downloadBase    = "https://github.com/SlippiOS/SlippiOS/releases/download"
 	userAgent       = "SlippiOS/0.2"
 )
