@@ -19,19 +19,25 @@
       ${pkgs.coreutils}/bin/rm -f /data/system/shell-failed
       ${pkgs.coreutils}/bin/mkdir -p \
         /data/isos /data/system /data/users/default/dolphin \
+        /data/users/default/dolphin-stable \
         /data/users/default/replays /data/users/default/logs
       ${pkgs.coreutils}/bin/chown player:users \
         /data /data/isos /data/system /data/users /data/users/default \
-        /data/users/default/dolphin /data/users/default/replays \
-        /data/users/default/logs || true
+        /data/users/default/dolphin /data/users/default/dolphin-stable \
+        /data/users/default/replays /data/users/default/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
-      config_dir=/data/users/default/dolphin/Config
-      profile_dir=$config_dir/Profiles/GCPad
-      ${pkgs.coreutils}/bin/install -d -o player -g users -m 0775 \
-        "$config_dir" "$config_dir/Profiles" "$profile_dir"
-      ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini "$profile_dir"/ || true
-      ${pkgs.coreutils}/bin/chown -R player:users "$config_dir" || true
+      # The beta/mainline and stable builds use separate Dolphin directories.
+      # Seed the bundled pad profiles into both so a profile selected in the
+      # shell also works after switching builds.
+      for home in /data/users/default/dolphin /data/users/default/dolphin-stable; do
+        config_dir=$home/Config
+        profile_dir=$config_dir/Profiles/GCPad
+        ${pkgs.coreutils}/bin/install -d -o player -g users -m 0775 \
+          "$config_dir" "$config_dir/Profiles" "$profile_dir"
+        ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini "$profile_dir"/ || true
+        ${pkgs.coreutils}/bin/chown -R player:users "$config_dir" || true
+      done
     '';
   };
 }
