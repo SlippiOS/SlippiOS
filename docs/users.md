@@ -127,8 +127,10 @@ them on a trusted network.
 
 ## Play
 
-**Play** launches Slippi Dolphin with the selected ISO. Standard SDL controllers
-work. **Settings → Dolphin Settings** changes Dolphin's graphics backend,
+**Play** launches Slippi Dolphin with the selected ISO. Use wired controllers:
+the GameCube adapter or a wired USB pad. Wireless controllers are not
+supported because Melee is latency-sensitive. **Settings → Dolphin Settings**
+changes Dolphin's graphics backend,
 internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
 leaving the console. SlippiOS maps these onto Dolphin's command-line config.
 The same screen has **Gecko codes** for the optional Melee patches.

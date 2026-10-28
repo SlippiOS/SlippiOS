@@ -146,14 +146,13 @@ Game images live on the FAT32 `MELEE-ROMS` partition, not in the ext4 profile.
 - `slippios-os-reboot.path`: root reboot request.
 - `slippios-data.service`: mounts or creates `/data` and seeds controller profiles.
 
-`main` runs the shell without a window manager. The session applies the saved
-display mode before starting the shell; the shell opens at the screen
-resolution with a borderless window. Changing the mode from the shell restarts
-it so the viewport is rebuilt at the new resolution. Dolphin is launched with
-the same resolution and borderless fullscreen. The `openbox` branch starts a
-minimal Openbox before the shell and uses the same explicit sizing as a
-fallback; it is the hardware test for fullscreen, focus, and dialog handling.
-See the [developer guide](developers.md#window-manager-experiment).
+The session starts a minimal Openbox before the shell. Openbox has no
+decorations or keybindings and handles fullscreen, focus, and dialogs; the
+shell still opens at the screen resolution with explicit borderless sizing as
+a fallback. Changing the mode from the shell restarts it so the viewport is
+rebuilt at the new resolution. Dolphin is launched with the same resolution
+and borderless fullscreen. See the
+[developer guide](developers.md#window-manager).
 
 ## Slippi auth
 

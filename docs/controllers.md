@@ -4,6 +4,10 @@ The Godot shell reads controllers through SDL3, including the GameCube adapter.
 SDL3 has a native HIDAPI driver for the Wii U/Mayflash adapter, so no separate
 uinput daemon is needed.
 
+Wireless controllers are intentionally not supported. Melee is
+latency-sensitive; use the wired GameCube adapter or a wired USB pad. Bluetooth
+and `xpadneo` are not included in the image.
+
 ## Glyph profile
 
 `Device = XInput/0/Gamepad`. SDL sees a standard gamepad:

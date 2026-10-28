@@ -233,7 +233,7 @@ them to `-C System.Section.Key=Value` at launch. The important values:
 - `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
 - `Dolphin.Display.RenderWindowWidth`/`RenderWindowHeight`,
   `BorderlessFullscreen`, and `RenderWindowAutoSize=False` are set from the
-  current X resolution so Melee fills the screen without a window manager.
+  current X resolution so Melee fills the screen with borderless fullscreen.
 - Enums are written as integers; booleans as `True`/`False`.
 
 **Settings → Controller Settings** writes `dolphin.controllerN` and, for pad
@@ -260,6 +260,19 @@ The boot-time profile seeding creates the whole
 `/data/users/default/dolphin/Config` tree as `player:users`; otherwise Dolphin
 cannot write `Dolphin.ini`, `GFX.ini`, or `GCPadNew.ini`.
 
+## Hardware support
+
+The image is x86_64 and preloads the NixOS kernel modules, full
+`linux-firmware`, Mesa (RADV/ANV/llvmpipe), PipeWire/ALSA, NetworkManager, and
+the common USB HID drivers. udev loads drivers on demand. The release image has
+no writable store and does not install drivers after setup; the browser setup is
+for Slippi login and ROM selection only.
+
+AMD and Intel GPUs are supported. NVIDIA proprietary drivers, some Broadcom
+Wi-Fi devices, and out-of-tree controller drivers are not; they need a separate
+image. Wireless controllers are intentionally not included (no BlueZ or
+`xpadneo`); use the wired GameCube adapter or a wired USB pad.
+
 ## Boot splash
 
 Plymouth uses a charge-style `two-step` theme: `modules/slippios/theme.nix`
@@ -281,10 +294,10 @@ covers the console immediately and no TTY lines leak through.
 
 When the session starts, the X session script paints
 `apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so
-the handoff shows the same mark instead of a blank screen. There is no window
-manager in the normal path: the Godot shell is the X session, so it has no
-decorations and owns the whole screen. Openbox is only started if the shell
-exits, as a desktop for diagnosis.
+the handoff shows the same mark instead of a blank screen. A minimal Openbox
+starts before the Godot shell. It has no decorations or keybindings and handles
+fullscreen, focus, and dialogs; the shell still sizes itself explicitly as a
+fallback. If the shell exits, Openbox remains as the diagnostic desktop.
 
 `assets/marks/` holds the temporary Slippi mark and how to regenerate the
 raster assets; replace it when the SlippiOS mark exists.
@@ -339,41 +352,25 @@ This releases the GameCube adapter for Dolphin instead of leaving it claimed by
 SDL. The wrapper reopens Godot with `SLIPPIOS_AUTOPLAY=0` and
 `SLIPPIOS_SKIP_SPLASH=1`, so the splash is cold-boot only.
 
-On `main`, the normal X session runs the shell directly, without a window
-manager. The `openbox` branch starts a minimal Openbox before the shell and
-keeps it running as the fallback desktop. If the shell wrapper exits, the
-session opens a terminal; if Openbox exits, it writes
-`/data/system/shell-failed`; `slippios-recovery.service` then conflicts with the
-display manager and takes over tty1 with a recovery console: last shell log
-lines, failed units, and Try again / Power off / Reboot.
+The X session starts a minimal Openbox, then the shell, and keeps Openbox
+running as the fallback desktop. If the shell wrapper exits, the session opens
+a terminal; if Openbox exits, it writes `/data/system/shell-failed`;
+`slippios-recovery.service` then conflicts with the display manager and takes
+over tty1 with a recovery console: last shell log lines, failed units, and Try
+again / Power off / Reboot.
 
-### Window manager experiment
+### Window manager
 
-The `main` branch sizes windows explicitly: the session applies the saved
-display mode before the shell starts, the shell opens at the screen resolution
-with a borderless window, and Dolphin uses the current X resolution with
-borderless fullscreen. A live resolution change restarts the shell so the
-viewport is rebuilt at the new size. This keeps the kiosk to one window and
-avoids decorations, focus stealing, and accidental close.
+SlippiOS runs a minimal Openbox before the shell. It has no decorations or
+keybindings and its root menu is limited to the shell, terminal, text editor,
+Dolphin settings, reboot, and power off. Openbox handles
+`_NET_WM_STATE_FULLSCREEN`, focus, and dialogs. The shell and Dolphin still
+size themselves explicitly, so a resolution change or a missing window manager
+does not break the layout.
 
-The `openbox` branch starts a minimal Openbox before the shell and keeps the
-explicit sizing as a fallback. Its `rc.xml` disables decorations and
-keybindings and limits the root menu to the shell, terminal, text editor,
-Dolphin settings, reboot, and power off. Openbox is the first candidate because
-it is already installed and handles `_NET_WM_STATE_FULLSCREEN`;
-`matchbox-window-manager` is a lighter alternative.
-
-Before adopting the branch, performance-test:
-
-- cold boot time and memory/CPU overhead;
-- shell layout at 640x480 and 1280x720;
-- runtime resolution changes;
-- Dolphin fullscreen, settings window, and file dialogs;
-- input latency and game frame pacing;
-- focus stealing, accidental close, and fallback behavior.
-
-Decision: `main` keeps no-WM. The `openbox` branch is the hardware test; merge
-it only if performance and focus behavior are acceptable.
+Openbox was adopted after hardware testing on the EM680: fullscreen, focus,
+the Dolphin settings window, and game frame pacing were acceptable, and the
+fallback desktop is useful when the shell exits.
 
 ## Secure Boot
 

@@ -87,31 +87,26 @@ still requires Secure Boot off.
       Intel T2 Macs require **Allow booting from external or removable media**;
       pre-T2 Intel Macs can boot USB without a firmware change.
 
-## Later: window manager experiment
+## Window manager
 
-`main` runs without a window manager. The shell applies the saved display mode
-before starting, opens at the screen resolution, and sizes a borderless window;
-Dolphin uses the current X resolution and borderless fullscreen. Openbox is
-only the crash/close fallback.
+SlippiOS runs a minimal Openbox before the shell. Its config removes
+decorations and keybindings and limits the root menu to the shell, terminal,
+text editor, Dolphin settings, reboot, and power off. Openbox handles
+`_NET_WM_STATE_FULLSCREEN`, focus, and dialogs; the shell and Dolphin still
+size themselves explicitly as a fallback.
 
-The `openbox` branch starts a minimal Openbox before the shell. Its config
-removes decorations and keybindings and limits the root menu to the shell,
-terminal, text editor, Dolphin settings, reboot, and power off. Openbox is the
-first candidate because it is already installed and handles
-`_NET_WM_STATE_FULLSCREEN`; `matchbox-window-manager` is a lighter alternative.
+- [x] Prototype a minimal Openbox session.
+- [x] Test on real hardware and measure performance.
+- [x] Test the shell at 640x480 and 1280x720.
+- [x] Test runtime resolution changes.
+- [x] Test Dolphin fullscreen, settings window, and file dialogs.
+- [x] Measure input latency and game frame pacing.
+- [x] Check focus stealing, accidental close, and fallback behavior.
+- [x] Adopt Openbox as the default session.
 
-- [x] Prototype a minimal Openbox session on the `openbox` branch.
-- [ ] Test on real hardware and measure performance.
-- [ ] Measure cold boot time and memory/CPU overhead.
-- [ ] Test the shell at 640x480 and 1280x720.
-- [ ] Test runtime resolution changes.
-- [ ] Test Dolphin fullscreen, settings window, and file dialogs.
-- [ ] Measure input latency and game frame pacing.
-- [ ] Check focus stealing, accidental close, and fallback behavior.
-- [ ] Adopt only if it is clearly better than the targeted no-WM fixes.
-
-Decision: `main` keeps no-WM. The `openbox` branch is the hardware test; merge
-it only if performance and focus behavior are acceptable.
+The no-WM session was the original design. Openbox was adopted after hardware
+testing on the EM680; it was not clearly worse, and it provides a usable
+fallback desktop.
 
 ## Not planned yet
 
