@@ -110,6 +110,23 @@ The no-WM session was the original design. Openbox was adopted after hardware
 testing on the EM680; it was not clearly worse, and it provides a usable
 fallback desktop.
 
+## Later: hardware performance check
+
+SlippiOS runs on arbitrary PCs, so the best build and settings can vary. A
+short, deterministic check can recommend them instead of guessing.
+
+- [ ] Add a Settings and optional onboarding performance check. Run a bundled
+      replay through the playback build at the configured resolution, report
+      effective FPS and frame consistency, and recommend resolution or settings
+      changes when it cannot hold 60 fps.
+- [ ] Benchmark stable and beta on the same machine once beta build switching
+      and playback are available, and recommend the faster build.
+- [ ] Evaluate a bot/save-state scenario for live-match performance after the
+      replay-based check ships. Stable's netplay build has no CLI save-state
+      option and mainline playback is still WIP, so this is not a first step.
+- [ ] Consider extracting the measurement engine into a standalone tool for
+      non-SlippiOS users if there is demand.
+
 ## Not planned yet
 
 - Dual-boot alongside Windows or another Linux install.
