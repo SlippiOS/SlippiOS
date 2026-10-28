@@ -58,7 +58,9 @@ func (p Paths) download(url, destination, expected string, size int64) error {
 	_ = os.Remove(partial)
 	p.writeProgress("downloading", 0, size)
 
-	response, err := request(url, 60*time.Second)
+	// The client timeout covers the whole body, not just the connection. A
+	// multi-gigabyte image over Wi-Fi can easily exceed a minute.
+	response, err := request(url, 30*time.Minute)
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}

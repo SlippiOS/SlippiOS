@@ -3,7 +3,13 @@
 # Development-only additions. Never import this from the release host.
 {
   # The diagnostics and firmware need more room than the release store.
+  # Keep the update slot the same size, otherwise a dev-to-dev update cannot
+  # fit into the inactive partition.
   image.repart.partitions.nix-store.repartConfig = {
+    SizeMinBytes = lib.mkForce "2500M";
+    SizeMaxBytes = lib.mkForce "2500M";
+  };
+  image.repart.partitions.empty.repartConfig = {
     SizeMinBytes = lib.mkForce "2500M";
     SizeMaxBytes = lib.mkForce "2500M";
   };
