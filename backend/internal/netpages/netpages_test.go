@@ -95,8 +95,18 @@ func TestAuthenticate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(installed) != string(source) {
+	var installedUser map[string]any
+	if err := json.Unmarshal(installed, &installedUser); err != nil {
+		t.Fatal(err)
+	}
+	if installedUser["playKey"] != "k" || installedUser["connectCode"] != "PLR#1" {
 		t.Fatalf("installed = %s", installed)
+	}
+	if _, ok := installedUser["latest_version"]; ok {
+		t.Fatalf("installed has an unexpected latest_version: %s", installed)
+	}
+	if _, ok := installedUser["latestVersion"]; !ok {
+		t.Fatalf("installed is missing latestVersion: %s", installed)
 	}
 }
 

@@ -126,6 +126,9 @@ func dolphinArgs(values map[string]any) []string {
 	}
 
 	arguments := []string{
+		// The Slippi EXI device lives in Slot B. Do not rely on the build's
+		// default, because an existing Dolphin.ini can override it.
+		"-C", "Dolphin.Core.SlotB=13",
 		"-C", "Dolphin.Core.GFXBackend=" + text("backend", "Vulkan"),
 		"-C", "Graphics.Settings.InternalResolution=" + strconv.FormatInt(number("resolution", 3), 10),
 		"-C", "Graphics.Settings.AspectRatio=" + strconv.FormatInt(number("aspect", 3), 10),

@@ -53,6 +53,20 @@ func (p Paths) InstallLogin(values map[string]any) (bool, string) {
 		if err != nil {
 			continue
 		}
+		// Slippi Dolphin's Rust user parser requires the latestVersion field
+		// (the struct field is latest_version with a camelCase alias). The
+		// login flow does not know the latest release yet, so seed it empty.
+		var value map[string]any
+		if err := json.Unmarshal(data, &value); err != nil {
+			continue
+		}
+		if _, ok := value["latestVersion"]; !ok {
+			value["latestVersion"] = ""
+		}
+		data, err = json.MarshalIndent(value, "", "  ")
+		if err != nil {
+			continue
+		}
 		if err := os.MkdirAll(filepath.Dir(p.DolphinUserFile), 0o755); err != nil {
 			return false, fmt.Sprintf("cannot create %s: %v", filepath.Dir(p.DolphinUserFile), err)
 		}

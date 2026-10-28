@@ -119,6 +119,7 @@ func TestInstallLogin(t *testing.T) {
 	}
 	payload := map[string]any{
 		"uid": "u", "playKey": "k", "connectCode": "ABC#123",
+		"latestVersion": "4.0.0",
 	}
 	data, _ := json.Marshal(payload)
 	source := paths.Resolve(DefaultUserJSON)
@@ -133,8 +134,18 @@ func TestInstallLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(installed) != string(data) {
+	var installedValue map[string]any
+	if err := json.Unmarshal(installed, &installedValue); err != nil {
+		t.Fatal(err)
+	}
+	if installedValue["uid"] != "u" {
 		t.Fatalf("installed = %s", installed)
+	}
+	if _, ok := installedValue["latest_version"]; ok {
+		t.Fatalf("unexpected latest_version in %s", installed)
+	}
+	if installedValue["latestVersion"] != "4.0.0" {
+		t.Fatalf("latestVersion = %v", installedValue["latestVersion"])
 	}
 	info, err := os.Stat(paths.DolphinUserFile)
 	if err != nil {
