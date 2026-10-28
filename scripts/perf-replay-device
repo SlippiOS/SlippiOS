@@ -86,18 +86,59 @@ run_one() {
   echo "Running $name ($frames frames, warmup=$warmup)"
   sample_system "$samples" &
   local sampler=$!
-  local start end wall expected speed ok user sys rss vol invol
+  local start end wall expected actual speed ok user sys rss vol invol
+  local first_frame_at="" last_frame_at="" last_frame=0
+  local frame_log="$profile_dir/logs/replay.log"
+  rm -f "$frame_log"
+
   start=$(date +%s.%N)
-  "$timer" -v -o "$time_file" slippios replay play "$path" > "$log" 2> "$err_log" || true
+  "$timer" -v -o "$time_file" slippios replay play "$path" > "$log" 2> "$err_log" &
+  local runner=$!
+  local deadline=$((SECONDS + frames / 60 + 120))
+  while kill -0 "$runner" 2>/dev/null; do
+    if [[ -f "$frame_log" ]]; then
+      local current
+      current=$(grep -o '\[CURRENT_FRAME\] [0-9]*' "$frame_log" 2>/dev/null | tail -1 | awk '{print $2}')
+      if [[ -n "$current" ]]; then
+        if [[ -z "$first_frame_at" ]]; then
+          first_frame_at=$(date +%s.%N)
+        fi
+        last_frame=$current
+        last_frame_at=$(date +%s.%N)
+        if (( current >= frames )); then
+          break
+        fi
+      fi
+    fi
+    if (( SECONDS > deadline )); then
+      echo "timed out waiting for $name" >&2
+      break
+    fi
+    sleep 0.2
+  done
+
+  # Playback stays open waiting for another .slp after the last frame. Stop
+  # the CLI so `time` records the run, then stop the playback app itself.
+  pkill -P "$runner" 2>/dev/null || true
+  pkill -f "Slippi_Playback-x86_64.AppImage" 2>/dev/null || true
+  local wait_count=0
+  while kill -0 "$runner" 2>/dev/null && (( wait_count < 50 )); do
+    sleep 0.1
+    wait_count=$((wait_count + 1))
+  done
+  kill "$runner" 2>/dev/null || true
+  wait "$runner" 2>/dev/null || true
   end=$(date +%s.%N)
+
   kill "$sampler" 2>/dev/null || true
   wait "$sampler" 2>/dev/null || true
-  cp "$profile_dir/logs/replay.log" "$app_log" 2>/dev/null || true
+  cp "$frame_log" "$app_log" 2>/dev/null || true
 
   wall=$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", e-s }')
   expected=$(awk -v f="$frames" 'BEGIN { printf "%.3f", f/60 }')
-  speed=$(awk -v e="$expected" -v w="$wall" 'BEGIN { if (w > 0) printf "%.4f", e/w; else print "0" }')
-  ok=$(jq -r 'if type == "object" then (.ok // false) else false end' "$log" 2>/dev/null || echo false)
+  actual=$(awk -v f="$first_frame_at" -v l="$last_frame_at" 'BEGIN { if (f != "" && l != "") printf "%.3f", l-f; else print "0" }')
+  speed=$(awk -v e="$expected" -v a="$actual" 'BEGIN { if (a > 0) printf "%.4f", e/a; else print "0" }')
+  if (( last_frame >= frames )); then ok=true; else ok=false; fi
   user=$(awk -F': ' '/User time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
   sys=$(awk -F': ' '/System time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
   rss=$(awk -F': ' '/Maximum resident set size/ {print $2; exit}' "$time_file" 2>/dev/null || true)
