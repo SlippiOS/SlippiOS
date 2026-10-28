@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, slippiosBuild, ... }:
 
 let
   version = config.system.image.version;
@@ -19,4 +19,5 @@ in {
   ];
 
   environment.etc."slippios/version".text = "${version}\n";
+  environment.etc."slippios/build".text = "${slippiosBuild}\n";
 }

@@ -3,7 +3,8 @@
 The base and update model is recorded in
 [ADR-0001](decisions/0001-nixos-image-based-updates.md): NixOS is the image
 builder and package substrate, while systemd-sysupdate provides image-based A/B
-updates. NixOS generations are not the update or rollback unit.
+updates. NixOS generations are not the update or rollback unit. The versioning
+decision is recorded in [ADR-0002](decisions/0002-semver-versions.md).
 
 ## Disk layout
 
@@ -19,13 +20,12 @@ GPT
 
 - `/nix/store` is mounted from the active `nix-store_<version>` partition.
 - The matching UKI embeds that label and is stored in the ESP.
-- Versions are `<commit-epoch>.<revision>`, where `<revision>` is the first
-  seven hexadecimal digits of the commit converted to decimal. systemd-boot
-  and systemd-sysupdate order versions with `strverscmp_improved`, which ranks
-  a numeric segment above an alphabetic one. A hexadecimal hash starting with
-  a letter sorts below one starting with a digit, so the old `<epoch>-<hash>`
-  format could make a newer build look older. Legacy hyphen versions sort
-  below the decimal form.
+- Versions are semver (`0.3.0`). `VERSION` is the source of truth; dev builds
+  use the next patch plus a timestamp (`0.3.1-dev.<epoch>`) so they sort above
+  the release. systemd-boot and systemd-sysupdate order numeric segments
+  correctly (`0.10.0 > 0.9.0`, `0.3.1 > 0.3.0`). Use `~rc` for a pre-release;
+  a trailing `-rc` sorts above the release. Existing epoch-versioned devices
+  must reflash once.
 - `/data` is a separate partition and is never written by system updates.
 - `MELEE-ROMS` is mounted at `/data/isos`; it is the only PC-visible data drive.
 - A first-boot service grows `SLIPPIOS` and its ext4 filesystem to fill the USB.
@@ -85,8 +85,10 @@ Manifest fields:
 
 ```json
 {
-  "version": "1792937434.113649853",
-  "tag": "v1.0.0",
+  "version": "0.3.0",
+  "tag": "v0.3.0",
+  "commit": "abc123...",
+  "date": "2026-10-28T12:00:00Z",
   "full_image": {
     "name": "slippios-usb-<version>.img.xz",
     "sha256": "...",

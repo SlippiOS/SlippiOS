@@ -22,6 +22,8 @@ more installation modes.
 
 ## Now: USB image
 
+- [x] Switched to semver versions (`0.3.0`); devices on the old epoch format
+      require a one-time reflash.
 - [ ] Flash a 16 GB USB stick and boot on real UEFI hardware with Secure Boot
       off (a one-time firmware setting).
 - [ ] Boot the signed image with Secure Boot on and complete the one-time MOK

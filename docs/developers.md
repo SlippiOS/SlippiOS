@@ -58,12 +58,13 @@ improving the system.
   further edits embeds initrd store paths that the earlier store image does not
   contain, so the installed system drops to emergency mode. CI is safe because
   it builds from one clean checkout.
-- Image versions are `<commit-epoch>.<revision>`, with the first seven
-  hexadecimal digits of the commit converted to decimal. systemd-boot and
-  systemd-sysupdate use `strverscmp_improved`, so a revision must be a numeric
-  segment. A hexadecimal hash that starts with a letter sorts below one that
-  starts with a digit. Do not publish builds using the old `<epoch>-<hash>`
-  format.
+- Image versions are semver (`0.3.0`). `VERSION` is the source of truth.
+  Release builds use it; dev builds use the next patch plus a timestamp
+  (`0.3.1-dev.<epoch>`) so they sort above the release. systemd-boot and
+  systemd-sysupdate use `strverscmp_improved`, which orders numeric segments
+  correctly (`0.10.0 > 0.9.0`, `0.3.1 > 0.3.0`). Use `~rc` for a pre-release;
+  a trailing `-rc` sorts above the release. The old epoch versions do not
+  order against semver, so devices running them must reflash once.
 
 ## Local cache and cleanup
 

@@ -59,12 +59,20 @@ func statusPayload() map[string]any {
 		"dolphin":  map[string]any{"current": currentDolphin},
 		"adapter":  map[string]any{"present": adapter},
 		"network":  map[string]any{"address": netpages.LocalAddress()},
-		"os":       map[string]any{"version": osVersion()},
+		"os":       map[string]any{"version": osVersion(), "build": osBuild()},
 	}
 }
 
 func osVersion() string {
-	data, err := os.ReadFile("/etc/slippios/version")
+	return readTrimmed("/etc/slippios/version")
+}
+
+func osBuild() string {
+	return readTrimmed("/etc/slippios/build")
+}
+
+func readTrimmed(path string) string {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
@@ -134,6 +142,12 @@ func printStatus(mode *modes, payload map[string]any) {
 	if osInfo, ok := payload["os"].(map[string]any); ok {
 		if version, _ := osInfo["version"].(string); version != "" {
 			mode.printf("SlippiOS:  %s\n", version)
+		}
+		if build, _ := osInfo["build"].(string); build != "" {
+			if len(build) > 12 {
+				build = build[:12]
+			}
+			mode.printf("Build:     %s\n", build)
 		}
 	}
 	adapter := payload["adapter"].(map[string]any)

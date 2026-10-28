@@ -12,31 +12,30 @@
       cliPackage = pkgs.callPackage ./pkgs/slippios.nix { };
       shellPackage = pkgs.callPackage ./pkgs/slippios-shell.nix { };
 
-      # Decimal revision so a letter-leading hex hash cannot sort below a digit.
-      version =
-        let
-          rev = self.rev or self.dirtyRev or null;
-          revision = builtins.substring 0 7 rev;
-        in
-        if rev != null then
-          "${toString (self.lastModified or 0)}.${
-            toString (builtins.fromTOML "v = 0x${revision}").v
-          }"
-        else
-          "dev-${toString (self.lastModified or 0)}";
+      # Semver is the user-facing and update version. Dev builds use the next
+      # patch plus the checkout timestamp so they sort above the release they
+      # are based on.
+      releaseVersion = nixpkgs.lib.strings.trim (builtins.readFile ./VERSION);
+      versionParts = nixpkgs.lib.splitString "." releaseVersion;
+      devVersion =
+        "${builtins.elemAt versionParts 0}.${builtins.elemAt versionParts 1}."
+        + "${toString (builtins.fromJSON (builtins.elemAt versionParts 2) + 1)}"
+        + "-dev.${toString (self.lastModified or 0)}";
+      buildRevision = self.rev or self.dirtyRev or "unknown";
+      slippiosBuild = buildRevision;
 
       cachyosKernels = inputs.nix-cachyos-kernel.legacyPackages.${system};
     in {
       nixosConfigurations.slippios-usb = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
-          inherit cachyosKernels;
+          inherit cachyosKernels slippiosBuild;
           slippiosPackages = self.packages.${system};
         };
         modules = [
           ./modules/slippios.nix
           ./hosts/usb.nix
-          { system.image.version = version; }
+          { system.image.version = releaseVersion; }
         ];
       };
 
@@ -44,7 +43,7 @@
       nixosConfigurations.slippios-usb-dev = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
-          inherit cachyosKernels;
+          inherit cachyosKernels slippiosBuild;
           slippiosPackages = self.packages.${system};
         };
         modules = [
@@ -52,7 +51,7 @@
           ./hosts/usb.nix
           ./hosts/dev.nix
           {
-            system.image.version = version;
+            system.image.version = devVersion;
             image.repart.compression.enable = nixpkgs.lib.mkForce false;
           }
         ];

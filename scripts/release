@@ -26,7 +26,7 @@ Options:
   --publish           publish the release after uploading
   --force             replace assets on an existing release
   --allow-dirty       allow a dirty working tree
-  --tag TAG           release tag (default os-<version>)
+  --tag TAG           release tag (default v<version>)
   --assets-dir DIR    output directory (default .cache/release/<version>)
   --keep-raw          keep the signed raw image
   -h, --help          show this help
@@ -126,7 +126,7 @@ else
 fi
 
 if [[ -z "$TAG" ]]; then
-  TAG="os-$version"
+  TAG="v$version"
 fi
 if [[ -z "$ASSETS_DIR" ]]; then
   ASSETS_DIR="$CACHE/release/$version"
@@ -247,9 +247,14 @@ for size in "$signed_size" "$unsigned_size" "$raw_size"; do
   fi
 done
 
+commit=$(git rev-parse HEAD)
+date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 jq -n \
   --arg version "$version" \
   --arg tag "$TAG" \
+  --arg commit "$commit" \
+  --arg date "$date" \
   --arg signed_name "$signed_name" \
   --arg signed_sha "$signed_sha" \
   --argjson signed_size "$signed_size" \
@@ -265,6 +270,8 @@ jq -n \
   '{
     version: $version,
     tag: $tag,
+    commit: $commit,
+    date: $date,
     full_image: { name: $signed_name, sha256: $signed_sha, size: $signed_size },
     unsigned_image: { name: $unsigned_name, sha256: $unsigned_sha, size: $unsigned_size },
     nix_store: {

@@ -176,6 +176,9 @@ The inactive system slot is updated. `/data` is untouched. A failed boot falls
 back to the previous system after three attempts. Downloads use zsync deltas
 when possible and fall back to a full download.
 
+Versions before `0.3.0` used a numeric build ID. Those devices must reflash
+once; automatic updates start with `0.3.0`. After that, updates use semver.
+
 ## Data
 
 ```text

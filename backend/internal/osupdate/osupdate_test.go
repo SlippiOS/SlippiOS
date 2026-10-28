@@ -149,6 +149,12 @@ func TestCompareVersions(t *testing.T) {
 		{"1793067308.99999", "1793067308.100000", -1},
 		{"1793067308.100000", "1793067308.99999", 1},
 		{"1793067308-8127a3e", "1793067308.1", -1},
+		{"0.3.0", "0.3.1", -1},
+		{"0.10.0", "0.9.0", 1},
+		{"0.3.0.1", "0.3.0", 1},
+		// systemd sorts a trailing -rc above the release; use ~rc for pre-release.
+		{"0.3.0~rc1", "0.3.0", -1},
+		{"0.3.0", "0.3.0.1", -1},
 	}
 	for _, test := range cases {
 		if got := CompareVersions(test.a, test.b); got != test.want {
