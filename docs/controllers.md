@@ -10,9 +10,7 @@ and `xpadneo` are not included in the image.
 
 Press the **Guide** button on a standard pad to stop Melee and return to the
 shell. The GameCube adapter is not a controller-interface device, so its
-controllers have no Guide binding. Instead, pause and choose **Quit**, or press
-**L+R+A+Start**. Either ends the match as a No Contest; SlippiOS closes Dolphin
-and returns to the shell.
+controllers have no Guide binding; use the console power button to shut down.
 
 ## Glyph profile
 

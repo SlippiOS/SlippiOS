@@ -8,14 +8,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
-	"github.com/SlippiOS/SlippiOS/backend/internal/slippi"
 	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 	"github.com/spf13/cobra"
 )
@@ -107,10 +105,7 @@ func runPlay(mode *modes, options playOptions) error {
 		userDir = paths.DolphinStableDir
 		arguments = []string{"-b", "-e", iso}
 	}
-	done := make(chan struct{})
-	go watchNoContest(paths, appimage, done)
 	returncode, err := runDolphin(paths, appimage, userDir, arguments)
-	close(done)
 	if err != nil {
 		return mode.fail(err.Error())
 	}
@@ -186,74 +181,6 @@ func dolphinArgs(values map[string]any) []string {
 			"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=%d", port, value))
 	}
 	return arguments
-}
-
-type replayWatchState struct {
-	size      int64
-	changed   time.Time
-	lastParse time.Time
-	settled   bool
-}
-
-// watchNoContest stops Dolphin when the current match ends as a No Contest.
-// The game's pause-menu Quit and L+R+A+Start both end the match that way, so
-// GameCube-adapter players get a controller-only exit without a Guide button.
-func watchNoContest(paths settings.Paths, appimage string, done <-chan struct{}) {
-	directory := filepath.Join(paths.ProfileDir, "replays")
-	start := time.Now()
-	states := map[string]*replayWatchState{}
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-done:
-			return
-		case <-ticker.C:
-		}
-
-		entries, err := os.ReadDir(directory)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".slp") {
-				continue
-			}
-			info, err := entry.Info()
-			if err != nil || info.ModTime().Before(start) {
-				continue
-			}
-			path := filepath.Join(directory, entry.Name())
-			state := states[path]
-			if state == nil {
-				state = &replayWatchState{size: -1}
-				states[path] = state
-			}
-			if state.settled {
-				continue
-			}
-			if info.Size() != state.size {
-				state.size = info.Size()
-				state.changed = time.Now()
-				continue
-			}
-			if time.Since(state.changed) < 500*time.Millisecond ||
-				time.Since(state.lastParse) < time.Second {
-				continue
-			}
-			state.lastParse = time.Now()
-			quit, err := slippi.IsNoContest(path)
-			if err != nil {
-				continue
-			}
-			state.settled = true
-			if !quit {
-				continue
-			}
-			_ = exec.Command("pkill", "-TERM", "-f", filepath.Base(appimage)).Run()
-			return
-		}
-	}
 }
 
 func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string) (int, error) {
