@@ -44,6 +44,10 @@
       export XAUTHORITY="''${XAUTHORITY:-/home/player/.Xauthority}"
       echo "== system =="
       uname -a
+      echo "== kernel =="
+      cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || true
+      cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true
+      cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || true
       echo "== gpu =="
       lspci -nnk | grep -A3 -iE 'vga|3d|display' || true
       echo "== kernel gpu =="

@@ -13,6 +13,8 @@ in
 
   boot.kernelParams = [
     "quiet" "loglevel=3" "vt.global_cursor_default=0" "systemd.show_status=0"
+    # Avoid watchdog wakeups adding jitter to frame pacing.
+    "nowatchdog"
   ];
   # Keep in sync with loglevel; 0 hides late text between Plymouth and the shell.
   boot.consoleLogLevel = 0;
@@ -22,7 +24,7 @@ in
   boot.kernelModules = [ "uinput" ];
 
   services.udev.extraRules = ''
-    SUBSYSTEM=="usb", ATTR{idVendor}=="057e", ATTR{idProduct}=="0337", MODE="0666"
+    SUBSYSTEM=="usb", ATTR{idVendor}=="057e", ATTR{idProduct}=="0337", ATTR{power/control}="on", MODE="0666"
   '';
 
   networking.networkmanager.enable = true;
