@@ -129,7 +129,8 @@ them on a trusted network.
 
 **Play** launches Slippi Dolphin with the selected ISO. Use wired controllers:
 the GameCube adapter or a wired USB pad. Wireless controllers are not
-supported because Melee is latency-sensitive. **Settings → Dolphin Settings**
+supported because Melee is latency-sensitive. Press **Guide** on a standard pad
+to stop Melee and return to the shell. **Settings → Dolphin Settings**
 changes Dolphin's graphics backend,
 internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
 leaving the console. SlippiOS maps these onto Dolphin's command-line config.

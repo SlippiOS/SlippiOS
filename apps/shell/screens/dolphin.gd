@@ -21,6 +21,7 @@ func present(message: String = "") -> void:
 	button("Audio: %s" % text_value(dolphin.get("audio_backend"), "Cubeb"),
 		_cycle.bind("audio_backend", ["Cubeb", "ALSA", "NoSound"]))
 	button("Gecko codes", app.show_gecko)
+	label("Press Guide on a standard pad to stop Melee and return here.", 0.6)
 	button("Reset Dolphin config", _reset)
 	button("Back", app.show_settings)
 	focus()

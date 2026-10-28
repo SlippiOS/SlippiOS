@@ -8,6 +8,10 @@ Wireless controllers are intentionally not supported. Melee is
 latency-sensitive; use the wired GameCube adapter or a wired USB pad. Bluetooth
 and `xpadneo` are not included in the image.
 
+Press the **Guide** button on a standard pad to stop Melee and return to the
+shell. The GameCube adapter is not a controller-interface device, so its
+controllers have no Guide binding; use the console power button to shut down.
+
 ## Glyph profile
 
 `Device = XInput/0/Gamepad`. SDL sees a standard gamepad:

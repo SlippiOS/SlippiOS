@@ -63,6 +63,9 @@ func runDolphinConfig(mode *modes) error {
 	if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
 		return mode.fail(err.Error())
 	}
+	if err := controllers.ConfigureHotkeys(paths.DolphinDir, values); err != nil {
+		return mode.fail(err.Error())
+	}
 	arguments := dolphinArgs(values)
 	arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=False")
 	returncode, err := runDolphin(paths, appimage, arguments)

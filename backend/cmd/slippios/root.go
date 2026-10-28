@@ -51,6 +51,7 @@ func newRootCommand() *cobra.Command {
 		newDolphinCommand(mode),
 		newControllersCommand(mode),
 		newGeckoCommand(mode),
+		newReplayCommand(mode),
 		newDisplayCommand(mode),
 		newAudioCommand(mode),
 		newPoweroffCommand(mode),

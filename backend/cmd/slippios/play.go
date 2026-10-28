@@ -62,6 +62,9 @@ func runPlay(mode *modes, options playOptions) error {
 	if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
 		return mode.fail(err.Error())
 	}
+	if err := controllers.ConfigureHotkeys(paths.DolphinDir, values); err != nil {
+		return mode.fail(err.Error())
+	}
 	iso := paths.ISOPath(raw)
 
 	width, height := 640, 480
@@ -136,6 +139,8 @@ func dolphinArgs(values map[string]any) []string {
 		"-C", "Graphics.Hardware.VSync=" + boolText(flag("vsync")),
 		"-C", "Dolphin.DSP.Backend=" + text("audio_backend", "Cubeb"),
 		"-C", "Dolphin.Core.AudioLatency=" + strconv.FormatInt(number("audio_latency", 20), 10),
+		"-C", "Dolphin.Slippi.ReplayDir=" + filepath.Join(settings.DefaultPaths().ProfileDir, "replays"),
+		"-C", "Dolphin.Slippi.SaveReplays=True",
 	}
 	for port := 0; port < 4; port++ {
 		device := text(fmt.Sprintf("controller%d", port+1), "adapter")

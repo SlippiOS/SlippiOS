@@ -5,6 +5,7 @@ const GAME_EXIT := 42
 const DOLPHIN_EXIT := 43
 const TERMINAL_EXIT := 44
 const EDITOR_EXIT := 45
+const REPLAY_EXIT := 47
 
 var app
 
@@ -101,6 +102,30 @@ func _start_error(message: String) -> void:
 	app.add_label(message, 0.9)
 	app.add_button("Back", app.show_menu)
 	app.focus_first()
+
+
+func play_replay(path: String) -> void:
+	if app._busy:
+		return
+	app._busy = true
+	app._screen_node = null
+	app.clear()
+	app.add_title("STARTING REPLAY", 40)
+	app.add_label("Preparing Slippi playback…", 0.8)
+	await app.get_tree().process_frame
+
+	var file := FileAccess.open("/data/system/replay-request", FileAccess.WRITE)
+	if file == null:
+		app._busy = false
+		app.clear()
+		app.add_title("COULD NOT START", 44)
+		app.add_label("Could not write the replay request.", 0.9)
+		app.add_button("Back", app.show_menu)
+		app.focus_first()
+		return
+	file.store_string(path)
+	file.close()
+	app.get_tree().quit(REPLAY_EXIT)
 
 
 func open_terminal() -> void:

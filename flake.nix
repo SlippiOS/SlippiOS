@@ -136,6 +136,12 @@
               splash=1
               continue
             fi
+            if [ "$code" -eq 47 ]; then
+              "$cli_bin" replay play "$(cat /data/system/replay-request 2>/dev/null)" >>"$log" 2>&1 || true
+              autoplay=0
+              splash=1
+              continue
+            fi
 
             echo "slippios-shell exited with $code" >>"$log"
             exit "$code"

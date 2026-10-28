@@ -226,6 +226,72 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	return ini.Save(padPath, pad)
 }
 
+// ConfigureHotkeys binds Dolphin's Stop hotkey to the Guide button on the
+// first standard pad. Dolphin's hotkey system only sees controller-interface
+// devices, so a GameCube adapter has no equivalent button.
+func ConfigureHotkeys(dolphinDir string, values map[string]any) error {
+	device := ""
+	profiles, _ := ListProfiles(dolphinDir)
+	for _, port := range Ports(values) {
+		if port.Device != DevicePad {
+			continue
+		}
+		if port.Profile != "" && port.Profile != ProfileCustom {
+			for _, profile := range profiles {
+				if profile.Name == port.Profile {
+					device = profile.Device
+					break
+				}
+			}
+		}
+		if device == "" {
+			device = padDevice(dolphinDir, port.Port)
+		}
+		if device != "" {
+			break
+		}
+	}
+	if device == "" {
+		return nil
+	}
+
+	path := filepath.Join(dolphinDir, "Config", "Hotkeys.ini")
+	file, err := ini.Load(path)
+	if err != nil {
+		return err
+	}
+	lines := file.Lines("Hotkeys")
+	lines = setLine(lines, "Device", device)
+	lines = setLine(lines, "General/Stop", "`Button MODE`")
+	file.SetLines("Hotkeys", lines)
+	return ini.Save(path, file)
+}
+
+func padDevice(dolphinDir string, port int) string {
+	file, err := ini.Load(PadConfigPath(dolphinDir))
+	if err != nil {
+		return ""
+	}
+	for _, line := range file.Lines(fmt.Sprintf("GCPad%d", port)) {
+		key, value, ok := strings.Cut(line, "=")
+		if ok && strings.TrimSpace(key) == "Device" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func setLine(lines []string, key, value string) []string {
+	prefix := key + " ="
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), prefix) {
+			lines[i] = key + " = " + value
+			return lines
+		}
+	}
+	return append(lines, key+" = "+value)
+}
+
 // ApplyConfigured applies the profile selected for every pad port. Adapter,
 // keyboard and disabled ports are left untouched.
 func ApplyConfigured(dolphinDir string, values map[string]any) error {

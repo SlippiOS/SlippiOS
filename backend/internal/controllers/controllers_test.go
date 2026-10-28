@@ -88,3 +88,28 @@ func TestPortsAndConfigured(t *testing.T) {
 		t.Fatalf("adapter port wrote a profile: %#v", got)
 	}
 }
+
+func TestConfigureHotkeys(t *testing.T) {
+	dir := t.TempDir()
+	values := map[string]any{"dolphin": map[string]any{}}
+	if err := SetPort(values, 1, DevicePad, "Xbox 360 (Mad Catz)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyProfile(dir, 1, "Xbox 360 (Mad Catz)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ConfigureHotkeys(dir, values); err != nil {
+		t.Fatal(err)
+	}
+	file, err := ini.Load(filepath.Join(dir, "Config", "Hotkeys.ini"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Join(file.Lines("Hotkeys"), "\n")
+	if !strings.Contains(lines, "Device = evdev/0/Mad Catz Xbox 360 Controller") {
+		t.Fatalf("hotkeys = %s", lines)
+	}
+	if !strings.Contains(lines, "General/Stop = `Button MODE`") {
+		t.Fatalf("hotkeys = %s", lines)
+	}
+}

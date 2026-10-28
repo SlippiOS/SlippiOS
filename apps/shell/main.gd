@@ -24,6 +24,7 @@ const ControllersScreen := preload("res://screens/controllers.gd")
 const ControllerPortScreen := preload("res://screens/controller_port.gd")
 const GeckoScreen := preload("res://screens/gecko.gd")
 const GeckoCustomScreen := preload("res://screens/gecko_custom.gd")
+const ReplaysScreen := preload("res://screens/replays.gd")
 const WifiScreen := preload("res://screens/wifi.gd")
 const WifiPasswordScreen := preload("res://screens/wifi_password.gd")
 const UpdateScreen := preload("res://screens/update.gd")
@@ -269,6 +270,15 @@ func show_gecko(message: String = "") -> void:
 func show_gecko_custom(message: String = "") -> void:
 	stop_net()
 	_present(GeckoCustomScreen.new(self), message)
+
+
+func show_replays(message: String = "") -> void:
+	stop_net()
+	_present(ReplaysScreen.new(self), message)
+
+
+func play_replay(path: String) -> void:
+	await actions.play_replay(path)
 
 
 func show_wifi(message: String = "") -> void:
