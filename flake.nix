@@ -54,6 +54,45 @@
         ];
       };
 
+      # Kernel comparison images. These share the dev layout but override the
+      # CachyOS kernel selection from hosts/dev.nix.
+      nixosConfigurations.slippios-usb-dev-default = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {
+          inherit cachyosKernels slippiosBuild;
+          slippiosPackages = self.packages.${system};
+        };
+        modules = [
+          ./modules/slippios.nix
+          ./hosts/usb.nix
+          ./hosts/dev.nix
+          {
+            system.image.version = devVersion;
+            image.repart.compression.enable = nixpkgs.lib.mkForce false;
+            slippios.kernel.enable = nixpkgs.lib.mkForce false;
+          }
+        ];
+      };
+
+      nixosConfigurations.slippios-usb-dev-bore = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {
+          inherit cachyosKernels slippiosBuild;
+          slippiosPackages = self.packages.${system};
+        };
+        modules = [
+          ./modules/slippios.nix
+          ./hosts/usb.nix
+          ./hosts/dev.nix
+          {
+            system.image.version = devVersion;
+            image.repart.compression.enable = nixpkgs.lib.mkForce false;
+            slippios.kernel.enable = nixpkgs.lib.mkForce true;
+            slippios.kernel.variant = nixpkgs.lib.mkForce "bore";
+          }
+        ];
+      };
+
       packages.${system} = {
         appimage-runner = pkgs.callPackage ./pkgs/appimage-runner.nix { };
         slippios = cliPackage;

@@ -12,7 +12,9 @@ BUILD_TMP="${SLIPPI_TMPDIR:-$CACHE/build-tmp}"
 OUT="${SLIPPI_RESULT:-result-local-image}"
 JOBS="${SLIPPI_JOBS:-$(( $(nproc 2>/dev/null || echo 4) > 8 ? 8 : $(nproc 2>/dev/null || echo 4) ))}"
 # Local boot tests do not need the compressed release artifact.
-if [[ "${SLIPPI_DEV:-0}" == "1" ]]; then
+if [[ -n "${SLIPPI_CONFIG:-}" ]]; then
+  CONFIG="$SLIPPI_CONFIG"
+elif [[ "${SLIPPI_DEV:-0}" == "1" ]]; then
   CONFIG=slippios-usb-dev
 else
   CONFIG=slippios-usb
