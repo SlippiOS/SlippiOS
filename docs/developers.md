@@ -222,6 +222,12 @@ them to `-C System.Section.Key=Value` at launch. The important values:
 - `Dolphin.Core.SIDevice0..3`: 12 is the Wii U adapter, 6 a standard pad,
   7 the keyboard, 0 is disconnected. Each port is stored separately as
   `dolphin.controller1..4` and `dolphin.profile1..4`.
+- `Dolphin.Core.SlotB=13` is set explicitly for the Slippi EXI device. Do not
+  rely on the build default; an existing `Dolphin.ini` can override it.
+- `InstallLogin` adds `latestVersion` to the Dolphin copy of `user.json`.
+  Slippi's Rust `UserInfo` requires that field, and the launcher writes it.
+  Do not add `latest_version` as well: it is a serde alias for the same field,
+  and serde rejects the duplicate.
 - `Graphics.Settings.InternalResolution` is the EFB scale (1 = native).
 - `Graphics.Settings.AspectRatio`: 1 widescreen, 2 4:3, 3 Melee, 4 stretch.
 - `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
