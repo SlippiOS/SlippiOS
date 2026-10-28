@@ -10,9 +10,14 @@ func present(message: String = "") -> void:
 	title("SETTING UP", 48)
 	var result := cli(["isos"])
 	var count := 0
+	var first_iso := ""
+	var first_name := ""
 	for entry in result.get("isos", []):
 		if entry.get("valid", false):
 			count += 1
+			if first_iso == "":
+				first_iso = str(entry.get("path", ""))
+				first_name = str(entry.get("name", first_iso))
 	var mounted := bool(result.get("mounted", true))
 	var mount_error := str(result.get("mount_error", ""))
 	if not result.get("ok", true):
@@ -29,15 +34,18 @@ func present(message: String = "") -> void:
 	if message != "":
 		label(message, 0.9)
 
+	if first_iso != "":
+		button("Use %s" % first_name, _use_iso.bind(first_iso))
+
 	if app.net.local_ip() == "":
-		label("Connect to Wi-Fi or Ethernet, then retry.", 0.8)
+		label("No network yet. Use the image above, connect Wi-Fi, or retry.", 0.8)
 		button("Wi-Fi settings", app.show_wifi.bind(""))
 		button("Retry", present.bind(""))
 		button("Skip for now", app.skip_setup)
 		focus()
-		# Pick up Ethernet or Wi-Fi as soon as it comes up, without making the
-		# user press Retry.
-		for _attempt in 20:
+		# Give USB Ethernet/DHCP a bounded chance to come up. The screen stays
+		# usable; this is not an indefinite gate on network access.
+		for _attempt in 15:
 			await app.get_tree().create_timer(1.0).timeout
 			if generation != _generation or app._screen_node != self:
 				return
@@ -49,6 +57,15 @@ func present(message: String = "") -> void:
 	label("Starting setup…", 0.75)
 	await app.get_tree().create_timer(0.4).timeout
 	app.start_net("setup", message)
+
+
+func _use_iso(path: String) -> void:
+	var saved := cli(["settings", "set", "game.iso", path])
+	if not saved.get("ok", false):
+		present(str(saved.get("error", "Could not save the Melee image.")))
+		return
+	app.refresh_status()
+	app.skip_setup()
 
 
 func back() -> void:

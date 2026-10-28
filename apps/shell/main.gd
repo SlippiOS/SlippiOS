@@ -385,27 +385,16 @@ func _on_os_update_finished(phase: String, error: String) -> void:
 func after_splash() -> void:
 	if needs_setup():
 		var settings: Dictionary = status.get("settings", {})
-		if not settings.get("exists", false) and not await _wait_for_network(5.0):
-			setup_flow = true
-			show_wifi("Connect to Wi-Fi or plug in Ethernet to continue setup.")
-			return
 		if settings.get("exists", false) and has_valid_isos():
 			show_roms("Default Melee image is missing. Choose one.")
 		else:
+			# The setup screen polls for Ethernet and Wi-Fi itself. Do not
+			# preempt it with a Wi-Fi-only page when DHCP is still running.
 			show_setup()
 	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		show_menu()
 	else:
 		launch_game()
-
-
-func _wait_for_network(seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
-	while Time.get_ticks_msec() < deadline:
-		if net.local_ip() != "":
-			return true
-		await get_tree().create_timer(0.5).timeout
-	return net.local_ip() != ""
 
 
 func on_play() -> void:
