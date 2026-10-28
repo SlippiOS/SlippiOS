@@ -23,23 +23,24 @@ same settings:
 
 The shell was running during the first comparison and idled at about 20% CPU.
 That kept the CPU near 3.06 GHz and invalidated the kernel comparison. After
-stopping the shell, both CachyOS kernels boosted to about 4.4 GHz.
+stopping the shell, all three kernels boosted to about 4.4 GHz.
 
 | Kernel | Singles | 4-player | CPU max |
 |---|---:|---:|---:|
 | CachyOS BORE 7.3.0 | 0.9945 | 0.8633 | 4.40 GHz |
 | CachyOS LTS 6.18.55 | 0.9940 | 0.8596 | 4.42 GHz |
-| Stock NixOS 6.18.57 | 0.9822 | 0.7992 | 3.06 GHz |
+| Stock NixOS 6.18.57 | 0.9507 | 0.8081 | 4.39 GHz |
 
-The stock result was measured with the shell running, so treat it as
-directional rather than clean. It also uses `madvise` transparent hugepages
-while the CachyOS kernels use `always`.
+The stock run's warm-up timed out on the first playback launch, but the
+recorded singles and 4-player runs completed. Stock also uses `madvise`
+transparent hugepages while the CachyOS kernels use `always`.
 
 ## Decision
 
 Release images use the CachyOS BORE kernel (`linux-cachyos-bore`, 7.3.0). BORE
-was fastest in both clean replays. The margins are small — 0.05% on singles and
-0.4% on 4-player — but singles is the priority, and BORE also won 4-player.
+was fastest in both clean replays. The margins versus LTS are small — 0.05% on
+singles and 0.4% on 4-player — but singles is the priority, and BORE also won
+4-player.
 
 LTS remains the fallback for comparison and for anyone who prefers the longer
 support branch. Dev configurations can override the kernel variant. The
