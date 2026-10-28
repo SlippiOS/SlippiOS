@@ -217,7 +217,9 @@ func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
 func playbackSettings() map[string]any {
 	backend := os.Getenv("SLIPPIOS_PLAYBACK_BACKEND")
 	if backend == "" {
-		backend = "Vulkan"
+		// The 3.5.2 playback build's Vulkan path opens the Dolphin GUI on the
+		// EM680 instead of starting the replay. OpenGL starts reliably.
+		backend = "OGL"
 	}
 	dolphin := map[string]any{
 		"backend":    backend,
