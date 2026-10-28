@@ -10,12 +10,14 @@ let
     trap 'exit 0' TERM INT HUP
 
     ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
-    ${pkgs.xwallpaper}/bin/xwallpaper --max ${splashBoot} || true
     ${pkgs.xset}/bin/xset s off -dpms || true
     ${pkgs.openbox}/bin/openbox --config-file /etc/xdg/openbox/rc.xml &
     wm=$!
     ${pkgs.coreutils}/bin/sleep 0.5
     ${slippiosPackages.cli}/bin/slippios display apply || true
+    # Set the splash after the display mode is applied so it scales to the
+    # final resolution instead of being cropped by a later mode change.
+    ${pkgs.xwallpaper}/bin/xwallpaper --maximize ${splashBoot} || true
     ${shell}/bin/slippios-shell
     # The shell wrapper handles games and tools. If it exits unexpectedly,
     # leave Openbox running and open a terminal for diagnosis.
