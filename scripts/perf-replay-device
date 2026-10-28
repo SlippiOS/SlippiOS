@@ -98,7 +98,7 @@ run_one() {
   while kill -0 "$runner" 2>/dev/null; do
     if [[ -f "$frame_log" ]]; then
       local current
-      current=$(grep -o '\[CURRENT_FRAME\] [0-9]*' "$frame_log" 2>/dev/null | tail -1 | awk '{print $2}')
+      current=$(grep -o '\[CURRENT_FRAME\] [0-9]*' "$frame_log" 2>/dev/null | tail -1 | awk '{print $2}' || true)
       if [[ -n "$current" ]]; then
         if [[ -z "$first_frame_at" ]]; then
           first_frame_at=$(date +%s.%N)
