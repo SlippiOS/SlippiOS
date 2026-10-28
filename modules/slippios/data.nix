@@ -27,17 +27,42 @@
         /data/users/default/replays /data/users/default/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
-      # The beta/mainline and stable builds use separate Dolphin directories.
-      # Seed the bundled pad profiles into both so a profile selected in the
-      # shell also works after switching builds.
-      for home in /data/users/default/dolphin /data/users/default/dolphin-stable; do
-        config_dir=$home/Config
-        profile_dir=$config_dir/Profiles/GCPad
-        ${pkgs.coreutils}/bin/install -d -o player -g users -m 0775 \
-          "$config_dir" "$config_dir/Profiles" "$profile_dir"
-        ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini "$profile_dir"/ || true
-        ${pkgs.coreutils}/bin/chown -R player:users "$config_dir" || true
-      done
+      main=/data/users/default/dolphin
+      stable=/data/users/default/dolphin-stable
+      ${pkgs.coreutils}/bin/install -d -o player -g users -m 0775 \
+        "$main" "$main/Config" "$main/Config/Profiles" \
+        "$main/Config/Profiles/GCPad" "$main/GameSettings" "$main/Slippi" \
+        "$stable" "$stable/Config" "$stable/Slippi" \
+        /data/system/apps /data/system/playback
+      ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini \
+        "$main/Config/Profiles/GCPad"/ || true
+      ${pkgs.coreutils}/bin/chown -R player:users \
+        "$main/Config" "$main/GameSettings" "$main/Slippi" || true
+
+      # The beta/mainline and stable builds share pad profiles, Gecko codes,
+      # and the Slippi login. Their Dolphin.ini, GFX.ini, and GCPadNew.ini
+      # stay separate because the builds have different formats.
+      if [ -e "$stable/Config/Profiles" ] && [ ! -L "$stable/Config/Profiles" ]; then
+        if ${pkgs.coreutils}/bin/cp -an "$stable/Config/Profiles/." "$main/Config/Profiles/"; then
+          ${pkgs.coreutils}/bin/rm -rf "$stable/Config/Profiles"
+        fi
+      fi
+      ${pkgs.coreutils}/bin/ln -sfn ../../dolphin/Config/Profiles "$stable/Config/Profiles"
+
+      if [ -e "$stable/GameSettings" ] && [ ! -L "$stable/GameSettings" ]; then
+        if ${pkgs.coreutils}/bin/cp -an "$stable/GameSettings/." "$main/GameSettings/"; then
+          ${pkgs.coreutils}/bin/rm -rf "$stable/GameSettings"
+        fi
+      fi
+      ${pkgs.coreutils}/bin/ln -sfn ../dolphin/GameSettings "$stable/GameSettings"
+
+      if [ -e "$stable/Slippi/user.json" ] && [ ! -L "$stable/Slippi/user.json" ]; then
+        if ${pkgs.coreutils}/bin/cp -n "$stable/Slippi/user.json" "$main/Slippi/user.json"; then
+          ${pkgs.coreutils}/bin/rm -f "$stable/Slippi/user.json"
+        fi
+      fi
+      ${pkgs.coreutils}/bin/ln -sfn ../../dolphin/Slippi/user.json "$stable/Slippi/user.json"
+      ${pkgs.coreutils}/bin/chown -R player:users "$stable" || true
     '';
   };
 }
