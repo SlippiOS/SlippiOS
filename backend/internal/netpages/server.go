@@ -50,18 +50,27 @@ func New(token string, port int, paths settings.Paths) *Server {
 }
 
 func LocalAddress() string {
+	// Prefer the interface the default route would use, so Ethernet wins over
+	// Wi-Fi when both are connected. The UDP dial does not send packets.
+	if address := defaultRouteAddress(); address != "" {
+		return address
+	}
 	if address := interfaceAddress(); address != "" {
 		return address
 	}
+	return "127.0.0.1"
+}
+
+func defaultRouteAddress() string {
 	connection, err := net.Dial("udp4", "8.8.8.8:80")
 	if err != nil {
-		return "127.0.0.1"
+		return ""
 	}
 	defer connection.Close()
 	if address, ok := connection.LocalAddr().(*net.UDPAddr); ok && address.IP != nil {
 		return address.IP.String()
 	}
-	return "127.0.0.1"
+	return ""
 }
 
 func interfaceAddress() string {

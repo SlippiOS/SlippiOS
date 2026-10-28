@@ -1,7 +1,11 @@
 extends "res://screens/screen.gd"
 
+var _generation := 0
+
 
 func present(message: String = "") -> void:
+	_generation += 1
+	var generation := _generation
 	clear()
 	title("SETTING UP", 48)
 	var result := cli(["isos"])
@@ -31,6 +35,15 @@ func present(message: String = "") -> void:
 		button("Retry", present.bind(""))
 		button("Skip for now", app.skip_setup)
 		focus()
+		# Pick up Ethernet or Wi-Fi as soon as it comes up, without making the
+		# user press Retry.
+		for _attempt in 20:
+			await app.get_tree().create_timer(1.0).timeout
+			if generation != _generation or app._screen_node != self:
+				return
+			if app.net.local_ip() != "":
+				present("Network connected.")
+				return
 		return
 
 	label("Starting setup…", 0.75)

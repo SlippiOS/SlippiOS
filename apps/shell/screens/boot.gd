@@ -26,7 +26,7 @@ func present(_message: String = "") -> void:
 			app.show_menu()
 			return
 		await app.get_tree().process_frame
-	app.after_splash()
+	await app.after_splash()
 
 
 func _add_boot_bar() -> ProgressBar:
