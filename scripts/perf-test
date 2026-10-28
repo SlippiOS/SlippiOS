@@ -89,6 +89,11 @@ fi
 if [[ -n "${PLAYBACK_BACKEND:-}" ]]; then
   remote_cmd+=" SLIPPIOS_PLAYBACK_BACKEND=$(printf %q "$PLAYBACK_BACKEND")"
 fi
+for name in VK_ICD_FILENAMES VK_DRIVER_FILES LD_LIBRARY_PATH; do
+  if [[ -n "${!name:-}" ]]; then
+    remote_cmd+=" $name=$(printf %q "${!name}")"
+  fi
+done
 remote_cmd+=" $REMOTE/perf-replay-device"
 
 echo "Running on $HOST; results will be in $local_out"

@@ -62,7 +62,9 @@ buildFHSEnv (appimageTools.defaultFhsEnvArgs // {
       pkgs.gawk
       pkgs.gnused
       pkgs.libevdev
+      pkgs.mesa
       pkgs.systemd
+      pkgs.vulkan-loader
     ] ++ appimageTools.defaultFhsEnvArgs.targetPkgs pkgs;
 
   runScript = "${runner}";
