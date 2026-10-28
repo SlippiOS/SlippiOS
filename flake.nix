@@ -4,6 +4,11 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
   inputs.nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/release";
 
+  nixConfig = {
+    extra-substituters = [ "https://cache.lantian.pub/lantian" ];
+    extra-trusted-public-keys = [ "lantian:WVGO7vsRMSEN+h7Lp7kv6SAmrkEXgUGbbXm7jMDjBuQ=" ];
+  };
+
   outputs = inputs@{ self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
