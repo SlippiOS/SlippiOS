@@ -1,14 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/spf13/cobra"
 )
 
 type updateOptions struct {
-	check bool
+	check    bool
+	progress string
 }
 
 func newUpdateCommand(mode *modes) *cobra.Command {
@@ -22,6 +26,7 @@ func newUpdateCommand(mode *modes) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&options.check, "check", false, "only check for a new release")
+	command.Flags().StringVar(&options.progress, "progress", "", "write download progress as JSON to this file")
 	return command
 }
 
@@ -48,16 +53,43 @@ func runUpdate(mode *modes, options updateOptions) error {
 		})
 	}
 
-	path, err := paths.Ensure(func(message string) {
+	report := func(value map[string]any) {}
+	if options.progress != "" {
+		report = func(value map[string]any) { writeProgress(options.progress, value) }
+		report(map[string]any{"phase": "checking"})
+	}
+
+	path, err := paths.EnsureWithProgress(func(message string) {
 		fmt.Fprintln(mode.stderr(), message)
+	}, func(done, total int64) {
+		report(map[string]any{"phase": "downloading", "done": done, "total": total})
 	}, false)
 	if err != nil {
+		report(map[string]any{"phase": "error", "error": err.Error()})
 		return mode.fail(err.Error())
 	}
+	report(map[string]any{"phase": "ready"})
+
 	current, _ := paths.CurrentTag()
 	return mode.emit(map[string]any{
 		"ok": true, "check": false, "current": current, "path": path,
 	}, func() {
 		mode.printf("Dolphin:   %s\nPath:      %s\n", current, path)
 	})
+}
+
+func writeProgress(path string, value map[string]any) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return
+	}
+	data = append(data, '\n')
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	temporary := path + ".tmp"
+	if err := os.WriteFile(temporary, data, 0o644); err != nil {
+		return
+	}
+	_ = os.Rename(temporary, path)
 }

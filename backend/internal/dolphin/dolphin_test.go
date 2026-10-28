@@ -124,6 +124,49 @@ func TestEnsureDownloadsAndCaches(t *testing.T) {
 	}
 }
 
+func TestEnsureReportsProgress(t *testing.T) {
+	content := []byte(strings.Repeat("x", 3<<20))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases":
+			_ = json.NewEncoder(w).Encode([]map[string]any{{
+				"tag_name": "v1",
+				"assets": []any{map[string]any{
+					"name":                 assetName,
+					"size":                 len(content),
+					"browser_download_url": "http://" + r.Host + "/asset",
+					"digest":               digest(content),
+				}},
+			}})
+		case "/asset":
+			_, _ = w.Write(content)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	withAPI(t, server.URL+"/releases")
+
+	paths := ForData(t.TempDir())
+	var lastDone, lastTotal int64
+	calls := 0
+	if _, err := paths.EnsureWithProgress(nil, func(done, total int64) {
+		if done < lastDone {
+			t.Fatalf("progress went backwards: %d then %d", lastDone, done)
+		}
+		lastDone, lastTotal = done, total
+		calls++
+	}, false); err != nil {
+		t.Fatal(err)
+	}
+	if lastDone != int64(len(content)) || lastTotal != int64(len(content)) {
+		t.Fatalf("final progress = %d/%d", lastDone, lastTotal)
+	}
+	if calls < 2 {
+		t.Fatalf("progress calls = %d", calls)
+	}
+}
+
 func TestEnsureRejectsBadChecksum(t *testing.T) {
 	content := []byte("fake appimage payload")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

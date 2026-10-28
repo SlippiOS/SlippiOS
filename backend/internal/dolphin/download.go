@@ -33,8 +33,14 @@ func digestOK(path, digest string) bool {
 	return hex.EncodeToString(hasher.Sum(nil)) == expected
 }
 
-func download(asset Asset, destination string, log func(string)) error {
+// Progress reports downloaded bytes and the expected total.
+type Progress func(done, total int64)
+
+func download(asset Asset, destination string, log func(string), progress Progress) error {
 	log(fmt.Sprintf("Downloading %s (%d MB)…", asset.Name, asset.Size/(1024*1024)))
+	if progress != nil {
+		progress(0, asset.Size)
+	}
 
 	partial := destination + ".part"
 	response, err := get(asset.BrowserDownloadURL, 60*time.Second)
@@ -59,6 +65,9 @@ func download(asset Asset, destination string, log func(string)) error {
 				return err
 			}
 			done += int64(count)
+			if progress != nil {
+				progress(done, asset.Size)
+			}
 			current := done >> 20
 			if current >= reported+16 {
 				reported = current
@@ -101,6 +110,10 @@ func switchCurrent(paths Paths, tag, destination string) error {
 }
 
 func (p Paths) Ensure(log func(string), force bool) (string, error) {
+	return p.EnsureWithProgress(log, nil, force)
+}
+
+func (p Paths) EnsureWithProgress(log func(string), progress Progress, force bool) (string, error) {
 	if log == nil {
 		log = func(string) {}
 	}
@@ -156,13 +169,16 @@ func (p Paths) Ensure(log func(string), force bool) (string, error) {
 	if info, err := os.Stat(destination); err == nil && !info.IsDir() && digestOK(destination, asset.Digest) {
 		log(fmt.Sprintf("Using cached %s.", tag))
 	} else {
-		if err := download(asset, destination, log); err != nil {
+		if err := download(asset, destination, log, progress); err != nil {
 			return "", fmt.Errorf("cannot download Slippi Dolphin: %w", err)
 		}
 		if !digestOK(destination, asset.Digest) {
 			_ = os.Remove(destination)
 			return "", errors.New("downloaded AppImage failed checksum verification")
 		}
+	}
+	if progress != nil {
+		progress(asset.Size, asset.Size)
 	}
 	if err := os.Chmod(destination, 0o755); err != nil {
 		return "", err
