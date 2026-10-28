@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
@@ -57,6 +58,9 @@ func runPlay(mode *modes, options playOptions) error {
 	valid, reason := paths.ISOStatus(raw)
 	if !valid {
 		return mode.fail(reason)
+	}
+	if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
+		return mode.fail(err.Error())
 	}
 	iso := paths.ISOPath(raw)
 
@@ -130,16 +134,19 @@ func dolphinArgs(values map[string]any) []string {
 		"-C", "Dolphin.DSP.Backend=" + text("audio_backend", "Cubeb"),
 		"-C", "Dolphin.Core.AudioLatency=" + strconv.FormatInt(number("audio_latency", 20), 10),
 	}
-	switch text("controller", "adapter") {
-	case "adapter":
-		for port := 0; port < 4; port++ {
-			arguments = append(arguments,
-				"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=12", port))
+	for port := 0; port < 4; port++ {
+		device := text(fmt.Sprintf("controller%d", port+1), "adapter")
+		value := 0
+		switch device {
+		case "adapter":
+			value = 12
+		case "pad":
+			value = 6
+		case "keyboard":
+			value = 7
 		}
-	case "keyboard":
-		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=7")
-	default:
-		arguments = append(arguments, "-C", "Dolphin.Core.SIDevice0=6")
+		arguments = append(arguments,
+			"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=%d", port, value))
 	}
 	return arguments
 }

@@ -4,7 +4,7 @@ func present(_message: String = "") -> void:
 	clear()
 	title("EXPERT TOOLS", 40)
 	label("These tools can change the system. Use them with care.", 0.7)
-	button("Dolphin settings window", app.open_dolphin_settings)
+	button("Open Dolphin GUI", app.open_dolphin_settings)
 	button("Terminal", app.open_terminal)
 	button("Text editor", app.open_editor)
 	button("Custom display mode", app.show_custom_mode.bind(""))

@@ -10,8 +10,6 @@ func present(_message: String = "") -> void:
 		current = current.get_file()
 	button(("Play — %s" % current) if current != "" else "Play", app.on_play)
 	button("Melee ROMs", app.show_roms.bind(""))
-	button("Dolphin", app.show_dolphin.bind(""))
-	button("Update", app.show_update)
 	button("Account", app.show_account)
 	button("Settings", app.show_settings.bind(""))
 	button("Quit", app.show_quit)

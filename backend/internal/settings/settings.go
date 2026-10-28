@@ -77,6 +77,14 @@ func Defaults() map[string]any {
 			"audio_latency": int64(20),
 			"controller":    "adapter",
 			"profile":       "",
+			"controller1":   "adapter",
+			"controller2":   "adapter",
+			"controller3":   "adapter",
+			"controller4":   "adapter",
+			"profile1":      "",
+			"profile2":      "",
+			"profile3":      "",
+			"profile4":      "",
 		},
 		"expert": map[string]any{
 			"enabled": false,
@@ -118,7 +126,31 @@ func (p Paths) Load() (map[string]any, error) {
 	}
 	merged := Defaults()
 	merge(merged, decoded)
+	migrateControllers(decoded, merged)
 	return merged, nil
+}
+
+// Older settings had one controller setting for all four ports. Keep the
+// original behaviour for port 1 and leave the other ports on the adapter.
+func migrateControllers(decoded, merged map[string]any) {
+	rawDolphin, _ := decoded["dolphin"].(map[string]any)
+	if rawDolphin == nil {
+		return
+	}
+	mergedDolphin, _ := merged["dolphin"].(map[string]any)
+	if mergedDolphin == nil {
+		return
+	}
+	if _, exists := rawDolphin["controller1"]; !exists {
+		if legacy, _ := rawDolphin["controller"].(string); legacy != "" {
+			mergedDolphin["controller1"] = legacy
+		}
+	}
+	if _, exists := rawDolphin["profile1"]; !exists {
+		if legacy, _ := rawDolphin["profile"].(string); legacy != "" {
+			mergedDolphin["profile1"] = legacy
+		}
+	}
 }
 
 func (p Paths) Save(values map[string]any) error {

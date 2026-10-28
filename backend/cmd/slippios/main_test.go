@@ -92,6 +92,27 @@ func TestLoginCommandInstallsLogin(t *testing.T) {
 	}
 }
 
+func TestDolphinArgsPerPort(t *testing.T) {
+	values := map[string]any{"dolphin": map[string]any{
+		"controller1": "pad",
+		"controller2": "adapter",
+		"controller3": "keyboard",
+		"controller4": "none",
+	}}
+	args := dolphinArgs(values)
+	joined := strings.Join(args, " ")
+	for _, want := range []string{
+		"Dolphin.Core.SIDevice0=6",
+		"Dolphin.Core.SIDevice1=12",
+		"Dolphin.Core.SIDevice2=7",
+		"Dolphin.Core.SIDevice3=0",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %q in %s", want, joined)
+		}
+	}
+}
+
 func TestCommandTree(t *testing.T) {
 	root := newRootCommand()
 	paths := [][]string{
@@ -112,6 +133,15 @@ func TestCommandTree(t *testing.T) {
 		{"dolphin"},
 		{"dolphin", "config"},
 		{"dolphin", "reset"},
+		{"controllers"},
+		{"controllers", "list"},
+		{"controllers", "profiles"},
+		{"controllers", "set"},
+		{"gecko"},
+		{"gecko", "list"},
+		{"gecko", "set"},
+		{"gecko", "add"},
+		{"gecko", "remove"},
 		{"display"},
 		{"display", "apply"},
 		{"display", "modes"},

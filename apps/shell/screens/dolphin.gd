@@ -3,7 +3,7 @@ extends "res://screens/screen.gd"
 
 func present(message: String = "") -> void:
 	clear()
-	title("DOLPHIN", 44)
+	title("DOLPHIN SETTINGS", 40)
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
 	var dolphin: Dictionary = settings.get("dolphin", {})
 	if message != "":
@@ -20,10 +20,9 @@ func present(message: String = "") -> void:
 		_cycle.bind("msaa", [1, 2, 4, 8]))
 	button("Audio: %s" % text_value(dolphin.get("audio_backend"), "Cubeb"),
 		_cycle.bind("audio_backend", ["Cubeb", "ALSA", "NoSound"]))
-	button("Controller: %s" % _controller_label(dolphin),
-		_cycle.bind("controller", ["adapter", "pad", "keyboard"]))
+	button("Gecko codes", app.show_gecko)
 	button("Reset Dolphin config", _reset)
-	button("Back", app.show_menu)
+	button("Back", app.show_settings)
 	focus()
 
 
@@ -51,16 +50,6 @@ func _msaa_label(dolphin: Dictionary) -> String:
 	if value <= 1:
 		return "off"
 	return "%dx" % value
-
-
-func _controller_label(dolphin: Dictionary) -> String:
-	match text_value(dolphin.get("controller"), "adapter"):
-		"pad":
-			return "standard pad"
-		"keyboard":
-			return "keyboard"
-		_:
-			return "GameCube adapter"
 
 
 func _cycle(key: String, choices: Array) -> void:
@@ -107,4 +96,4 @@ func _reset() -> void:
 
 
 func back() -> void:
-	app.show_menu()
+	app.show_settings()

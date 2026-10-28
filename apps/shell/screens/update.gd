@@ -8,7 +8,7 @@ func present(_message: String = "") -> void:
 	if app.update_job.active():
 		label("A system update is in progress.", 0.8)
 		button("View progress", app.show_os_progress)
-		button("Back", app.show_menu)
+		button("Back", app.show_settings)
 		focus()
 		return
 
@@ -42,9 +42,9 @@ func present(_message: String = "") -> void:
 	else:
 		label(str(dolphin.get("error", "Dolphin update check failed.")), 0.8)
 
-	button("Back", app.show_menu)
+	button("Back", app.show_settings)
 	focus()
 
 
 func back() -> void:
-	app.show_menu()
+	app.show_settings()

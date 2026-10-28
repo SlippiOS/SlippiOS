@@ -1,0 +1,49 @@
+extends "res://screens/screen.gd"
+
+
+func present(message: String = "") -> void:
+	clear()
+	title("GECKO CODES", 40)
+	label("Required codes are locked. Changes apply the next time Melee starts.", 0.6)
+
+	var result := cli(["gecko", "list"])
+	if not result.get("ok", false):
+		label(str(result.get("error", "Could not read the Gecko codes.")), 0.9)
+		button("Back", app.show_dolphin)
+		focus()
+		return
+	if message != "":
+		label(message, 0.9)
+
+	var codes: Array = result.get("codes", [])
+	if codes.is_empty():
+		label("No Gecko codes found.", 0.8)
+	for code in codes:
+		var name := str(code.get("name", ""))
+		if name == "":
+			continue
+		var enabled := bool(code.get("enabled", false))
+		var required := bool(code.get("required", false))
+		var row := ("[x] " if enabled else "[ ] ") + name
+		if required:
+			row += "  (required)"
+		button(row, _toggle.bind(name, enabled, required))
+
+	button("Custom codes…", app.show_gecko_custom)
+	button("Back", app.show_dolphin)
+	focus()
+
+
+func _toggle(name: String, enabled: bool, required: bool) -> void:
+	if required:
+		app.show_gecko("%s is required and cannot be disabled." % name)
+		return
+	var result := cli(["gecko", "set", name, "off" if enabled else "on"])
+	if not result.get("ok", false):
+		app.show_gecko(str(result.get("error", "Could not save the Gecko code.")))
+		return
+	app.show_gecko("%s is now %s." % [name, "off" if enabled else "on"])
+
+
+func back() -> void:
+	app.show_dolphin()

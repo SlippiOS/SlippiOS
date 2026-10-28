@@ -128,20 +128,30 @@ them on a trusted network.
 ## Play
 
 **Play** launches Slippi Dolphin with the selected ISO. Standard SDL controllers
-work. **Dolphin** changes Dolphin's graphics backend, internal resolution,
-aspect ratio, VSync, anti-aliasing, audio, and controller type without leaving
-the console. SlippiOS maps these onto Dolphin's command-line config.
+work. **Settings → Dolphin Settings** changes Dolphin's graphics backend,
+internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
+leaving the console. SlippiOS maps these onto Dolphin's command-line config.
+The same screen has **Gecko codes** for the optional Melee patches.
 
 [controllers.md](controllers.md)
 
 **Settings** lists the display modes the monitor advertises (read from
-xrandr/EDID), the audio outputs, and Wi-Fi. Changes apply immediately and are
-saved for the next boot.
+xrandr/EDID), the audio outputs, Wi-Fi, and **Update**. Changes apply
+immediately and are saved for the next boot.
+
+**Settings → Controller Settings** assigns each of the four GameCube ports to a
+GameCube adapter, a standard pad with a Dolphin profile, the keyboard, or
+nothing. The screen marks profiles whose device is currently connected.
+
+**Settings → Dolphin Settings → Gecko codes** toggles the built-in Slippi codes.
+The required Slippi Online codes are locked; the optional codes (widescreen,
+flash on failed L-cancel, and so on) can be changed. Custom codes can be added
+from the Expert terminal with `slippios gecko add <file>`.
 
 **Expert mode** (inside Settings) unlocks tools for troubleshooting and
-tinkering: Dolphin's own settings window, a terminal, a text editor, and a
-custom display mode. The custom mode takes `WIDTHxHEIGHT` or
-`WIDTHxHEIGHT@HZ`; it is added with a CVT modeline and kept across reboots.
+tinkering: the Dolphin GUI, a terminal, a text editor, and a custom display
+mode. The custom mode takes `WIDTHxHEIGHT` or `WIDTHxHEIGHT@HZ`; it is added
+with a CVT modeline and kept across reboots.
 
 **Quit** powers the console off cleanly. Wait for the screen to go dark before
 unplugging the drive.
@@ -151,7 +161,7 @@ the system.
 
 ## Update
 
-1. **Update**.
+1. **Settings → Update**.
 2. **Install system update**.
 3. Wait, then **Restart**.
 

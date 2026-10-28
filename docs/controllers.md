@@ -32,17 +32,29 @@ Dolphin also supports the adapter natively through libusb. USB access is
 exclusive, so the shell wrapper quits Godot before starting Dolphin and starts
 Godot again after Dolphin exits. Do not run a uinput bridge at the same time.
 
-Open **Dolphin settings** in the shell to bind controllers or load a profile.
-SlippiOS closes its UI first, so the adapter is free for Dolphin's own
-controller configuration.
+Open **Settings → Controller Settings** to assign each port. Ports set to
+**GameCube adapter** use Dolphin's native adapter support. Ports set to
+**standard pad** use a GCPad profile; the screen marks a profile as
+**(detected)** when a connected joystick matches its `Device` line. Use
+**custom** if you mapped the pad in Dolphin's own GUI and want SlippiOS to leave
+that section alone.
+
+For deeper changes, **Settings → Expert mode → Expert tools → Open Dolphin
+GUI** opens Dolphin's controller configuration. SlippiOS closes its UI first,
+so the adapter is free for Dolphin.
 
 ## Bundled profiles
 
-SlippiOS seeds these community profiles into
-`/data/users/default/dolphin/Config/Profiles/GCPad/` on first boot (existing
+SlippiOS seeds these profiles into
+`/data/users/default/dolphin/Config/Profiles/GCPad/` when needed (existing
 files are not overwritten):
 
-B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux, HayBox_XInput_Linux.
+- SlippiOS: `Xbox 360 (Mad Catz)`, `Xbox 360 (Microsoft)`, `Keyboard`
+- Slippi: B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux,
+  HayBox_XInput_Linux
+
+The Xbox profiles use evdev and the standard Xbox 360 button/axis layout. The
+keyboard profile matches Dolphin's default Linux keyboard bindings.
 
 `Frame1_Linux.ini` is derived from the upstream Ishiiruka Frame1 profile with
 the DirectInput bindings translated to evdev names. The device is named

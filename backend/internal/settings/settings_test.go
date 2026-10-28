@@ -27,6 +27,32 @@ func TestSaveLoadDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadMigratesSingleController(t *testing.T) {
+	paths := PathsFor(t.TempDir())
+	if err := os.MkdirAll(filepath.Dir(paths.SettingsFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := `schema_version = 1
+
+[dolphin]
+controller = "pad"
+`
+	if err := os.WriteFile(paths.SettingsFile, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := paths.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dolphin := loaded["dolphin"].(map[string]any)
+	if dolphin["controller1"] != "pad" {
+		t.Fatalf("controller1 = %v", dolphin["controller1"])
+	}
+	if dolphin["controller2"] != "adapter" {
+		t.Fatalf("controller2 = %v", dolphin["controller2"])
+	}
+}
+
 func TestISOStatus(t *testing.T) {
 	paths := PathsFor(t.TempDir())
 	if err := os.MkdirAll(paths.ISODir, 0o755); err != nil {

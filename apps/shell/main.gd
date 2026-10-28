@@ -20,6 +20,10 @@ const DisplayScreen := preload("res://screens/display.gd")
 const CustomModeScreen := preload("res://screens/display_custom.gd")
 const ExpertScreen := preload("res://screens/expert.gd")
 const DolphinScreen := preload("res://screens/dolphin.gd")
+const ControllersScreen := preload("res://screens/controllers.gd")
+const ControllerPortScreen := preload("res://screens/controller_port.gd")
+const GeckoScreen := preload("res://screens/gecko.gd")
+const GeckoCustomScreen := preload("res://screens/gecko_custom.gd")
 const WifiScreen := preload("res://screens/wifi.gd")
 const WifiPasswordScreen := preload("res://screens/wifi_password.gd")
 const UpdateScreen := preload("res://screens/update.gd")
@@ -235,6 +239,28 @@ func show_expert() -> void:
 func show_dolphin(message: String = "") -> void:
 	stop_net()
 	_present(DolphinScreen.new(self), message)
+
+
+func show_controllers(message: String = "") -> void:
+	stop_net()
+	_present(ControllersScreen.new(self), message)
+
+
+func show_controller_port(port: int, message: String = "") -> void:
+	stop_net()
+	var screen = ControllerPortScreen.new(self)
+	screen.port = port
+	_present(screen, message)
+
+
+func show_gecko(message: String = "") -> void:
+	stop_net()
+	_present(GeckoScreen.new(self), message)
+
+
+func show_gecko_custom(message: String = "") -> void:
+	stop_net()
+	_present(GeckoCustomScreen.new(self), message)
 
 
 func show_wifi(message: String = "") -> void:

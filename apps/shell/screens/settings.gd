@@ -13,6 +13,9 @@ func present(message: String = "") -> void:
 	button("Audio: %s" % _sink_label(audio), app.show_audio)
 	label("Network: %s" % text_value(network.get("ssid"), "(none)"), 0.8)
 	button("Wi-Fi network", app.show_wifi.bind(""))
+	button("Dolphin Settings", app.show_dolphin.bind(""))
+	button("Controller Settings", app.show_controllers.bind(""))
+	button("Update", app.show_update)
 	button("Expert mode: %s" % ("on" if expert_on else "off"), _toggle_expert)
 	if expert_on:
 		button("Expert tools", app.show_expert)

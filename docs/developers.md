@@ -220,7 +220,8 @@ them to `-C System.Section.Key=Value` at launch. The important values:
 
 - `Dolphin` is the main INI; `Graphics` is the GFX INI (not `GFX`).
 - `Dolphin.Core.SIDevice0..3`: 12 is the Wii U adapter, 6 a standard pad,
-  7 the keyboard.
+  7 the keyboard, 0 is disconnected. Each port is stored separately as
+  `dolphin.controller1..4` and `dolphin.profile1..4`.
 - `Graphics.Settings.InternalResolution` is the EFB scale (1 = native).
 - `Graphics.Settings.AspectRatio`: 1 widescreen, 2 4:3, 3 Melee, 4 stretch.
 - `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
@@ -229,8 +230,20 @@ them to `-C System.Section.Key=Value` at launch. The important values:
   current X resolution so Melee fills the screen without a window manager.
 - Enums are written as integers; booleans as `True`/`False`.
 
-**Expert mode → Dolphin settings window** still opens the real Dolphin GUI for
-anything the curated list does not cover (controller bindings, profiles).
+**Settings → Controller Settings** writes `dolphin.controllerN` and, for pad
+ports, copies the selected `Config/Profiles/GCPad/<name>.ini` into
+`[GCPadN]` in `Config/GCPadNew.ini`. The `custom` profile leaves that section
+alone. Detected pads are read from `/sys/class/input/js*/device/name`.
+
+**Settings → Dolphin Settings → Gecko codes** reads the global
+`Sys/GameSettings/GALE01r2.ini` from the extracted Slippi AppImage and writes
+overrides to `users/default/dolphin/GameSettings/GALE01.ini`. Only differences
+from the global defaults go into `[Gecko_Enabled]`/`[Gecko_Disabled]`; custom
+codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
+`slippios gecko list|set|add|remove`.
+
+**Settings → Expert mode → Expert tools → Open Dolphin GUI** still opens the
+real Dolphin GUI for anything the curated list does not cover.
 
 ## Boot splash
 

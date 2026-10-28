@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/spf13/cobra"
@@ -57,6 +58,9 @@ func runDolphinConfig(mode *modes) error {
 	}
 	values, err := settings.DefaultPaths().Load()
 	if err != nil {
+		return mode.fail(err.Error())
+	}
+	if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
 		return mode.fail(err.Error())
 	}
 	arguments := dolphinArgs(values)

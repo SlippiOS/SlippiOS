@@ -29,6 +29,37 @@ in
   networking.firewall.allowedTCPPorts = [ 8080 ];
   time.timeZone = "UTC";
 
+  # PipeWire otherwise restores a per-application stream volume (Dolphin can
+  # come back at -20 dB). The console has no volume UI, so keep streams at 0 dB.
+  security.rtkit.enable = true;
+  systemd.user.services.slippios-audio = {
+    description = "Keep SlippiOS audio streams at full volume";
+    wantedBy = [ "default.target" ];
+    after = [ "wireplumber.service" ];
+    serviceConfig = {
+      Type = "simple";
+      Restart = "always";
+      RestartSec = 2;
+      ExecStart = "${pkgs.writeShellScript "slippios-audio" ''
+        #!/bin/sh
+        ${pkgs.pulseaudio}/bin/pactl set-sink-volume @DEFAULT_SINK@ 100% || true
+        ${pkgs.pulseaudio}/bin/pactl subscribe | while read -r event; do
+          case "$event" in
+            *"new' on sink-input"*)
+              ${pkgs.pulseaudio}/bin/pactl list short sink-inputs |
+                while read -r id _; do
+                  ${pkgs.pulseaudio}/bin/pactl set-sink-input-volume "$id" 100% || true
+                done
+              ;;
+            *"new' on sink"*)
+              ${pkgs.pulseaudio}/bin/pactl set-sink-volume @DEFAULT_SINK@ 100% || true
+              ;;
+          esac
+        done
+      ''}";
+    };
+  };
+
   users.users.player = {
     isNormalUser = true;
     uid = 1000;
