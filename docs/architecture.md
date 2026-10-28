@@ -21,7 +21,7 @@ GPT
 - `/nix/store` is mounted from the active `nix-store_<version>` partition.
 - The matching UKI embeds that label and is stored in the ESP.
 - Versions are semver (`0.3.0`). `VERSION` is the source of truth; dev builds
-  use the next patch plus a timestamp (`0.3.1-dev.<epoch>`) so they sort above
+  use the next patch plus a timestamp (`0.3.1~dev.<epoch>.<rev>`) so they sort above
   the release. systemd-boot and systemd-sysupdate order numeric segments
   correctly (`0.10.0 > 0.9.0`, `0.3.1 > 0.3.0`). Use `~rc` for a pre-release;
   a trailing `-rc` sorts above the release. Existing epoch-versioned devices

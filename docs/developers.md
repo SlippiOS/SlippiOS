@@ -60,7 +60,7 @@ improving the system.
   it builds from one clean checkout.
 - Image versions are semver (`0.3.0`). `VERSION` is the source of truth.
   Release builds use it; dev builds use the next patch plus a timestamp
-  (`0.3.1-dev.<epoch>`) so they sort above the release. systemd-boot and
+  (`0.3.1~dev.<epoch>.<rev>`) so they sort above the release. systemd-boot and
   systemd-sysupdate use `strverscmp_improved`, which orders numeric segments
   correctly (`0.10.0 > 0.9.0`, `0.3.1 > 0.3.0`). Use `~rc` for a pre-release;
   a trailing `-rc` sorts above the release. The old epoch versions do not

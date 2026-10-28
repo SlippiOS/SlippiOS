@@ -33,9 +33,12 @@
   networking.firewall.allowedTCPPorts = [ 22 ];
 
   environment.systemPackages = with pkgs; [
+    gawk
     htop
+    jq
     mesa-demos
     pciutils
+    time
     usbutils
     vulkan-tools
     (writeShellScriptBin "slippios-diag" ''

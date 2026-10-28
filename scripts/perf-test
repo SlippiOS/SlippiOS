@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Copy the pinned Slippi test replays to a dev console and run the playback
+# performance test. Requires SSH access to the dev image.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+HOST="player@192.168.1.35"
+PORT="${SSH_PORT:-22}"
+ISO="${ISO:-}"
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
+REPLAY_DIR="$CACHE/perf-replays/slp"
+MANIFEST="$PWD/scripts/perf-replays.tsv"
+REMOTE="/data/system/perf"
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/perf-test [user@host] [--iso /data/isos/melee.iso]
+
+Environment:
+  SSH_PORT       SSH port (default 22)
+  SSH_PASSWORD   password for sshpass; omit to use an SSH key
+  ISO            Melee ISO path on the console
+  PLAYBACK_BACKEND  Vulkan (default) or OGL; use OGL for QEMU without GPU
+  SLIPPIOS_CACHE cache root (default .cache)
+
+The console must be a dev image: SSH enabled, jq/time installed, and the
+Openbox session running on DISPLAY=:0.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iso) ISO="${2:?missing ISO path}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *@*) HOST="$1" ;;
+    *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+ssh_opts=(-F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$PORT")
+scp_opts=(-F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$PORT")
+if [[ -n "${SSH_PASSWORD:-}" ]]; then
+  command -v sshpass >/dev/null || {
+    echo "SSH_PASSWORD is set but sshpass is not installed" >&2
+    exit 1
+  }
+  ssh_cmd=(sshpass -p "$SSH_PASSWORD" ssh "${ssh_opts[@]}")
+  scp_cmd=(sshpass -p "$SSH_PASSWORD" scp "${scp_opts[@]}")
+else
+  ssh_cmd=(ssh "${ssh_opts[@]}")
+  scp_cmd=(scp "${scp_opts[@]}")
+fi
+
+mkdir -p "$REPLAY_DIR" "$CACHE/perf-results"
+files=()
+while IFS=$'\t' read -r name frames url sha; do
+  [[ -z "$name" || "$name" == \#* ]] && continue
+  target="$REPLAY_DIR/$name"
+  if [[ ! -f "$target" ]]; then
+    echo "Downloading $name"
+    curl -fsSL -o "$target.tmp" "$url"
+    mv "$target.tmp" "$target"
+  fi
+  echo "$sha  $target" | sha256sum -c - >/dev/null
+  files+=("$target")
+done < "$MANIFEST"
+
+echo "Checking $HOST:$PORT"
+"${ssh_cmd[@]}" "$HOST" "command -v jq >/dev/null && command -v time >/dev/null" || {
+  echo "the console is missing jq or time; rebuild the dev image" >&2
+  exit 1
+}
+
+"${ssh_cmd[@]}" "$HOST" "mkdir -p '$REMOTE/replays' '$REMOTE/results'"
+"${scp_cmd[@]}" "$MANIFEST" "$HOST:$REMOTE/replays/perf-replays.tsv"
+"${scp_cmd[@]}" scripts/perf-replay-device "$HOST:$REMOTE/perf-replay-device"
+"${scp_cmd[@]}" "${files[@]}" "$HOST:$REMOTE/replays/"
+
+run_id=$(date -u +%Y%m%dT%H%M%SZ)
+remote_out="$REMOTE/results/$run_id"
+local_out="$CACHE/perf-results/$run_id"
+mkdir -p "$local_out"
+
+remote_cmd="OUT_DIR=$(printf %q "$remote_out")"
+if [[ -n "$ISO" ]]; then
+  remote_cmd+=" ISO=$(printf %q "$ISO")"
+fi
+if [[ -n "${PLAYBACK_BACKEND:-}" ]]; then
+  remote_cmd+=" SLIPPIOS_PLAYBACK_BACKEND=$(printf %q "$PLAYBACK_BACKEND")"
+fi
+remote_cmd+=" $REMOTE/perf-replay-device"
+
+echo "Running on $HOST; results will be in $local_out"
+"${ssh_cmd[@]}" "$HOST" "chmod +x '$REMOTE/perf-replay-device'; $remote_cmd"
+"${scp_cmd[@]}" -r "$HOST:$remote_out/." "$local_out/"
+
+echo
+cat "$local_out/results.tsv"
+echo
+cat "$local_out/system.txt"
+echo
+echo "Pulled results to $local_out"

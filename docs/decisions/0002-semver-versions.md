@@ -32,7 +32,7 @@ version directly in `system.image.version`, the UKI filename, the partition
 label, the manifest, and the boot menu.
 
 Dev builds use the next patch plus the checkout timestamp, for example
-`0.3.1-dev.1793162733`, so they sort above the release they are based on. The
+`0.3.1~dev.1793162733.<rev>`, so they sort above the release they are based on. The
 full commit is recorded in `/etc/slippios/build` and in the release manifest,
 not in the version string.
 

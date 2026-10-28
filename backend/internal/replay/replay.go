@@ -15,6 +15,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
+	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 )
 
 const (
@@ -166,14 +169,23 @@ func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
 		return 0, err
 	}
 
+	width, height := 640, 480
+	if w, h, err := desktop.CurrentResolution(); err == nil {
+		width, height = w, h
+	}
+	if err := stable.Configure(profileDir, userDir, filepath.Dir(isoPath), playbackSettings(), width, height, true); err != nil {
+		return 0, err
+	}
+
 	args := []string{
 		appimage,
 		"-u", userDir,
 		"-b", "-e", isoPath,
 		"-i", commsPath,
-		"-C", "Dolphin.Display.Fullscreen=True",
-		"-C", "Dolphin.Display.BorderlessFullscreen=True",
-		"-C", "Dolphin.Display.RenderWindowAutoSize=False",
+		"--hide-seekbar",
+	}
+	if os.Getenv("SLIPPIOS_REPLAY_COUT") == "1" {
+		args = append(args, "--cout")
 	}
 	command := exec.Command("slippi-appimage-run", args...)
 	command.Dir = filepath.Dir(appimage)
@@ -200,6 +212,25 @@ func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
 		return 0, err
 	}
 	return 0, nil
+}
+
+func playbackSettings() map[string]any {
+	backend := os.Getenv("SLIPPIOS_PLAYBACK_BACKEND")
+	if backend == "" {
+		backend = "Vulkan"
+	}
+	dolphin := map[string]any{
+		"backend":    backend,
+		"resolution": int64(3),
+		"aspect":     int64(3),
+		"msaa":       int64(1),
+		"vsync":      false,
+	}
+	for port := 1; port <= 4; port++ {
+		dolphin[fmt.Sprintf("controller%d", port)] = "none"
+		dolphin[fmt.Sprintf("profile%d", port)] = ""
+	}
+	return map[string]any{"dolphin": dolphin}
 }
 
 func latestPlayback() (string, string) {

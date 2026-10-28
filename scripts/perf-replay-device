@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Run the bundled Slippi playback build against the perf replay set.
+# Intended to run on a SlippiOS dev image over SSH.
+set -euo pipefail
+
+export DISPLAY="${DISPLAY:-:0}"
+export XAUTHORITY="${XAUTHORITY:-/home/player/.Xauthority}"
+export SLIPPIOS_REPLAY_COUT="${SLIPPIOS_REPLAY_COUT:-1}"
+
+replay_dir="${REPLAY_DIR:-/data/system/perf/replays}"
+manifest="${MANIFEST:-$replay_dir/perf-replays.tsv}"
+out_dir="${OUT_DIR:-/data/system/perf/results/$(date -u +%Y%m%dT%H%M%SZ)}"
+iso="${ISO:-}"
+profile_dir="${SLIPPIOS_DATA:-/data}/users/default"
+timer=$(type -P time || true)
+
+mkdir -p "$out_dir"
+
+if [[ -z "$iso" ]]; then
+  iso=$(slippios status 2>/dev/null | jq -r '.settings.iso_path // empty' 2>/dev/null || true)
+fi
+if [[ -z "$iso" || ! -f "$iso" ]]; then
+  echo "ISO is not set; pass ISO=/data/isos/<file>.iso" >&2
+  exit 1
+fi
+
+old_iso=$(slippios status 2>/dev/null | jq -r '.settings.iso // empty' 2>/dev/null || true)
+restore_iso() {
+  if [[ -n "$old_iso" ]]; then
+    slippios settings set game.iso "$old_iso" >/dev/null 2>&1 || true
+  fi
+}
+trap restore_iso EXIT
+
+slippios settings set game.iso "$iso" >/dev/null
+
+{
+  echo "version=$(cat /etc/slippios/version 2>/dev/null || echo unknown)"
+  echo "build=$(cat /etc/slippios/build 2>/dev/null || echo unknown)"
+  echo "kernel=$(uname -r)"
+  echo "uname=$(uname -a)"
+  echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || true)"
+  echo "epp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true)"
+  echo "thp=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || true)"
+  echo "gpu=$(lspci -nnk 2>/dev/null | grep -A3 -iE 'vga|3d|display' | tr '\n' ' ' || true)"
+  echo "display=$(xrandr --current 2>/dev/null | awk '/ connected/ {for (i=1;i<=NF;i++) if ($i ~ /^[0-9]+x[0-9]+\+/) {print $i; exit}}' || true)"
+} > "$out_dir/system.txt"
+
+printf 'replay\tframes\texpected_s\twall_s\tspeed\tuser_s\tsys_s\tmax_rss_kb\tvol_ctx\tinvol_ctx\n' > "$out_dir/results.tsv"
+
+sample_system() {
+  local samples=$1
+  : > "$samples"
+  while :; do
+    local ts busy temp freq
+    ts=$(date +%s.%N)
+    busy=$(cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -1 || true)
+    temp=$(cat /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input 2>/dev/null | head -1 || true)
+    freq=$(cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq 2>/dev/null | sort -n | tail -1 || true)
+    printf '%s,%s,%s,%s\n' "$ts" "${busy:-}" "${temp:-}" "${freq:-}" >> "$samples"
+    sleep 1
+  done
+}
+
+run_one() {
+  local name=$1
+  local frames=$2
+  local warmup=${3:-0}
+  local path="$replay_dir/$name"
+  local tag="${name%.slp}"
+  local log="$out_dir/$tag.cli.log"
+  local app_log="$out_dir/$tag.app.log"
+  local time_file="$out_dir/$tag.time"
+  local samples="$out_dir/$tag.samples.csv"
+
+  if [[ ! -f "$path" ]]; then
+    echo "missing $path" >&2
+    return 1
+  fi
+  if [[ -z "$timer" ]]; then
+    echo "the 'time' command is missing" >&2
+    return 1
+  fi
+
+  echo "Running $name ($frames frames, warmup=$warmup)"
+  sample_system "$samples" &
+  local sampler=$!
+  local start end wall expected speed user sys rss vol invol
+  start=$(date +%s.%N)
+  "$timer" -v -o "$time_file" slippios replay play "$path" > "$log" 2>&1 || true
+  end=$(date +%s.%N)
+  kill "$sampler" 2>/dev/null || true
+  wait "$sampler" 2>/dev/null || true
+  cp "$profile_dir/logs/replay.log" "$app_log" 2>/dev/null || true
+
+  wall=$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", e-s }')
+  expected=$(awk -v f="$frames" 'BEGIN { printf "%.3f", f/60 }')
+  speed=$(awk -v e="$expected" -v w="$wall" 'BEGIN { if (w > 0) printf "%.4f", e/w; else print "0" }')
+  user=$(awk -F': ' '/User time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
+  sys=$(awk -F': ' '/System time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
+  rss=$(awk -F': ' '/Maximum resident set size/ {print $2; exit}' "$time_file" 2>/dev/null || true)
+  vol=$(awk -F': ' '/Voluntary context switches/ {print $2; exit}' "$time_file" 2>/dev/null || true)
+  invol=$(awk -F': ' '/Involuntary context switches/ {print $2; exit}' "$time_file" 2>/dev/null || true)
+
+  if [[ "$warmup" != "1" ]]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$frames" "$expected" "$wall" "$speed" "${user:-}" "${sys:-}" "${rss:-}" "${vol:-}" "${invol:-}" \
+      >> "$out_dir/results.tsv"
+  fi
+  echo "$name expected=${expected}s wall=${wall}s speed=${speed}"
+}
+
+# The first row is the short warm-up. It installs playback and fills shaders.
+first=1
+while IFS=$'\t' read -r name frames _url _sha; do
+  [[ -z "$name" || "$name" == \#* ]] && continue
+  if [[ "$first" == "1" ]]; then
+    run_one "$name" "$frames" 1
+    first=0
+  else
+    run_one "$name" "$frames" 0
+  fi
+done < "$manifest"
+
+echo
+echo "Results: $out_dir"
+cat "$out_dir/results.tsv"
