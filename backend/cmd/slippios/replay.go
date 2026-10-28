@@ -67,7 +67,7 @@ func runReplayPlay(mode *modes, path string) error {
 	if !valid {
 		return mode.fail(reason)
 	}
-	returncode, err := replay.Play(paths.DataDir, paths.ProfileDir, paths.ISOPath(raw), path)
+	returncode, err := replay.Play(paths.DataDir, paths.ProfileDir, paths.ISOPath(raw), path, values)
 	if err != nil {
 		return mode.fail(err.Error())
 	}

@@ -3,6 +3,12 @@
 # Intended to run on a SlippiOS dev image over SSH.
 set -euo pipefail
 
+# Dev images can override the CLI under /data/dev.
+if [[ -e /etc/slippios/dev && -x /data/dev/slippios ]]; then
+  PATH="/data/dev:$PATH"
+  export PATH
+fi
+
 export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-/home/player/.Xauthority}"
 export SLIPPIOS_REPLAY_COUT="${SLIPPIOS_REPLAY_COUT:-1}"

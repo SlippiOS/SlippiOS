@@ -124,7 +124,7 @@ func EnsurePlayback(dataDir string, log func(string)) (string, error) {
 	return filepath.Join(target, appimageName), nil
 }
 
-func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
+func Play(dataDir, profileDir, isoPath, replayPath string, values map[string]any) (int, error) {
 	if _, err := os.Stat(replayPath); err != nil {
 		return 0, fmt.Errorf("replay not found: %s", replayPath)
 	}
@@ -173,7 +173,7 @@ func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
 	if w, h, err := desktop.CurrentResolution(); err == nil {
 		width, height = w, h
 	}
-	if err := stable.Configure(profileDir, userDir, filepath.Dir(isoPath), playbackSettings(), width, height, true); err != nil {
+	if err := stable.Configure(profileDir, userDir, filepath.Dir(isoPath), playbackSettings(values), width, height, true); err != nil {
 		return 0, err
 	}
 
@@ -214,19 +214,39 @@ func Play(dataDir, profileDir, isoPath, replayPath string) (int, error) {
 	return 0, nil
 }
 
-func playbackSettings() map[string]any {
+func playbackSettings(values map[string]any) map[string]any {
+	configured, _ := values["dolphin"].(map[string]any)
 	backend := os.Getenv("SLIPPIOS_PLAYBACK_BACKEND")
+	if backend == "" {
+		backend, _ = configured["backend"].(string)
+	}
 	if backend == "" {
 		// The 3.5.2 playback build's Vulkan path opens the Dolphin GUI on the
 		// EM680 instead of starting the replay. OpenGL starts reliably.
 		backend = "OGL"
 	}
+	resolution := int64(3)
+	aspect := int64(3)
+	msaa := int64(1)
+	vsync := false
+	if value, ok := configured["resolution"].(int64); ok {
+		resolution = value
+	}
+	if value, ok := configured["aspect"].(int64); ok {
+		aspect = value
+	}
+	if value, ok := configured["msaa"].(int64); ok {
+		msaa = value
+	}
+	if value, ok := configured["vsync"].(bool); ok {
+		vsync = value
+	}
 	dolphin := map[string]any{
 		"backend":    backend,
-		"resolution": int64(3),
-		"aspect":     int64(3),
-		"msaa":       int64(1),
-		"vsync":      false,
+		"resolution": resolution,
+		"aspect":     aspect,
+		"msaa":       msaa,
+		"vsync":      vsync,
 	}
 	for port := 1; port <= 4; port++ {
 		dolphin[fmt.Sprintf("controller%d", port)] = "none"
