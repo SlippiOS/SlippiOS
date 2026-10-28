@@ -117,6 +117,11 @@ func (p Paths) EnsureWithProgress(log func(string), progress Progress, force boo
 	if log == nil {
 		log = func(string) {}
 	}
+	// The release image seeds the beta AppImage. Use it without contacting
+	// GitHub; the download path is for dev images and repairs.
+	if info, err := os.Stat(BundledPath()); err == nil && !info.IsDir() {
+		return BundledPath(), nil
+	}
 	if err := os.MkdirAll(p.Base, 0o755); err != nil {
 		return "", err
 	}

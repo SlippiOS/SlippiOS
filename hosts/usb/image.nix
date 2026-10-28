@@ -110,6 +110,7 @@ in {
           # Seed the pinned apps on a fresh flash. The data partition survives
           # updates, so existing consoles keep the copy they already have.
           "/system/apps/stable".source = slippiApps.stable;
+          "/system/apps/beta".source = slippiApps.beta;
           "/system/playback/3.5.2".source = slippiApps.playback;
           "/system/playback/.version".source =
             pkgs.writeText "slippios-playback-version" "3.5.2\n";

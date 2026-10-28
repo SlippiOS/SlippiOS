@@ -22,11 +22,13 @@ func (p Paths) CurrentPath() (string, bool) {
 }
 
 func (p Paths) CurrentTag() (string, bool) {
-	path, ok := p.CurrentPath()
-	if !ok {
-		return "", false
+	if path, ok := p.CurrentPath(); ok {
+		return filepath.Base(filepath.Dir(path)), true
 	}
-	return filepath.Base(filepath.Dir(path)), true
+	if info, err := os.Stat(BundledPath()); err == nil && !info.IsDir() {
+		return bundledTag, true
+	}
+	return "", false
 }
 
 func readJSON(path string) map[string]any {

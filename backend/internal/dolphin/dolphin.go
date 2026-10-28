@@ -10,6 +10,7 @@ import (
 
 const (
 	assetName   = "Slippi_Netplay_Mainline-x86_64.AppImage"
+	bundledTag  = "v4.0.0-mainline-beta.19"
 	userAgent   = "SlippiOS/0.1"
 	checkPeriod = 15 * time.Minute
 )
@@ -45,4 +46,14 @@ func ForData(root string) Paths {
 		State:    filepath.Join(base, "state.json"),
 		Lock:     filepath.Join(base, "lock"),
 	}
+}
+
+// BundledPath returns the beta AppImage seeded by the release image. Dev
+// images and repairs fall back to the GitHub download when it is missing.
+func BundledPath() string {
+	root := os.Getenv("SLIPPIOS_DATA")
+	if root == "" {
+		root = "/data"
+	}
+	return filepath.Join(root, "system", "apps", "beta", assetName)
 }

@@ -344,7 +344,9 @@ between releases.
 
 The release image seeds the pinned stable AppImage under
 `/data/system/apps/stable/`; `apps.EnsureStable` returns it without a network
-lookup. Dev images and repairs fall back to downloading the stable zip.
+lookup. It also seeds the pinned beta AppImage under
+`/data/system/apps/beta/`; `dolphin.Ensure` returns it before contacting
+GitHub. Dev images and repairs fall back to downloading.
 
 ## Melee ROMs
 

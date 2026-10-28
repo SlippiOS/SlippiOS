@@ -6,8 +6,8 @@
 - UEFI boot. The unsigned image needs Secure Boot off (a one-time firmware
   setting). The signed image needs a one-time MOK enrollment.
 - A Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
-- Network access for Slippi sign-in and optional beta downloads. The stable
-  Dolphin and playback builds are bundled with the image.
+- Network access for Slippi sign-in and system updates. The stable, beta, and
+  playback builds are bundled with the image.
 
 ## Flash
 
@@ -163,8 +163,8 @@ playback build. It starts immediately; no download is needed.
 **Quit** powers the console off cleanly. Wait for the screen to go dark before
 unplugging the drive.
 
-The stable Dolphin build is bundled and verified with the image. It updates
-with system updates.
+The stable and beta Dolphin builds and the playback build are bundled and
+verified with the image. They update with system updates.
 
 ## Update
 
