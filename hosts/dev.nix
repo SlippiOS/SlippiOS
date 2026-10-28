@@ -77,6 +77,9 @@
     }];
   };
 
+  # Only dev images may use the /data/dev shell/CLI overrides.
+  environment.etc."slippios/dev".text = "1\n";
+
   systemd.services.slippios-dev-dir = {
     description = "Create the dev push directory.";
     wantedBy = [ "multi-user.target" ];

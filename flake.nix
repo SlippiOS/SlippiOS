@@ -66,17 +66,23 @@
             log=/tmp/slippios-shell.log
           fi
 
-          dev=/data/dev
-          if [ -d "$dev" ]; then
-            PATH="$dev:$PATH"
-            export PATH
+          # /data/dev is a development-only override. The marker is only
+          # present in dev images, so a release image never runs binaries from
+          # the writable data partition.
+          dev=""
+          if [ -e /etc/slippios/dev ]; then
+            dev=/data/dev
+            if [ -d "$dev" ]; then
+              PATH="$dev:$PATH"
+              export PATH
+            fi
           fi
           shell_bin=${shellPackage}/bin/slippios-shell
           cli_bin=${cliPackage}/bin/slippios
-          if [ -x "$dev/slippios-shell" ]; then
+          if [ -n "$dev" ] && [ -x "$dev/slippios-shell" ]; then
             shell_bin="$dev/slippios-shell"
           fi
-          if [ -x "$dev/slippios" ]; then
+          if [ -n "$dev" ] && [ -x "$dev/slippios" ]; then
             cli_bin="$dev/slippios"
           fi
 
