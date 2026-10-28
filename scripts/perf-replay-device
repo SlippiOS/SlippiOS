@@ -70,10 +70,13 @@ if [[ -n "${PERF_EPP:-}" ]]; then
 fi
 
 stop_shell() {
-  if pgrep -f '/slippios-shell --resolution' >/dev/null 2>&1; then
+  # The wrapper loops and restarts the Godot process, so stop the wrapper
+  # first and then its child.
+  if pgrep -f '/slippios-shell/bin/slippios-shell' >/dev/null 2>&1; then
     stopped_shell=1
+    pkill -f '/slippios-shell/bin/slippios-shell' >/dev/null 2>&1 || true
     pkill -f '/slippios-shell --resolution' >/dev/null 2>&1 || true
-    # The session wrapper opens a diagnostic xterm when the shell exits.
+    # The session script opens a diagnostic xterm when the wrapper exits.
     for _ in $(seq 1 10); do
       pkill -f 'xterm -fa Monospace -fs 14' >/dev/null 2>&1 || true
       sleep 0.2
