@@ -120,7 +120,9 @@ run_one() {
   # Playback stays open waiting for another .slp after the last frame. Stop
   # the CLI so `time` records the run, then stop the playback app itself.
   pkill -P "$runner" 2>/dev/null || true
-  pkill -f "Slippi_Playback-x86_64.AppImage" 2>/dev/null || true
+  # Dolphin handles the first SIGTERM and keeps waiting for another replay.
+  pkill -9 -f "Slippi_Playback-x86_64.AppImage" 2>/dev/null || true
+  pkill -9 -f "slippios replay play" 2>/dev/null || true
   local wait_count=0
   while kill -0 "$runner" 2>/dev/null && (( wait_count < 50 )); do
     sleep 0.1
