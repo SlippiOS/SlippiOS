@@ -6,6 +6,7 @@ let
   imageId = "slippios";
   version = config.system.image.version;
   ukiFile = config.system.boot.loader.ukiFile;
+  slippiApps = pkgs.callPackage ../../pkgs/slippi-apps.nix { };
 
   # Keep the squashfs below GitHub's 2 GiB asset limit.
   storeSize = "1900M";
@@ -104,14 +105,24 @@ in {
         };
       };
 
-      z-data.repartConfig = {
-        Type = "linux-generic";
-        Format = "ext4";
-        Label = "SLIPPIOS";
-        Minimize = "off";
-        SizeMinBytes = "1G";
-        SizeMaxBytes = "1G";
-        SplitName = "-";
+      z-data = {
+        contents = {
+          # Seed the pinned apps on a fresh flash. The data partition survives
+          # updates, so existing consoles keep the copy they already have.
+          "/system/apps/stable".source = slippiApps.stable;
+          "/system/playback/3.5.2".source = slippiApps.playback;
+          "/system/playback/.version".source =
+            pkgs.writeText "slippios-playback-version" "3.5.2\n";
+        };
+        repartConfig = {
+          Type = "linux-generic";
+          Format = "ext4";
+          Label = "SLIPPIOS";
+          Minimize = "off";
+          SizeMinBytes = "1G";
+          SizeMaxBytes = "1G";
+          SplitName = "-";
+        };
       };
     };
   };

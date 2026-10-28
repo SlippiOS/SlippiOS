@@ -44,11 +44,19 @@ func PlaybackPath(dataDir string) string {
 }
 
 func EnsureStable(dataDir string, log func(string)) (string, error) {
+	// A release image seeds the pinned build here. Use it without contacting
+	// the network; the download fallback is only for dev images and repairs.
+	if info, err := os.Stat(StablePath(dataDir)); err == nil && !info.IsDir() {
+		return StablePath(dataDir), nil
+	}
 	version, url := latest("NETPLAY", false, stableFallbackVersion, stableFallbackURL)
 	return ensure(dataDir, StableDir(dataDir), "Slippi_Online-x86_64.AppImage", version, url, log)
 }
 
 func EnsurePlayback(dataDir string, log func(string)) (string, error) {
+	if info, err := os.Stat(PlaybackPath(dataDir)); err == nil && !info.IsDir() {
+		return PlaybackPath(dataDir), nil
+	}
 	version, url := latest("PLAYBACK", true, playbackFallbackVer, playbackFallbackURL)
 	return ensure(dataDir, PlaybackDir(dataDir), "Slippi_Playback-x86_64.AppImage", version, url, log)
 }

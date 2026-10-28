@@ -90,14 +90,17 @@ func EnsurePlayback(dataDir string, log func(string)) (string, error) {
 	}
 	base := PlaybackPath(dataDir)
 	versionFile := filepath.Join(base, ".version")
-	version, url := latestPlayback()
-	if data, err := os.ReadFile(versionFile); err == nil && strings.TrimSpace(string(data)) == version {
+	// A release image seeds the pinned build here. Use it without contacting
+	// the network; the download fallback is only for dev images and repairs.
+	if data, err := os.ReadFile(versionFile); err == nil {
+		version := strings.TrimSpace(string(data))
 		candidate := filepath.Join(base, version, appimageName)
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return candidate, nil
 		}
 	}
 
+	version, url := latestPlayback()
 	log("Downloading Slippi playback " + version + "…")
 	if err := os.MkdirAll(base, 0o755); err != nil {
 		return "", err
