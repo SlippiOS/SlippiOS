@@ -40,6 +40,24 @@ trap restore_iso EXIT
 
 slippios settings set game.iso "$iso" >/dev/null
 
+if [[ -n "${PERF_DISPLAY:-}" ]]; then
+  slippios display custom "$PERF_DISPLAY" >/dev/null 2>&1 || \
+    echo "warning: could not apply display $PERF_DISPLAY" >&2
+fi
+if [[ -n "${PERF_RESOLUTION:-}" ]]; then
+  slippios settings set dolphin.resolution "$PERF_RESOLUTION" >/dev/null 2>&1 || true
+fi
+if [[ -n "${PERF_GOVERNOR:-}" ]]; then
+  for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    echo "$PERF_GOVERNOR" | sudo -n tee "$f" >/dev/null 2>&1 || true
+  done
+fi
+if [[ -n "${PERF_EPP:-}" ]]; then
+  for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+    echo "$PERF_EPP" | sudo -n tee "$f" >/dev/null 2>&1 || true
+  done
+fi
+
 {
   echo "version=$(cat /etc/slippios/version 2>/dev/null || echo unknown)"
   echo "build=$(cat /etc/slippios/build 2>/dev/null || echo unknown)"

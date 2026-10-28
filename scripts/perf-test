@@ -89,7 +89,7 @@ fi
 if [[ -n "${PLAYBACK_BACKEND:-}" ]]; then
   remote_cmd+=" SLIPPIOS_PLAYBACK_BACKEND=$(printf %q "$PLAYBACK_BACKEND")"
 fi
-for name in VK_ICD_FILENAMES VK_DRIVER_FILES LD_LIBRARY_PATH; do
+for name in PERF_DISPLAY PERF_RESOLUTION PERF_GOVERNOR PERF_EPP VK_ICD_FILENAMES VK_DRIVER_FILES LD_LIBRARY_PATH; do
   if [[ -n "${!name:-}" ]]; then
     remote_cmd+=" $name=$(printf %q "${!name}")"
   fi
