@@ -204,14 +204,23 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 	command.Dir = filepath.Dir(appimage)
 	cacheDir := filepath.Join(paths.ProfileDir, "cache")
 	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
-		filtered := environment[:0]
+		filtered := make([]string, 0, len(environment)+2)
+		existingLibraryPath := ""
 		for _, value := range environment {
 			if strings.HasPrefix(value, "XDG_CACHE_HOME=") {
 				continue
 			}
+			if strings.HasPrefix(value, "LD_LIBRARY_PATH=") {
+				existingLibraryPath = strings.TrimPrefix(value, "LD_LIBRARY_PATH=")
+				continue
+			}
 			filtered = append(filtered, value)
 		}
-		environment = append(filtered, "XDG_CACHE_HOME="+cacheDir)
+		libraryPath := "/usr/lib64"
+		if existingLibraryPath != "" {
+			libraryPath += ":" + existingLibraryPath
+		}
+		environment = append(filtered, "XDG_CACHE_HOME="+cacheDir, "LD_LIBRARY_PATH="+libraryPath)
 	}
 	command.Env = environment
 

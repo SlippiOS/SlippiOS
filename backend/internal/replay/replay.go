@@ -190,14 +190,26 @@ func Play(dataDir, profileDir, isoPath, replayPath string, values map[string]any
 	command := exec.Command("slippi-appimage-run", args...)
 	command.Dir = filepath.Dir(appimage)
 	environment := os.Environ()
-	filtered := environment[:0]
+	filtered := make([]string, 0, len(environment)+2)
+	existingLibraryPath := ""
 	for _, value := range environment {
 		if strings.HasPrefix(value, "XDG_CACHE_HOME=") {
 			continue
 		}
+		if strings.HasPrefix(value, "LD_LIBRARY_PATH=") {
+			existingLibraryPath = strings.TrimPrefix(value, "LD_LIBRARY_PATH=")
+			continue
+		}
 		filtered = append(filtered, value)
 	}
-	command.Env = append(filtered, "XDG_CACHE_HOME="+cacheDir)
+	// The FHS sandbox's Mesa Vulkan driver and libwayland live in /usr/lib64.
+	// The AppImage's RUNPATH can otherwise pick up an older bundled libwayland.
+	libraryPath := "/usr/lib64"
+	if existingLibraryPath != "" {
+		libraryPath += ":" + existingLibraryPath
+	}
+	filtered = append(filtered, "XDG_CACHE_HOME="+cacheDir, "LD_LIBRARY_PATH="+libraryPath)
+	command.Env = filtered
 	logFile, err := os.Create(filepath.Join(logDir, "replay.log"))
 	if err != nil {
 		return 0, err
