@@ -31,8 +31,8 @@ repository `VERSION` file is the source of truth. Release images use that
 version directly in `system.image.version`, the UKI filename, the partition
 label, the manifest, and the boot menu.
 
-Dev builds use the next patch plus the source hash, for example
-`0.3.1~dev.<rev>`, which sorts above `0.3.0` and below the final `0.3.1`. The
+Dev builds use the release version plus the source hash, for example
+`0.3.0.<rev>`, which sorts above `0.3.0` and below the next release. The
 full commit is recorded in `/etc/slippios/build` and in the release manifest,
 not in the version string.
 
@@ -53,8 +53,8 @@ in the manifest and `/etc/slippios/build`.
 
 **Negative:** Every device on an epoch version needs a one-time reflash; it
 will not receive `0.3.0` as an automatic update. Releases require a manual
-`VERSION` bump, and dev builds must use the next patch so they sort above the
-previous release and below the final next release. Pre-releases must use
+`VERSION` bump, and dev builds must use the release version plus the source
+hash so they sort above the release and below the next release. Pre-releases must use
 `~rc` rather than the semver `-rc` spelling.
 
 **Neutral:** The build commit and release date move out of the version string

@@ -16,13 +16,9 @@
       # patch plus the checkout timestamp so they sort above the release they
       # are based on.
       releaseVersion = nixpkgs.lib.strings.trim (builtins.readFile ./VERSION);
-      versionParts = nixpkgs.lib.splitString "." releaseVersion;
       buildRevision = self.rev or self.dirtyRev or "unknown";
-      buildSuffix = builtins.substring 0 7 (builtins.baseNameOf self.outPath);
-      devVersion =
-        "${builtins.elemAt versionParts 0}.${builtins.elemAt versionParts 1}."
-        + "${toString (builtins.fromJSON (builtins.elemAt versionParts 2) + 1)}"
-        + "~dev.${buildSuffix}";
+      buildSuffix = builtins.substring 0 7 (builtins.baseNameOf (builtins.unsafeDiscardStringContext self.outPath));
+      devVersion = "${releaseVersion}.${buildSuffix}";
       slippiosBuild = buildRevision;
 
       cachyosKernels = inputs.nix-cachyos-kernel.legacyPackages.${system};
