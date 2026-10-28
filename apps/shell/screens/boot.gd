@@ -10,7 +10,7 @@ func present(_message: String = "") -> void:
 	app.center_content_vertically(true)
 	var logo := BootLogo.new()
 	add_content(logo)
-	var heading: Label = app.add_title("SLIPPIOS", 64)
+	var heading: Label = app.add_title("SlippiOS", 64)
 	heading.modulate.a = 0.0
 	var prompt := label("Hold A for settings", 0.0)
 	var bar := _add_boot_bar()

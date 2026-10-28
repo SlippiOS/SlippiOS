@@ -90,7 +90,7 @@ in {
             starts at power-on.
 
             Keep only Melee images on this drive. Settings, login, Dolphin and
-            replays are stored on the separate SLIPPIOS data partition.
+            replays are stored on the separate SlippiOS data partition.
           '';
         };
         repartConfig = {

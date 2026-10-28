@@ -2,7 +2,7 @@ extends "res://screens/screen.gd"
 
 func present(_message: String = "") -> void:
 	clear()
-	title("SLIPPIOS", 64)
+	title("SlippiOS", 64)
 	label("Super Smash Bros. Melee", 0.55)
 	var settings: Dictionary = app.status.get("settings", {})
 	var current := text_value(settings.get("iso_path"), "")

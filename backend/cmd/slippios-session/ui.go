@@ -25,7 +25,7 @@ func line(prompt string) (string, bool) {
 }
 
 func bootAnimation() {
-	frames := []string{"      ◇", "    ◇ ◇", "  ◇   ◇", "◇  SLIPPIOS  ◇"}
+	frames := []string{"      ◇", "    ◇ ◇", "  ◇   ◇", "◇  SlippiOS  ◇"}
 	for _, frame := range frames {
 		clear()
 		fmt.Print("\n\n\n                 " + frame + "\n")

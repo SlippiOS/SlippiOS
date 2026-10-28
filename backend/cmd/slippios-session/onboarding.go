@@ -38,7 +38,7 @@ func configureNetwork(values map[string]any) {
 
 func onboarding(paths settings.Paths, reason string) (map[string]any, bool) {
 	clear()
-	fmt.Print("\n                 SLIPPIOS SETUP\n\n")
+	fmt.Print("\n                 SlippiOS setup\n\n")
 	fmt.Println("                 Melee 1.02 (NTSC) is required. SlippiOS does not")
 	fmt.Print("                 include or download game images.\n\n")
 	if reason != "" {

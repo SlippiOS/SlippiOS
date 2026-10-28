@@ -217,7 +217,7 @@ or reboot to reopen the setup page.
 **The console shows a recovery menu instead of the shell.** The graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and
 the failed systemd units, and offers **Try again**, **Power off**, and
-**Reboot**. The full log is `/data/system/shell.log` on the `SLIPPIOS` data
+**Reboot**. The full log is `/data/system/shell.log` on the SlippiOS data
 partition. If only the shell crashed, you get an Openbox desktop instead.
 
 **Nothing persists.** Use the USB `.img.xz` release, not a live environment.
