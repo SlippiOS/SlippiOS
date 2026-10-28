@@ -15,6 +15,15 @@ func present(message: String = "") -> void:
 		focus()
 		return
 
+	var pads: Array = result.get("pads", [])
+	if pads.is_empty():
+		label("No standard pad detected.", 0.6)
+	else:
+		var names := PackedStringArray()
+		for pad in pads:
+			names.append(str(pad))
+		label("Detected: %s" % ", ".join(names), 0.65)
+
 	for port in result.get("ports", []):
 		var number := int(port.get("port", 0))
 		if number < 1:

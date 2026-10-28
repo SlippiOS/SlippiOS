@@ -62,6 +62,7 @@ func runControllersList(mode *modes) error {
 		"ok":       true,
 		"ports":    ports,
 		"profiles": profiles,
+		"pads":     controllers.DetectedPads(),
 	}, func() {
 		for _, port := range ports {
 			if port.Device == controllers.DevicePad {
