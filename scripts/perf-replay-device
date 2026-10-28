@@ -71,11 +71,19 @@ fi
 
 stop_shell() {
   # The wrapper loops and restarts the Godot process, so stop the wrapper
-  # first and then its child.
-  if pgrep -f '/slippios-shell/bin/slippios-shell' >/dev/null 2>&1; then
+  # first and then its child. Match the wrapper by its exact path; the child
+  # has a -0.1.0 suffix in the store name.
+  local child wrapper
+  child=$(pgrep -f 'slippios-shell --resolution' | head -1 || true)
+  wrapper=$(pgrep -f -- '-slippios-shell/bin/slippios-shell$' | head -1 || true)
+  if [[ -n "$child" || -n "$wrapper" ]]; then
     stopped_shell=1
-    pkill -f '/slippios-shell/bin/slippios-shell' >/dev/null 2>&1 || true
-    pkill -f '/slippios-shell --resolution' >/dev/null 2>&1 || true
+    if [[ -n "$wrapper" ]]; then
+      kill "$wrapper" 2>/dev/null || true
+    fi
+    if [[ -n "$child" ]]; then
+      kill "$child" 2>/dev/null || true
+    fi
     # The session script opens a diagnostic xterm when the wrapper exits.
     for _ in $(seq 1 10); do
       pkill -f 'xterm -fa Monospace -fs 14' >/dev/null 2>&1 || true
