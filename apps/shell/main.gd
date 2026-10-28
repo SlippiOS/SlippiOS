@@ -387,9 +387,12 @@ func after_splash() -> void:
 		var settings: Dictionary = status.get("settings", {})
 		if settings.get("exists", false) and has_valid_isos():
 			show_roms("Default Melee image is missing. Choose one.")
+		elif not net.wired_present():
+			setup_flow = true
+			show_wifi("No Ethernet interface found. Connect Wi-Fi to continue setup.")
 		else:
-			# The setup screen polls for Ethernet and Wi-Fi itself. Do not
-			# preempt it with a Wi-Fi-only page when DHCP is still running.
+			# A wired interface exists. Keep the combined setup screen instead
+			# of forcing the Wi-Fi-only page while DHCP is still running.
 			show_setup()
 	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		show_menu()

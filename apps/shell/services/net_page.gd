@@ -141,13 +141,23 @@ func _read_json(path: String) -> Dictionary:
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
 
+func status() -> Dictionary:
+	return Cli.run(["status"]).get("network", {})
+
+
 func local_ip() -> String:
-	var result := Cli.run(["status"])
-	var network: Dictionary = result.get("network", {})
-	var address := str(network.get("address", ""))
+	var address := str(status().get("address", ""))
 	if address == "" or address == "127.0.0.1" or address.begins_with("169.254."):
 		return ""
 	return address
+
+
+func wired_present() -> bool:
+	return bool(status().get("wired", false))
+
+
+func wired_link() -> bool:
+	return bool(status().get("wired_link", false))
 
 
 func _local_ip() -> String:

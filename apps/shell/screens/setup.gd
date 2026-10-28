@@ -38,7 +38,12 @@ func present(message: String = "") -> void:
 		button("Use %s" % first_name, _use_iso.bind(first_iso))
 
 	if app.net.local_ip() == "":
-		label("No network yet. Use the image above, connect Wi-Fi, or retry.", 0.8)
+		if app.net.wired_link():
+			label("Ethernet detected; waiting for an address…", 0.8)
+		elif app.net.wired_present():
+			label("Ethernet cable not detected. Plug it in, or connect Wi-Fi.", 0.8)
+		else:
+			label("No Ethernet interface found. Connect Wi-Fi.", 0.8)
 		button("Wi-Fi settings", app.show_wifi.bind(""))
 		button("Retry", present.bind(""))
 		button("Skip for now", app.skip_setup)
