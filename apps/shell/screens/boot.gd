@@ -7,6 +7,7 @@ const BOOT_HOLD_MS := 2600
 
 func present(_message: String = "") -> void:
 	clear()
+	app.center_content_vertically(true)
 	var logo := BootLogo.new()
 	add_content(logo)
 	var heading: Label = app.add_title("SLIPPIOS", 64)

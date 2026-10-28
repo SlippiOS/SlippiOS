@@ -31,7 +31,7 @@ func _prepare_dolphin(starting: String, exit_code: int) -> void:
 	app._screen_node = null
 	app.clear()
 	app.add_title("PREPARING", 44)
-	var status := app.add_label("Checking for Slippi Dolphin…", 0.8)
+	var status: Label = app.add_label("Checking for Slippi Dolphin…", 0.8)
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0, 24)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL

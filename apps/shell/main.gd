@@ -34,6 +34,7 @@ const QuitScreen := preload("res://screens/quit.gd")
 
 var status: Dictionary = {}
 var content: VBoxContainer
+var center: CenterContainer
 var net = NetPage.new()
 var update_job = UpdateJob.new()
 var ui = Ui.new()
@@ -130,7 +131,7 @@ func _build_base() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_child(scroll)
 
-	var center := CenterContainer.new()
+	center = CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(center)
 
@@ -169,7 +170,14 @@ func _resize_content() -> void:
 
 func _present(screen, message: String = "") -> void:
 	_screen_node = screen
+	center_content_vertically(false)
 	screen.present(message)
+
+
+func center_content_vertically(enabled: bool) -> void:
+	if center == null:
+		return
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL if enabled else Control.SIZE_FILL
 
 
 func show_boot_splash() -> void:
