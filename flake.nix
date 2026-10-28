@@ -2,8 +2,9 @@
   description = "SlippiOS: a Melee console built on NixOS";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs.nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/release";
 
-  outputs = { self, nixpkgs }:
+  outputs = inputs@{ self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
@@ -23,10 +24,15 @@
           }"
         else
           "dev-${toString (self.lastModified or 0)}";
+
+      cachyosKernels = inputs.nix-cachyos-kernel.legacyPackages.${system};
     in {
       nixosConfigurations.slippios-usb = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { slippiosPackages = self.packages.${system}; };
+        specialArgs = {
+          inherit cachyosKernels;
+          slippiosPackages = self.packages.${system};
+        };
         modules = [
           ./modules/slippios.nix
           ./hosts/usb.nix
@@ -37,7 +43,10 @@
       # Uncompressed image for faster local boots.
       nixosConfigurations.slippios-usb-dev = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { slippiosPackages = self.packages.${system}; };
+        specialArgs = {
+          inherit cachyosKernels;
+          slippiosPackages = self.packages.${system};
+        };
         modules = [
           ./modules/slippios.nix
           ./hosts/usb.nix
