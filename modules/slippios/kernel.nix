@@ -1,4 +1,4 @@
-{ config, lib, cachyosKernels, ... }:
+{ config, lib, cachyosKernels ? null, ... }:
 
 let
   cfg = config.slippios.kernel;
@@ -38,7 +38,11 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    boot.kernelPackages = cachyosKernels."linuxPackages-cachyos-${cfg.variant}";
+    boot.kernelPackages =
+      if cachyosKernels == null then
+        throw "slippios.kernel.enable requires the nix-cachyos-kernel flake input"
+      else
+        cachyosKernels."linuxPackages-cachyos-${cfg.variant}";
 
     services.scx = lib.mkIf (cfg.schedExt != null) {
       enable = true;
