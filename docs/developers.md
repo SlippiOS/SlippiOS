@@ -260,6 +260,23 @@ The boot-time profile seeding creates the whole
 `/data/users/default/dolphin/Config` tree as `player:users`; otherwise Dolphin
 cannot write `Dolphin.ini`, `GFX.ini`, or `GCPadNew.ini`.
 
+## Replays
+
+The netplay Dolphin AppImage cannot play `.slp` files. `slippios replay`
+queries the Slippi GraphQL API for the latest playback build, downloads the
+Ishiiruka playback zip, and extracts the AppImage plus its `Sys/` directory to
+`/data/system/playback/<version>/`. Playback writes a comms file with
+`mode: normal` and the replay path, then runs:
+
+```text
+slippi-appimage-run Slippi_Playback-x86_64.AppImage -u <profile>/dolphin-playback \
+  -b -e <melee.iso> -i <comms.json>
+```
+
+The shell's Replays screen exits with code 47; the wrapper reads
+`/data/system/replay-request` and runs `slippios replay play`. The playback
+build uses a separate user directory and the same AppImage runner as Dolphin.
+
 ## Hardware support
 
 The image is x86_64 and preloads the NixOS kernel modules, full

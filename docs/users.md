@@ -156,6 +156,10 @@ tinkering: the Dolphin GUI, a terminal, a text editor, and a custom display
 mode. The custom mode takes `WIDTHxHEIGHT` or `WIDTHxHEIGHT@HZ`; it is added
 with a CVT modeline and kept across reboots.
 
+**Replays** lists the Slippi `.slp` files and opens them in the Slippi playback
+build. The first replay downloads the playback build (about 75 MB) to `/data`;
+later replays start immediately.
+
 **Quit** powers the console off cleanly. Wait for the screen to go dark before
 unplugging the drive.
 
