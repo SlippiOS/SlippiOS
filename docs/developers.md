@@ -264,10 +264,11 @@ cannot write `Dolphin.ini`, `GFX.ini`, or `GCPadNew.ini`.
 
 ## Replays
 
-The netplay Dolphin AppImage cannot play `.slp` files. `slippios replay`
-queries the Slippi GraphQL API for the latest playback build, downloads the
-Ishiiruka playback zip, and extracts the AppImage plus its `Sys/` directory to
-`/data/system/playback/<version>/`. Playback writes a comms file with
+The netplay Dolphin AppImage cannot play `.slp` files. The release image seeds
+the pinned Ishiiruka playback build under
+`/data/system/playback/<version>/`. Dev images and repairs fall back to
+querying the Slippi GraphQL API, downloading the playback zip, and extracting
+the AppImage plus its `Sys/` directory. Playback writes a comms file with
 `mode: normal` and the replay path, then runs:
 
 ```text
@@ -335,11 +336,15 @@ shell push for the Godot UI.
 ## Dolphin AppImage
 
 `pkgs/appimage-runner.nix` is an FHS environment built from
-`appimageTools.defaultFhsEnvArgs`. Slippi's AppImage downloads at runtime and
-expects a normal desktop set of system libraries (`harfbuzz`, `gmp`,
-`libgpg-error`, `libcom_err` and friends). Keep the upstream environment rather
-than a hand-picked package list; the upstream AppImage changes which libraries
-it leaves to the system between releases.
+`appimageTools.defaultFhsEnvArgs`. Slippi's AppImage expects a normal desktop
+set of system libraries (`harfbuzz`, `gmp`, `libgpg-error`, `libcom_err` and
+friends). Keep the upstream environment rather than a hand-picked package
+list; the upstream AppImage changes which libraries it leaves to the system
+between releases.
+
+The release image seeds the pinned stable AppImage under
+`/data/system/apps/stable/`; `apps.EnsureStable` returns it without a network
+lookup. Dev images and repairs fall back to downloading the stable zip.
 
 ## Melee ROMs
 

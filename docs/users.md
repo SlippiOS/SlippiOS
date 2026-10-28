@@ -6,7 +6,8 @@
 - UEFI boot. The unsigned image needs Secure Boot off (a one-time firmware
   setting). The signed image needs a one-time MOK enrollment.
 - A Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
-- Network access for Slippi sign-in and the first Dolphin download.
+- Network access for Slippi sign-in and optional beta downloads. The stable
+  Dolphin and playback builds are bundled with the image.
 
 ## Flash
 
@@ -156,15 +157,14 @@ tinkering: the Dolphin GUI, a terminal, a text editor, and a custom display
 mode. The custom mode takes `WIDTHxHEIGHT` or `WIDTHxHEIGHT@HZ`; it is added
 with a CVT modeline and kept across reboots.
 
-**Replays** lists the Slippi `.slp` files and opens them in the Slippi playback
-build. The first replay downloads the playback build (about 75 MB) to `/data`;
-later replays start immediately.
+**Replays** lists the Slippi `.slp` files and opens them in the bundled Slippi
+playback build. It starts immediately; no download is needed.
 
 **Quit** powers the console off cleanly. Wait for the screen to go dark before
 unplugging the drive.
 
-Dolphin is downloaded and verified on first launch and updates separately from
-the system.
+The stable Dolphin build is bundled and verified with the image. It updates
+with system updates.
 
 ## Update
 
