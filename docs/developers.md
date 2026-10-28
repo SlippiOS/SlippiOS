@@ -245,6 +245,15 @@ codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
 **Settings → Expert mode → Expert tools → Open Dolphin GUI** still opens the
 real Dolphin GUI for anything the curated list does not cover.
 
+PipeWire restores per-application stream volumes, and Dolphin can come back at
+-20 dB. `slippios-audio.service` (a user unit) sets the default sink and every
+new sink input to 100%, because the console has no volume UI yet. RTKit is
+enabled so PipeWire can take realtime priority.
+
+The boot-time profile seeding creates the whole
+`/data/users/default/dolphin/Config` tree as `player:users`; otherwise Dolphin
+cannot write `Dolphin.ini`, `GFX.ini`, or `GCPadNew.ini`.
+
 ## Boot splash
 
 Plymouth uses a charge-style `two-step` theme: `modules/slippios/theme.nix`

@@ -26,10 +26,12 @@
         /data/users/default/logs || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
-      profile_dir=/data/users/default/dolphin/Config/Profiles/GCPad
-      ${pkgs.coreutils}/bin/mkdir -p "$profile_dir"
+      config_dir=/data/users/default/dolphin/Config
+      profile_dir=$config_dir/Profiles/GCPad
+      ${pkgs.coreutils}/bin/install -d -o player -g users -m 0775 \
+        "$config_dir" "$config_dir/Profiles" "$profile_dir"
       ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini "$profile_dir"/ || true
-      ${pkgs.coreutils}/bin/chown -R player:users "$profile_dir" || true
+      ${pkgs.coreutils}/bin/chown -R player:users "$config_dir" || true
     '';
   };
 }
