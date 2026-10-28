@@ -98,6 +98,20 @@ func (f *File) SetLines(name string, lines []string) {
 	section.Lines = append([]string(nil), lines...)
 }
 
+// Set updates one key inside a section and preserves every other line. It
+// appends the key when it is not present yet.
+func (f *File) Set(name, key, value string) {
+	section := f.Ensure(name)
+	for i, line := range section.Lines {
+		existing, _, ok := strings.Cut(line, "=")
+		if ok && strings.TrimSpace(existing) == key {
+			section.Lines[i] = key + " = " + value
+			return
+		}
+	}
+	section.Lines = append(section.Lines, key+" = "+value)
+}
+
 func (f *File) Delete(name string) {
 	for i, section := range f.Sections {
 		if section.Name == name {

@@ -51,3 +51,20 @@ func TestLoadMissingAndSave(t *testing.T) {
 		t.Fatalf("reloaded = %#v", got)
 	}
 }
+
+func TestSetPreservesOtherKeys(t *testing.T) {
+	file := Parse([]byte("[Core]\nCPUThread = False\nSlippiReplayDir = /old\n"))
+	file.Set("Core", "CPUThread", "True")
+	file.Set("Core", "SlippiReplayDir", "/new")
+	file.Set("Core", "SlippiSaveReplays", "True")
+	output := string(file.Bytes())
+	for _, want := range []string{
+		"CPUThread = True",
+		"SlippiReplayDir = /new",
+		"SlippiSaveReplays = True",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q: %s", want, output)
+		}
+	}
+}

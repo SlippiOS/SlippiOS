@@ -47,6 +47,9 @@ func statusPayload() map[string]any {
 	}
 
 	login, loginDetail := paths.LoginStatus(paths.DolphinUserFile)
+	if !login {
+		login, loginDetail = paths.LoginStatus(filepath.Join(paths.DolphinStableDir, "Slippi", "user.json"))
+	}
 	adapter := adapterPresent()
 	currentDolphin := dolphinCurrent()
 	return map[string]any{
@@ -56,7 +59,16 @@ func statusPayload() map[string]any {
 		"dolphin":  map[string]any{"current": currentDolphin},
 		"adapter":  map[string]any{"present": adapter},
 		"network":  map[string]any{"address": netpages.LocalAddress()},
+		"os":       map[string]any{"version": osVersion()},
 	}
+}
+
+func osVersion() string {
+	data, err := os.ReadFile("/etc/slippios/version")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func adapterPresent() bool {
@@ -119,6 +131,11 @@ func printStatus(mode *modes, payload map[string]any) {
 		current = "not installed"
 	}
 	mode.printf("Dolphin:   %s\n", current)
+	if osInfo, ok := payload["os"].(map[string]any); ok {
+		if version, _ := osInfo["version"].(string); version != "" {
+			mode.printf("SlippiOS:  %s\n", version)
+		}
+	}
 	adapter := payload["adapter"].(map[string]any)
 	if adapter["present"] == true {
 		mode.println("Adapter:   connected")

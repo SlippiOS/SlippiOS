@@ -15,14 +15,15 @@ const SchemaVersion = 1
 const DefaultUserJSON = "slippi-user.json"
 
 type Paths struct {
-	DataDir         string
-	UsersDir        string
-	ProfileDir      string
-	SettingsFile    string
-	ISODir          string
-	DolphinDir      string
-	DolphinUserFile string
-	HardwareFile    string
+	DataDir          string
+	UsersDir         string
+	ProfileDir       string
+	SettingsFile     string
+	ISODir           string
+	DolphinDir       string
+	DolphinStableDir string
+	DolphinUserFile  string
+	HardwareFile     string
 }
 
 func DefaultPaths() Paths {
@@ -37,17 +38,36 @@ func PathsFor(root string) Paths {
 	users := filepath.Join(root, "users")
 	profile := filepath.Join(users, "default")
 	dolphin := filepath.Join(profile, "dolphin")
+	dolphinStable := filepath.Join(profile, "dolphin-stable")
 	return Paths{
-		DataDir:         root,
-		UsersDir:        users,
-		ProfileDir:      profile,
-		SettingsFile:    filepath.Join(profile, "settings.toml"),
-		ISODir:          filepath.Join(root, "isos"),
-		DolphinDir:      dolphin,
-		DolphinUserFile: filepath.Join(dolphin, "Slippi", "user.json"),
-		HardwareFile:    filepath.Join(root, "system", "hardware-id"),
+		DataDir:          root,
+		UsersDir:         users,
+		ProfileDir:       profile,
+		SettingsFile:     filepath.Join(profile, "settings.toml"),
+		ISODir:           filepath.Join(root, "isos"),
+		DolphinDir:       dolphin,
+		DolphinStableDir: dolphinStable,
+		DolphinUserFile:  filepath.Join(dolphin, "Slippi", "user.json"),
+		HardwareFile:     filepath.Join(root, "system", "hardware-id"),
 	}
 }
+func (p Paths) BuildDir(build string) string {
+	if build == "beta" {
+		return p.DolphinDir
+	}
+	return p.DolphinStableDir
+}
+
+// Build returns the selected Dolphin build. Anything unknown falls back to
+// the bundled stable build.
+func Build(values map[string]any) string {
+	dolphin, _ := values["dolphin"].(map[string]any)
+	if build, _ := dolphin["build"].(string); build == "beta" {
+		return "beta"
+	}
+	return "stable"
+}
+
 func Defaults() map[string]any {
 	return map[string]any{
 		"schema_version": int64(SchemaVersion),
@@ -75,6 +95,7 @@ func Defaults() map[string]any {
 			"msaa":          int64(1),
 			"audio_backend": "Cubeb",
 			"audio_latency": int64(20),
+			"build":         "stable",
 			"controller":    "adapter",
 			"profile":       "",
 			"controller1":   "adapter",

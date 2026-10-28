@@ -74,6 +74,12 @@ func (p Paths) InstallLogin(values map[string]any) (bool, string) {
 			return false, fmt.Sprintf("cannot write %s: %v", p.DolphinUserFile, err)
 		}
 		_ = os.Chmod(p.DolphinUserFile, 0o600)
+		stableUser := filepath.Join(p.DolphinStableDir, "Slippi", "user.json")
+		if err := os.MkdirAll(filepath.Dir(stableUser), 0o755); err == nil {
+			if err := os.WriteFile(stableUser, data, 0o600); err == nil {
+				_ = os.Chmod(stableUser, 0o600)
+			}
+		}
 		if current, ok := HardwareID(); ok {
 			if err := os.MkdirAll(filepath.Dir(p.HardwareFile), 0o755); err == nil {
 				_ = os.WriteFile(p.HardwareFile, []byte(current+"\n"), 0o644)

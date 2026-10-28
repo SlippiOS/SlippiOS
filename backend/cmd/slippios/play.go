@@ -9,10 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
+	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 	"github.com/spf13/cobra"
 )
 
@@ -39,13 +41,6 @@ func runPlay(mode *modes, options playOptions) error {
 	if installed, _ := paths.InstallLogin(settings.Defaults()); !installed && options.requireLogin {
 		return mode.fail("not signed in")
 	}
-	appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
-		fmt.Fprintln(mode.stderr(), message)
-	}, false)
-	if err != nil {
-		return mode.fail(err.Error())
-	}
-
 	values, err := paths.Load()
 	if err != nil {
 		return mode.fail("no game image")
@@ -59,29 +54,58 @@ func runPlay(mode *modes, options playOptions) error {
 	if !valid {
 		return mode.fail(reason)
 	}
-	if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
-		return mode.fail(err.Error())
-	}
-	if err := controllers.ConfigureHotkeys(paths.DolphinDir, values); err != nil {
-		return mode.fail(err.Error())
-	}
 	iso := paths.ISOPath(raw)
 
 	width, height := 640, 480
 	if w, h, err := desktop.CurrentResolution(); err == nil {
 		width, height = w, h
 	}
-	arguments := dolphinArgs(values)
-	arguments = append(arguments,
-		"-C", "Dolphin.Display.Fullscreen=True",
-		"-C", "Dolphin.Display.BorderlessFullscreen=True",
-		"-C", "Dolphin.Display.RenderWindowAutoSize=False",
-		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowWidth=%d", width),
-		"-C", fmt.Sprintf("Dolphin.Display.RenderWindowHeight=%d", height),
-		"-C", "Dolphin.Display.RenderWindowXPos=0",
-		"-C", "Dolphin.Display.RenderWindowYPos=0",
-		"-b", "-e", iso)
-	returncode, err := runDolphin(paths, appimage, arguments)
+	dolphinSettings, _ := values["dolphin"].(map[string]any)
+	build := "stable"
+	if value, ok := dolphinSettings["build"].(string); ok && value != "" {
+		build = value
+	}
+	var appimage string
+	var userDir string
+	var arguments []string
+	if build == "beta" {
+		appimage, err = dolphin.DefaultPaths().Ensure(func(message string) {
+			fmt.Fprintln(mode.stderr(), message)
+		}, false)
+		if err != nil {
+			return mode.fail(err.Error())
+		}
+		if err := controllers.ApplyConfigured(paths.DolphinDir, values); err != nil {
+			return mode.fail(err.Error())
+		}
+		if err := controllers.ConfigureHotkeys(paths.DolphinDir, values); err != nil {
+			return mode.fail(err.Error())
+		}
+		userDir = paths.DolphinDir
+		arguments = dolphinArgs(values)
+		arguments = append(arguments,
+			"-C", "Dolphin.Display.Fullscreen=True",
+			"-C", "Dolphin.Display.BorderlessFullscreen=True",
+			"-C", "Dolphin.Display.RenderWindowAutoSize=False",
+			"-C", fmt.Sprintf("Dolphin.Display.RenderWindowWidth=%d", width),
+			"-C", fmt.Sprintf("Dolphin.Display.RenderWindowHeight=%d", height),
+			"-C", "Dolphin.Display.RenderWindowXPos=0",
+			"-C", "Dolphin.Display.RenderWindowYPos=0",
+			"-b", "-e", iso)
+	} else {
+		appimage, err = apps.EnsureStable(paths.DataDir, func(message string) {
+			fmt.Fprintln(mode.stderr(), message)
+		})
+		if err != nil {
+			return mode.fail(err.Error())
+		}
+		if err := stable.Configure(paths.ProfileDir, paths.DolphinStableDir, paths.ISODir, values, width, height, true); err != nil {
+			return mode.fail(err.Error())
+		}
+		userDir = paths.DolphinStableDir
+		arguments = []string{"-b", "-e", iso}
+	}
+	returncode, err := runDolphin(paths, appimage, userDir, arguments)
 	if err != nil {
 		return mode.fail(err.Error())
 	}
@@ -159,7 +183,7 @@ func dolphinArgs(values map[string]any) []string {
 	return arguments
 }
 
-func runDolphin(paths settings.Paths, appimage string, arguments []string) (int, error) {
+func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string) (int, error) {
 	environment := os.Environ()
 	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
 	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
@@ -175,8 +199,9 @@ func runDolphin(paths settings.Paths, appimage string, arguments []string) (int,
 		}
 	}
 
-	args := append([]string{appimage, "-u", paths.DolphinDir}, arguments...)
+	args := append([]string{appimage, "-u", userDir}, arguments...)
 	command := exec.Command("slippi-appimage-run", args...)
+	command.Dir = filepath.Dir(appimage)
 	cacheDir := filepath.Join(paths.ProfileDir, "cache")
 	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
 		filtered := environment[:0]
