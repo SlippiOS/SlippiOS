@@ -46,7 +46,7 @@ slippios settings set game.iso "$iso" >/dev/null
   echo "display=$(xrandr --current 2>/dev/null | awk '/ connected/ {for (i=1;i<=NF;i++) if ($i ~ /^[0-9]+x[0-9]+\+/) {print $i; exit}}' || true)"
 } > "$out_dir/system.txt"
 
-printf 'replay\tframes\texpected_s\twall_s\tspeed\tuser_s\tsys_s\tmax_rss_kb\tvol_ctx\tinvol_ctx\n' > "$out_dir/results.tsv"
+printf 'replay\tframes\texpected_s\twall_s\tspeed\tok\tuser_s\tsys_s\tmax_rss_kb\tvol_ctx\tinvol_ctx\n' > "$out_dir/results.tsv"
 
 sample_system() {
   local samples=$1
@@ -69,6 +69,7 @@ run_one() {
   local path="$replay_dir/$name"
   local tag="${name%.slp}"
   local log="$out_dir/$tag.cli.log"
+  local err_log="$out_dir/$tag.cli.err"
   local app_log="$out_dir/$tag.app.log"
   local time_file="$out_dir/$tag.time"
   local samples="$out_dir/$tag.samples.csv"
@@ -85,9 +86,9 @@ run_one() {
   echo "Running $name ($frames frames, warmup=$warmup)"
   sample_system "$samples" &
   local sampler=$!
-  local start end wall expected speed user sys rss vol invol
+  local start end wall expected speed ok user sys rss vol invol
   start=$(date +%s.%N)
-  "$timer" -v -o "$time_file" slippios replay play "$path" > "$log" 2>&1 || true
+  "$timer" -v -o "$time_file" slippios replay play "$path" > "$log" 2> "$err_log" || true
   end=$(date +%s.%N)
   kill "$sampler" 2>/dev/null || true
   wait "$sampler" 2>/dev/null || true
@@ -96,6 +97,7 @@ run_one() {
   wall=$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", e-s }')
   expected=$(awk -v f="$frames" 'BEGIN { printf "%.3f", f/60 }')
   speed=$(awk -v e="$expected" -v w="$wall" 'BEGIN { if (w > 0) printf "%.4f", e/w; else print "0" }')
+  ok=$(jq -r 'if type == "object" then (.ok // false) else false end' "$log" 2>/dev/null || echo false)
   user=$(awk -F': ' '/User time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
   sys=$(awk -F': ' '/System time/ {print $2; exit}' "$time_file" 2>/dev/null || true)
   rss=$(awk -F': ' '/Maximum resident set size/ {print $2; exit}' "$time_file" 2>/dev/null || true)
@@ -103,11 +105,11 @@ run_one() {
   invol=$(awk -F': ' '/Involuntary context switches/ {print $2; exit}' "$time_file" 2>/dev/null || true)
 
   if [[ "$warmup" != "1" ]]; then
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$name" "$frames" "$expected" "$wall" "$speed" "${user:-}" "${sys:-}" "${rss:-}" "${vol:-}" "${invol:-}" \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$frames" "$expected" "$wall" "$speed" "$ok" "${user:-}" "${sys:-}" "${rss:-}" "${vol:-}" "${invol:-}" \
       >> "$out_dir/results.tsv"
   fi
-  echo "$name expected=${expected}s wall=${wall}s speed=${speed}"
+  echo "$name expected=${expected}s wall=${wall}s speed=${speed} ok=${ok}"
 }
 
 # The first row is the short warm-up. It installs playback and fills shaders.

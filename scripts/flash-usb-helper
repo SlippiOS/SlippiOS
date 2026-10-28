@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Root-only helper installed by `scripts/flash-usb enable`.
+# It reads /etc/slippios/flash.conf and writes the newest dev image to the
+# configured USB device. It takes no arguments so the sudoers rule stays narrow.
+set -euo pipefail
+
+config="/etc/slippios/flash.conf"
+if [[ ! -r "$config" ]]; then
+  echo "missing $config; run scripts/flash-usb enable" >&2
+  exit 1
+fi
+# shellcheck disable=SC1090
+source "$config"
+: "${device:?device is missing from $config}"
+: "${image_dir:?image_dir is missing from $config}"
+
+if [[ ! -e "$device" ]]; then
+  echo "target is not present: $device" >&2
+  exit 1
+fi
+dev=$(readlink -f "$device")
+name=$(basename "$dev")
+if [[ ! -b "$dev" ]]; then
+  echo "target is not a block device: $dev" >&2
+  exit 1
+fi
+if [[ "$(cat "/sys/block/$name/removable" 2>/dev/null || echo 0)" != "1" ]]; then
+  echo "refusing to write a non-removable device: $dev" >&2
+  exit 1
+fi
+if [[ "$(lsblk -dno TRAN "$dev" 2>/dev/null || true)" != "usb" ]]; then
+  echo "refusing to write a non-USB device: $dev" >&2
+  exit 1
+fi
+
+mapfile -t images < <(find -L "$image_dir" -maxdepth 1 -type f \
+  -name 'slippios_*.raw' ! -name '*.nix-store.raw' -print)
+if [[ ${#images[@]} -ne 1 ]]; then
+  echo "expected exactly one dev image in $image_dir, found ${#images[@]}" >&2
+  printf '  %s\n' "${images[@]}" >&2
+  exit 1
+fi
+image=${images[0]}
+image_size=$(stat -c '%s' "$image")
+target_size=$(blockdev --getsize64 "$dev")
+if (( target_size < image_size )); then
+  echo "target is too small: $target_size < $image_size" >&2
+  exit 1
+fi
+
+while read -r mountpoint; do
+  if [[ -n "$mountpoint" ]]; then
+    echo "Unmounting $mountpoint"
+    umount "$mountpoint"
+  fi
+done < <(lsblk -ln -o MOUNTPOINTS "$dev")
+
+echo "Flashing $image"
+echo "Target: $dev ($(numfmt --to=iec "$target_size"))"
+dd if="$image" of="$dev" bs=16M conv=fsync status=progress
+sync
+
+echo "Verifying"
+cmp -n "$image_size" "$image" "$dev"
+echo "Flashed and verified $dev"

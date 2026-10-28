@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# Reusable SlippiOS USB flasher.
+#
+#   scripts/flash-usb enable   # one-time: install the narrow root helper
+#   scripts/flash-usb          # flash the newest dev image
+#   scripts/flash-usb status   # show helper and USB state
+#   scripts/flash-usb disable  # remove the passwordless helper
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CONFIG="/etc/slippios/flash.conf"
+HELPER="/usr/local/sbin/slippios-flash"
+SUDOERS="/etc/sudoers.d/slippios-flash"
+DEFAULT_IMAGE_DIR="$PWD/result-local-image-dev"
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/flash-usb [enable|disable|status]
+
+  enable    install the root helper and narrow sudoers rule (asks for sudo once)
+  (none)    flash the newest dev image using the installed helper
+  status    show the configured device, image, and helper state
+  disable   remove the helper, sudoers rule, and config
+
+Environment:
+  FLASH_USER  user allowed to run the helper (default: SUDO_USER)
+USAGE
+}
+
+detect_usb() {
+  local usb=()
+  mapfile -t usb < <(lsblk -dno NAME,RM,TRAN | awk '$2 == 1 && $3 == "usb" {print $1}')
+  if [[ ${#usb[@]} -eq 0 ]]; then
+    echo "no removable USB disk found" >&2
+    return 1
+  fi
+  if [[ ${#usb[@]} -gt 1 ]]; then
+    echo "multiple removable USB disks found; pass --device with enable" >&2
+    printf '  /dev/%s\n' "${usb[@]}" >&2
+    return 1
+  fi
+  local name=${usb[0]}
+  local link
+  for link in /dev/disk/by-id/usb-*; do
+    [[ -e "$link" ]] || continue
+    if [[ "$(readlink -f "$link")" == "/dev/$name" ]]; then
+      printf '%s\n' "$link"
+      return 0
+    fi
+  done
+  echo "cannot find a /dev/disk/by-id link for /dev/$name" >&2
+  return 1
+}
+
+image_for() {
+  local dir=$1
+  local images=()
+  mapfile -t images < <(find -L "$dir" -maxdepth 1 -type f \
+    -name 'slippios_*.raw' ! -name '*.nix-store.raw' -print 2>/dev/null)
+  if [[ ${#images[@]} -ne 1 ]]; then
+    echo "expected one dev image in $dir, found ${#images[@]}" >&2
+    return 1
+  fi
+  printf '%s\n' "${images[0]}"
+}
+
+enable() {
+  local device=""
+  local image_dir="$DEFAULT_IMAGE_DIR"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --device) device="${2:?missing device}"; shift ;;
+      --image-dir) image_dir="${2:?missing image directory}"; shift ;;
+      *) echo "unknown enable option: $1" >&2; exit 2 ;;
+    esac
+    shift
+  done
+
+  if [[ $EUID -ne 0 ]]; then
+    local args=(enable --image-dir "$image_dir")
+    [[ -n "$device" ]] && args+=(--device "$device")
+    exec sudo "$(readlink -f "$0")" "${args[@]}"
+  fi
+
+  local user="${FLASH_USER:-${SUDO_USER:-}}"
+  if [[ -z "$user" ]]; then
+    echo "run this through sudo from your user account" >&2
+    exit 1
+  fi
+  if [[ -z "$device" ]]; then
+    device=$(detect_usb)
+  fi
+  image_for "$image_dir" >/dev/null
+
+  install -d -o root -g root -m 0755 /etc/slippios
+  cat > "$CONFIG" <<EOF
+device="$device"
+image_dir="$image_dir"
+EOF
+  chmod 0644 "$CONFIG"
+  install -o root -g root -m 0755 scripts/flash-usb-helper "$HELPER"
+  cat > "$SUDOERS" <<EOF
+$user ALL=(root) NOPASSWD: $HELPER
+EOF
+  chmod 0440 "$SUDOERS"
+  visudo -c >/dev/null
+  echo "Enabled for $user"
+  echo "Device: $device"
+  echo "Images: $image_dir"
+  echo "Flash with: scripts/flash-usb"
+}
+
+disable() {
+  if [[ $EUID -ne 0 ]]; then
+    exec sudo "$(readlink -f "$0")" disable
+  fi
+  rm -f "$SUDOERS" "$HELPER" "$CONFIG"
+  visudo -c >/dev/null
+  echo "Disabled the passwordless flash helper."
+}
+
+status() {
+  echo "Helper:  $([[ -x "$HELPER" ]] && echo installed || echo missing)"
+  echo "Sudoers: $([[ -f "$SUDOERS" ]] && echo installed || echo missing)"
+  if [[ -r "$CONFIG" ]]; then
+    # shellcheck disable=SC1090
+    source "$CONFIG"
+    echo "Device:  ${device:-missing}"
+    echo "Images:  ${image_dir:-missing}"
+    image_for "$image_dir" 2>/dev/null | sed 's/^/Image:   /' || true
+  else
+    echo "Config:  missing"
+  fi
+  echo "USB:"
+  lsblk -dno NAME,SIZE,MODEL,TRAN,RM |
+    awk '$NF == 1 && $(NF-1) == "usb" {print "  /dev/" $1 "  " $2 "  " $3}'
+}
+
+flash() {
+  if [[ ! -x "$HELPER" ]]; then
+    echo "flash helper is not installed; run: sudo scripts/flash-usb enable" >&2
+    exit 1
+  fi
+  if [[ ! -r "$CONFIG" ]]; then
+    echo "flash config is missing; run: sudo scripts/flash-usb enable" >&2
+    exit 1
+  fi
+  sudo -n "$HELPER"
+}
+
+case "${1:-flash}" in
+  enable) shift; enable "$@" ;;
+  disable) shift; disable "$@" ;;
+  status) status ;;
+  flash) flash ;;
+  -h|--help) usage ;;
+  *) echo "unknown action: $1" >&2; usage >&2; exit 2 ;;
+esac
