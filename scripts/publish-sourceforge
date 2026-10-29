@@ -2,13 +2,22 @@
 # Upload the full USB images and license files to SourceForge.
 #
 # SourceForge hosts the install media. R2 hosts only the update assets.
-# Set SF_USER to your SourceForge username and add the SSH public key from
-# SF_KEY (default ~/.ssh/sourceforge_slippios) to your SourceForge account.
+# Usage:
+#   scripts/publish-sourceforge ASSETS_DIR SOURCEFORGE_USER
+#   SF_USER=name scripts/publish-sourceforge ASSETS_DIR
+# Add the SSH public key from SF_KEY (default ~/.ssh/sourceforge_slippios)
+# to your SourceForge account first.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-assets=${1:?usage: scripts/publish-sourceforge ASSETS_DIR}
-user=${SF_USER:?set SF_USER to your SourceForge username}
+assets=${1:?usage: scripts/publish-sourceforge ASSETS_DIR SOURCEFORGE_USER}
+user=${SF_USER:-${2:-}}
+if [[ -z "$user" ]]; then
+  echo "usage: scripts/publish-sourceforge ASSETS_DIR SOURCEFORGE_USER" >&2
+  echo "   or: SF_USER=name scripts/publish-sourceforge ASSETS_DIR" >&2
+  echo "fish: scripts/publish-sourceforge ASSETS_DIR name" >&2
+  exit 1
+fi
 project=${SF_PROJECT:-slippios}
 key=${SF_KEY:-$HOME/.ssh/sourceforge_slippios}
 version=$(jq -r .version "$assets/manifest.json")
