@@ -24,7 +24,8 @@ in
   boot.kernelModules = [ "uinput" ];
 
   services.udev.extraRules = ''
-    SUBSYSTEM=="usb", ATTR{idVendor}=="057e", ATTR{idProduct}=="0337", ATTR{power/control}="on", MODE="0666"
+    SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="057e", ATTRS{idProduct}=="0337", MODE="0666", TAG+="uaccess"
+    SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="057e", ATTRS{idProduct}=="0337", ATTR{power/control}="on"
   '';
 
   networking.networkmanager.enable = true;
