@@ -15,9 +15,13 @@ controllers have no Guide binding; use the console power button to shut down.
 ## Glyph profile
 
 The Glyph uses `XInput/0/Gamepad` on Windows. On Linux it reports as
-`Mad Catz Xbox 360 Controller`; the profile carries a `# Model =` line so
-SlippiOS detects it, and applying it fills in the Linux device (`SDL/0/...`)
-automatically. The mapping is the same:
+`Mad Catz Xbox 360 Controller`.
+
+Stable Slippi (Ishiiruka) is evdev-only, so use `Glyph_Linux`: the same
+physical mapping with evdev numbers and
+`Device = evdev/0/Mad Catz Xbox 360 Controller`. The Windows `Glyph.ini`
+remains for Windows and for Linux builds with SDL (the mainline beta).
+SlippiOS detects both from the `# Model =` hint and the device name.
 
 | Action | Dolphin binding | SDL |
 |---|---|---|
@@ -60,14 +64,14 @@ SlippiOS seeds these profiles into
 `/data/users/default/dolphin/Config/Profiles/GCPad/` when needed (existing
 files are not overwritten):
 
-- SlippiOS: `Xbox 360 (Microsoft)`, `Keyboard`
-- Slippi: B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux,
-  HayBox_XInput_Linux
+- SlippiOS: `Xbox 360 (Microsoft)`, `Glyph_Linux`, `Keyboard`
+- Slippi: B0XX_Linux, Frame1_Linux, Glyph (Windows XInput),
+  HayBox_DInput_Linux, HayBox_XInput_Linux
 
-The Xbox 360 profile uses evdev and the standard Xbox 360 button/axis layout.
-The Glyph profile is portable: its Windows device line is replaced with the
-detected Linux device when applied. The keyboard profile matches Dolphin's
-default Linux keyboard bindings.
+The Xbox 360 and Glyph_Linux profiles use evdev and the standard Xbox 360
+button/axis layout. `Glyph.ini` is the Windows XInput profile; Linux builds
+with SDL can apply it with the detected device. The keyboard profile matches
+Dolphin's default Linux keyboard bindings.
 
 Profiles with a fixed Linux device line select that device. Portable profiles
 such as Glyph use the detected pad. For four-player local play, use the GameCube

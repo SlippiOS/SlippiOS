@@ -112,6 +112,9 @@ func TestConfigureHotkeys(t *testing.T) {
 	if !strings.Contains(lines, "General/Stop = `Button MODE`") {
 		t.Fatalf("hotkeys = %s", lines)
 	}
+	if !strings.Contains(lines, "General/Exit = Escape") {
+		t.Fatalf("hotkeys missing Escape exit: %s", lines)
+	}
 }
 
 func TestPortableProfileModel(t *testing.T) {

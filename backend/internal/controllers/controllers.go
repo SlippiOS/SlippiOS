@@ -326,6 +326,9 @@ func ConfigureHotkeys(dolphinDir string, values map[string]any) error {
 	lines := file.Lines("Hotkeys")
 	lines = setLine(lines, "Device", device)
 	lines = setLine(lines, "General/Stop", "`Button MODE`")
+	// Escape must be an explicit Exit binding. Creating Hotkeys.ini with only
+	// Stop drops Dolphin's default Escape -> Exit binding.
+	lines = setLine(lines, "General/Exit", "Escape")
 	file.SetLines("Hotkeys", lines)
 	return ini.Save(path, file)
 }
