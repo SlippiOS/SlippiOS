@@ -112,7 +112,7 @@ func TestConfigureHotkeys(t *testing.T) {
 	if !strings.Contains(lines, "General/Stop = `Button MODE`") {
 		t.Fatalf("hotkeys = %s", lines)
 	}
-	if !strings.Contains(lines, "General/Exit = Escape") {
+	if !strings.Contains(lines, "General/Exit = `XInput2/0/Keyboard Mouse:ESCAPE`") {
 		t.Fatalf("hotkeys missing Escape exit: %s", lines)
 	}
 }
