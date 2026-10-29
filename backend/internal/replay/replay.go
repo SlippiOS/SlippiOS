@@ -5,6 +5,7 @@ package replay
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,10 +14,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
+	"github.com/SlippiOS/SlippiOS/backend/internal/slippi"
 	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 )
 
@@ -33,6 +37,7 @@ type Replay struct {
 	Path     string `json:"path"`
 	Size     int64  `json:"size"`
 	Modified int64  `json:"modified"`
+	Summary  string `json:"summary,omitempty"`
 }
 
 func List(profileDir string) ([]Replay, error) {
@@ -64,11 +69,13 @@ func List(profileDir string) ([]Replay, error) {
 			if err != nil {
 				continue
 			}
+			summary, _ := slippi.Summary(path)
 			replays = append(replays, Replay{
 				Name:     entry.Name(),
 				Path:     path,
 				Size:     info.Size(),
 				Modified: info.ModTime().Unix(),
+				Summary:  summary,
 			})
 		}
 	}
@@ -151,6 +158,13 @@ func Play(dataDir, profileDir, isoPath, replayPath string, values map[string]any
 		"replay":    replayPath,
 		"commandId": fmt.Sprintf("%d", time.Now().UnixNano()),
 	}
+	// Without an explicit end frame the playback build relies on its file
+	// parser to notice the game end. Supplying the frame makes the end of the
+	// replay deterministic.
+	lastFrame, frameErr := slippi.LastFrame(replayPath)
+	if frameErr == nil && lastFrame > 0 {
+		comms["endFrame"] = lastFrame
+	}
 	data, err := json.Marshal(comms)
 	if err != nil {
 		return 0, err
@@ -186,9 +200,10 @@ func Play(dataDir, profileDir, isoPath, replayPath string, values map[string]any
 		"-b", "-e", isoPath,
 		"-i", commsPath,
 		"--hide-seekbar",
-	}
-	if os.Getenv("SLIPPIOS_REPLAY_COUT") == "1" {
-		args = append(args, "--cout")
+		// Playback prints [CURRENT_FRAME] as it plays. The end-of-replay
+		// response stops the game but leaves the Dolphin window open, so the
+		// frame counter is how we know it is safe to close playback.
+		"--cout",
 	}
 	command := exec.Command("slippi-appimage-run", args...)
 	command.Dir = filepath.Dir(appimage)
@@ -213,20 +228,95 @@ func Play(dataDir, profileDir, isoPath, replayPath string, values map[string]any
 	}
 	filtered = append(filtered, "XDG_CACHE_HOME="+cacheDir, "LD_LIBRARY_PATH="+libraryPath)
 	command.Env = filtered
-	logFile, err := os.Create(filepath.Join(logDir, "replay.log"))
+	logPath := filepath.Join(logDir, "replay.log")
+	logFile, err := os.Create(logPath)
 	if err != nil {
 		return 0, err
 	}
 	defer logFile.Close()
 	command.Stdout = logFile
 	command.Stderr = logFile
-	if err := command.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
-			return exit.ExitCode(), nil
-		}
+	// Put playback in its own process group so the wrapper and the AppImage
+	// can both be stopped after the last frame.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := command.Start(); err != nil {
 		return 0, err
 	}
+	wait := make(chan error, 1)
+	go func() {
+		wait <- command.Wait()
+	}()
+	waitErr, killed := waitForPlayback(command.Process.Pid, logPath, lastFrame, frameErr == nil, wait)
+	if killed {
+		return 0, nil
+	}
+	if waitErr != nil {
+		if exit, ok := waitErr.(*exec.ExitError); ok {
+			return exit.ExitCode(), nil
+		}
+		return 0, waitErr
+	}
 	return 0, nil
+}
+
+// waitForPlayback waits for playback to exit, or stops it after the frame
+// counter has passed the replay's last frame. The playback build stops the
+// emulated game at the end but leaves its window open, so waiting alone would
+// strand the console on a finished replay.
+func waitForPlayback(pid int, logPath string, lastFrame int, monitor bool, wait <-chan error) (error, bool) {
+	if !monitor || lastFrame <= 0 {
+		return <-wait, false
+	}
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	reached := time.Time{}
+	for {
+		select {
+		case err := <-wait:
+			return err, false
+		case <-ticker.C:
+			frame, ok := lastPlaybackFrame(logPath)
+			if !ok || frame < lastFrame {
+				continue
+			}
+			if reached.IsZero() {
+				reached = time.Now()
+				continue
+			}
+			if time.Since(reached) < time.Second {
+				continue
+			}
+			_ = syscall.Kill(-pid, syscall.SIGTERM)
+			select {
+			case err := <-wait:
+				return err, true
+			case <-time.After(2 * time.Second):
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
+				return <-wait, true
+			}
+		}
+	}
+}
+
+func lastPlaybackFrame(path string) (int, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, false
+	}
+	marker := []byte("[CURRENT_FRAME] ")
+	index := bytes.LastIndex(data, marker)
+	if index < 0 {
+		return 0, false
+	}
+	value := data[index+len(marker):]
+	if end := bytes.IndexByte(value, '\n'); end >= 0 {
+		value = value[:end]
+	}
+	frame, err := strconv.Atoi(strings.TrimSpace(string(value)))
+	if err != nil {
+		return 0, false
+	}
+	return frame, true
 }
 
 func playbackSettings(values map[string]any) map[string]any {
