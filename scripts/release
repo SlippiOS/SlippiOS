@@ -327,6 +327,15 @@ else
   notes=$(cat <<EOF
 SlippiOS USB image ${version}.
 
+What's new:
+- A launching screen with a spinner covers Dolphin startup; the shell closes once Melee is up and returns to the menu when Melee exits.
+- Standard pads are detected and configured automatically. The Glyph uses a Linux evdev profile.
+- Escape and the Guide button exit Melee.
+- Controller setup is part of onboarding, and Expert mode can run setup again.
+- Upload ISO is available from Melee ROMs at any time.
+- The replay list shows character, tag, and stage summaries, and playback returns to the menu.
+- The shell is capped at 60 FPS and hides the cursor while a gamepad is active.
+
 Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
 
 The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data.
