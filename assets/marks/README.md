@@ -23,12 +23,9 @@ The X root wallpaper is not stored here: `modules/slippios/session.nix` renders
 it for the common desktop sizes from `slippi-mark.png`, so the session can pick
 an image that matches the display instead of scaling a 4K one down.
 
-`icon.png` is the 1024x1024 organization/project icon (dark background), and
-`icon-light.png` is the light-background variant:
+`icon.png` is the hand-made organization/project icon: the filled blue
+hexagon with the solid S glyph. It has a transparent background.
 
-```sh
-magick -background none logo.svg -resize 1024x1024 -trim +repage -resize 680x680 \
-  -background '#0b0b10' -gravity center -extent 1024x1024 icon.png
-magick -background none logo-light.svg -resize 1024x1024 -trim +repage -resize 680x680 \
-  -background '#f5f6f8' -gravity center -extent 1024x1024 icon-light.png
-```
+`icon-square.png` is the same mark centered on a 1024x1024 transparent canvas,
+sized so GitHub's circular crop does not clip it. The black S needs a light
+background to stay visible.
