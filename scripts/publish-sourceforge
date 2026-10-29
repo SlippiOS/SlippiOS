@@ -47,6 +47,13 @@ for file in "${files[@]}"; do
   fi
 done
 
+signed_file="$assets/slippios-usb-$version.img.xz"
+support=()
+for file in "${files[@]}"; do
+  [[ "$file" == "$signed_file" ]] && continue
+  support+=("$file")
+done
+
 # The FRS account is a restricted shell: it only accepts file-transfer
 # commands. Use SFTP to create the release directory, then rsync the files.
 if ! sftp -q -b - -i "$key" -o StrictHostKeyChecking=accept-new \
@@ -71,8 +78,15 @@ then
 fi
 
 rsync -avP -e "ssh -i $key -o StrictHostKeyChecking=accept-new" \
-  "${files[@]}" "$target/"
+  "${support[@]}" "$target/"
+
+# Upload the signed image last. Do not preserve its mtime: SourceForge's
+# "latest" heuristic otherwise picks whichever license file has the newest
+# local timestamp. The authoritative fix is still "Default download for" in
+# the SourceForge file manager.
+rsync -avP --no-times -e "ssh -i $key -o StrictHostKeyChecking=accept-new" \
+  "$signed_file" "$target/"
 
 echo
 echo "Uploaded to https://sourceforge.net/projects/$project/files/v$version/"
-echo "Set the signed image as the default download in the SourceForge file manager."
+echo "The signed image was uploaded last; set it as the default download in the SourceForge file manager."
