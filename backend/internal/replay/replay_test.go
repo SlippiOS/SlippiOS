@@ -31,6 +31,17 @@ func TestListFindsSLP(t *testing.T) {
 	}
 }
 
+func TestLastPlaybackFrame(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "replay.log")
+	if err := os.WriteFile(path, []byte("noise\n[CURRENT_FRAME] 12\n[CURRENT_FRAME] 13\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	frame, ok := lastPlaybackFrame(path)
+	if !ok || frame != 13 {
+		t.Fatalf("frame = %d, ok = %v", frame, ok)
+	}
+}
+
 func TestListEmptyReturnsArray(t *testing.T) {
 	profile := t.TempDir()
 	t.Setenv("HOME", t.TempDir())
