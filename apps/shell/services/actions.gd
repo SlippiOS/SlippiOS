@@ -119,6 +119,8 @@ func _launch_in_shell() -> void:
 			status.text = ""
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
 			OS.low_processor_usage_mode = true
+			await app.get_tree().create_timer(0.4).timeout
+			_focus_game_window()
 		await app.get_tree().create_timer(0.2).timeout
 	OS.get_process_exit_code(pid)
 	OS.low_processor_usage_mode = false
@@ -130,6 +132,32 @@ func _launch_in_shell() -> void:
 		return
 	app.refresh_status()
 	app.show_menu()
+
+
+func _focus_game_window() -> void:
+	var output: Array = []
+	if OS.execute("xdotool",
+			["search", "--onlyvisible", "--name", "Faster Melee|Dolphin"],
+			output, true) != 0:
+		return
+	for entry in output:
+		for id in str(entry).strip_edges().split("\n"):
+			if id == "":
+				continue
+			var props: Array = []
+			var state := ""
+			if OS.execute("xprop", ["-id", id, "_NET_WM_STATE"], props, true) == 0 and not props.is_empty():
+				state = str(props[0])
+			var names: Array = []
+			var name := ""
+			if OS.execute("xdotool", ["getwindowname", id], names, true) == 0 and not names.is_empty():
+				name = str(names[0])
+			if state.contains("_NET_WM_STATE_FULLSCREEN"):
+				OS.execute("xdotool", ["windowactivate", id], [], false)
+			elif name.contains("Faster Melee"):
+				# Dolphin keeps its small launcher frame mapped behind the
+				# fullscreen render window. Hide it so the game fills the screen.
+				OS.execute("xdotool", ["windowunmap", id], [], false)
 
 
 func _read_progress(path: String) -> Dictionary:

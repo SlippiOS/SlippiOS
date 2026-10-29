@@ -408,6 +408,17 @@ func ConfigureHotkeys(dolphinDir string, values map[string]any) error {
 	// Stop drops Dolphin's default Escape -> Exit binding.
 	lines = setLine(lines, "General/Exit", "`XInput2/0/Keyboard Mouse:ESCAPE`")
 	file.SetLines("Hotkeys", lines)
+
+	// Stable Ishiiruka reads the Hotkeys1 controller group. The GUI writes
+	// physical keyboard bindings there, with the virtual core keyboard as the
+	// device. Keep both formats so stable and mainline both exit on Escape.
+	hotkeys := file.Lines("Hotkeys1")
+	hotkeys = setLine(hotkeys, "Device", "XInput2/0/Virtual core pointer")
+	if device != "" {
+		hotkeys = setLine(hotkeys, "Keys/Stop", fmt.Sprintf("`%s:Button MODE`", device))
+	}
+	hotkeys = setLine(hotkeys, "Keys/Exit", "Escape")
+	file.SetLines("Hotkeys1", hotkeys)
 	return ini.Save(path, file)
 }
 

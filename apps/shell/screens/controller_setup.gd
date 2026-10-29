@@ -1,6 +1,9 @@
 extends "res://screens/screen.gd"
 
 
+var launch_after := false
+
+
 func present(message: String = "") -> void:
 	clear()
 	title("CONTROLLER", 44)
@@ -25,8 +28,8 @@ func present(message: String = "") -> void:
 			label("Port 1: GameCube adapter", 0.7)
 	if message != "":
 		label(message, 0.9)
-	button("Controller settings", app.show_controllers)
 	button("Continue", _continue)
+	button("Controller settings", app.show_controllers)
 	focus()
 
 
@@ -38,6 +41,9 @@ func _port1_profile(ports: Array) -> String:
 
 
 func _continue() -> void:
+	if launch_after and not app.needs_setup():
+		app.launch_game()
+		return
 	app.skip_setup()
 
 

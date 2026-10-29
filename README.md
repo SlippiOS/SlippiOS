@@ -49,5 +49,6 @@ No Docker or system Nix is required. The build falls back to nix-portable.
 - [Developer guide](docs/developers.md)
 - [Architecture and updates](docs/architecture.md)
 - [Controller support](docs/controllers.md)
+- [Onboarding and launch flow](docs/onboarding-flow.md)
 - [Secure Boot](secure-boot/README.md)
 - [Roadmap](ROADMAP.md)

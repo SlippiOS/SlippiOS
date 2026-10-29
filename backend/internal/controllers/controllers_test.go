@@ -115,6 +115,16 @@ func TestConfigureHotkeys(t *testing.T) {
 	if !strings.Contains(lines, "General/Exit = `XInput2/0/Keyboard Mouse:ESCAPE`") {
 		t.Fatalf("hotkeys missing Escape exit: %s", lines)
 	}
+	legacy := strings.Join(file.Lines("Hotkeys1"), "\n")
+	if !strings.Contains(legacy, "Device = XInput2/0/Virtual core pointer") {
+		t.Fatalf("hotkeys1 device = %s", legacy)
+	}
+	if !strings.Contains(legacy, "Keys/Exit = Escape") {
+		t.Fatalf("hotkeys1 missing Escape exit: %s", legacy)
+	}
+	if !strings.Contains(legacy, "Keys/Stop = `evdev/0/Microsoft X-Box 360 pad:Button MODE`") {
+		t.Fatalf("hotkeys1 missing Stop: %s", legacy)
+	}
 }
 
 func TestResolveProfileDropsLegacySuffix(t *testing.T) {

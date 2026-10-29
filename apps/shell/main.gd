@@ -257,9 +257,11 @@ func show_controllers(message: String = "") -> void:
 	_present(ControllersScreen.new(self), message)
 
 
-func show_controller_setup(message: String = "") -> void:
+func show_controller_setup(message: String = "", launch_after: bool = false) -> void:
 	stop_net()
-	_present(ControllerSetupScreen.new(self), message)
+	var screen = ControllerSetupScreen.new(self)
+	screen.launch_after = launch_after
+	_present(screen, message)
 
 
 func show_controller_port(port: int, message: String = "") -> void:

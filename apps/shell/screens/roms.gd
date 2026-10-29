@@ -50,7 +50,7 @@ func _select(path: String) -> void:
 		return
 	app.refresh_status()
 	if first_setup:
-		app.show_controller_setup()
+		app.show_controller_setup("", true)
 	else:
 		app.launch_game()
 
