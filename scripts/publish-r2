@@ -20,10 +20,17 @@ for name in R2_BUCKET R2_ENDPOINT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_PUBLI
     exit 1
   fi
 done
-if ! command -v rclone >/dev/null 2>&1; then
-  echo "rclone is required" >&2
-  exit 1
-fi
+for tool in rclone jq; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    echo "$tool is required" >&2
+    exit 1
+  }
+done
+
+# Cloudflare's free tier is 10 GB-month. Use decimal GB so the check is
+# conservative. Set SLIPPIOS_R2_ALLOW_OVER_QUOTA=1 for a paid account.
+limit=$((10 * 1000 * 1000 * 1000))
+allow_over_quota=${SLIPPIOS_R2_ALLOW_OVER_QUOTA:-0}
 
 upload() {
   local source=$1
@@ -40,19 +47,72 @@ upload() {
 
 # Large assets first, manifest last so clients never see a manifest whose
 # assets are not uploaded yet.
+files=()
+names=()
+add_asset() {
+  [[ -f "$1" ]] || return 0
+  files+=("$1")
+  names+=("$(basename "$1")")
+}
 for file in "$assets"/slippios-usb-*.img.xz \
   "$assets"/slippios_*.nix-store.raw \
+  "$assets"/slippios_*.nix-store.raw.zsync \
   "$assets"/slippios_*.efi \
   "$assets"/SHA256SUMS; do
-  [[ -f "$file" ]] || continue
-  upload "$file" "$(basename "$file")"
+  add_asset "$file"
 done
-
+add_asset "$assets/manifest.json"
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "no release assets found in $assets" >&2
+  exit 1
+fi
 if [[ ! -f "$assets/manifest.json" ]]; then
   echo "missing $assets/manifest.json" >&2
   exit 1
 fi
-upload "$assets/manifest.json" manifest.json
+
+remote_json=$(rclone --config /dev/null lsjson ":s3:${R2_BUCKET}" --recursive \
+  --s3-provider Cloudflare \
+  --s3-access-key-id "$R2_ACCESS_KEY_ID" \
+  --s3-secret-access-key "$R2_SECRET_ACCESS_KEY" \
+  --s3-endpoint "$R2_ENDPOINT" \
+  --s3-region auto) || {
+  echo "cannot list R2 bucket $R2_BUCKET" >&2
+  exit 1
+}
+declare -A remote_sizes=()
+current_total=0
+while IFS=$'\t' read -r name size; do
+  [[ -n "$name" ]] || continue
+  remote_sizes["$name"]=$size
+  current_total=$((current_total + size))
+done < <(jq -r '.[] | [.Name, .Size] | @tsv' <<<"$remote_json")
+
+new_total=0
+replaced_total=0
+for i in "${!files[@]}"; do
+  size=$(stat -c '%s' "${files[$i]}")
+  new_total=$((new_total + size))
+  name=${names[$i]}
+  if [[ -n "${remote_sizes[$name]:-}" ]]; then
+    replaced_total=$((replaced_total + remote_sizes[$name]))
+  fi
+done
+projected=$((current_total - replaced_total + new_total))
+
+echo "R2 usage: current $current_total B, replacing $replaced_total B, upload $new_total B, projected $projected B / $limit B"
+if (( projected > limit )); then
+  if [[ "$allow_over_quota" != "1" ]]; then
+    echo "R2 bucket would exceed the 10 GB free tier." >&2
+    echo "Delete the previous release assets first, or set SLIPPIOS_R2_ALLOW_OVER_QUOTA=1." >&2
+    exit 1
+  fi
+  echo "warning: projected R2 usage exceeds the 10 GB free tier" >&2
+fi
+
+for i in "${!files[@]}"; do
+  upload "${files[$i]}" "${names[$i]}"
+done
 
 base=${R2_PUBLIC_URL%/}
 version=$(curl -fsS "$base/manifest.json" | jq -r .version)
