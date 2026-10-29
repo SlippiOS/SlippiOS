@@ -44,6 +44,7 @@ func newRootCommand() *cobra.Command {
 		newSettingsCommand(mode),
 		newISOsCommand(mode),
 		newLoginCommand(mode),
+		newLogoutCommand(mode),
 		newNetCommand(mode),
 		newUpdateCommand(mode),
 		newOSCommand(mode),

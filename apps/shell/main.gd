@@ -43,9 +43,12 @@ var ui = Ui.new()
 var shell_status
 var actions
 
+const ONBOARDED_PATH := "/data/system/onboarded"
+
 var _screen_node = null
 var _busy := false
 var setup_flow := false
+var onboarding := false
 var _cursor_hidden := false
 
 
@@ -130,6 +133,9 @@ func _set_cursor_hidden(hidden: bool) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
+		return
+	if actions != null and actions.launching():
+		actions.cancel_launch()
 		return
 	if _screen_node != null and is_instance_valid(_screen_node):
 		_screen_node.back()
@@ -354,6 +360,44 @@ func stop_net() -> void:
 
 func skip_setup() -> void:
 	stop_net()
+	mark_onboarded()
+	onboarding = false
+	setup_flow = false
+	refresh_status()
+	show_menu()
+
+
+func onboarded() -> bool:
+	return FileAccess.file_exists(ONBOARDED_PATH)
+
+
+func mark_onboarded() -> void:
+	var file := FileAccess.open(ONBOARDED_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string("1\n")
+		file.close()
+
+
+func start_onboarding() -> void:
+	onboarding = true
+	setup_flow = true
+	if not needs_setup():
+		# A fresh flash can already have a valid ISO. Go straight to the
+		# controller and account steps so sign-in is still offered.
+		show_controller_setup("", false)
+		return
+	var settings: Dictionary = status.get("settings", {})
+	if settings.get("exists", false) and has_valid_isos():
+		show_roms("Choose the Melee image for this console.")
+	elif not net.wired_present():
+		show_wifi("No Ethernet interface found. Connect Wi-Fi to continue setup.")
+	else:
+		show_setup()
+
+
+func finish_onboarding() -> void:
+	mark_onboarded()
+	onboarding = false
 	setup_flow = false
 	refresh_status()
 	show_menu()
@@ -392,12 +436,7 @@ func _present_os_result(mode: String, message: String) -> void:
 
 
 func _on_net_setup_done() -> void:
-	setup_flow = false
-	refresh_status()
-	if needs_setup():
-		show_setup("Setup finished, but the console profile is incomplete.")
-		return
-	launch_game()
+	finish_onboarding()
 
 
 func _on_net_upload_done() -> void:
@@ -420,6 +459,14 @@ func _on_os_update_finished(phase: String, error: String) -> void:
 
 
 func after_splash() -> void:
+	if not onboarded():
+		var login: Dictionary = status.get("login", {})
+		if login.get("signed_in", false) and not needs_setup():
+			# Updating an existing console should not repeat onboarding.
+			mark_onboarded()
+		else:
+			start_onboarding()
+			return
 	if needs_setup():
 		var settings: Dictionary = status.get("settings", {})
 		if settings.get("exists", false) and has_valid_isos():

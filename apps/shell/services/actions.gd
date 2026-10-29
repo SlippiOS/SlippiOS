@@ -10,11 +10,44 @@ const EDITOR_EXIT := 45
 const REPLAY_EXIT := 47
 const GAME_READY_EXIT := 48
 
+const READY_PATH := "/data/system/game-ready"
+const PID_PATH := "/data/system/game.pid"
+const CANCEL_PATH := "/data/system/game-cancel"
+
 var app
+var _launch_pid := -1
+var _launch_cancelled := false
 
 
 func _init(shell) -> void:
 	app = shell
+
+
+func launching() -> bool:
+	return _launch_pid > 0
+
+
+func cancel_launch() -> void:
+	if _launch_pid <= 0 or _launch_cancelled:
+		return
+	_launch_cancelled = true
+	app.clear()
+	app.add_title("LAUNCHING", 44)
+	app.add_label("Cancelling…", 0.8)
+	var file := FileAccess.open(CANCEL_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string("cancel\n")
+		file.close()
+	# The CLI stops Dolphin's process group when the cancel file appears.
+	# Wait for it so the menu is not shown behind a still-running game.
+	var pid := _launch_pid
+	var waited := 0.0
+	while OS.is_process_running(pid) and waited < 10.0:
+		await app.get_tree().create_timer(0.2).timeout
+		waited += 0.2
+	if OS.is_process_running(pid):
+		OS.kill(pid)
+	# _launch_in_shell observes the exit and presents the menu.
 
 
 func launch_game() -> void:
@@ -105,28 +138,46 @@ func _launch_in_shell() -> void:
 	var status: Label = app.add_label("Starting Dolphin…", 0.6)
 	await app.get_tree().process_frame
 
-	var ready_path := "/data/system/game-ready"
-	var pid_path := "/data/system/game.pid"
-	DirAccess.remove_absolute(ready_path)
-	DirAccess.remove_absolute(pid_path)
+	DirAccess.remove_absolute(READY_PATH)
+	DirAccess.remove_absolute(PID_PATH)
+	DirAccess.remove_absolute(CANCEL_PATH)
+	_launch_cancelled = false
 	var pid := OS.create_process("slippios",
-		PackedStringArray(["play", "--ready-file", ready_path]))
+		PackedStringArray(["play", "--ready-file", READY_PATH,
+			"--cancel-file", CANCEL_PATH]))
 	if pid <= 0:
 		_start_error("Could not start Slippi Dolphin.")
 		return
-	var pid_file := FileAccess.open(pid_path, FileAccess.WRITE)
+	_launch_pid = pid
+	var pid_file := FileAccess.open(PID_PATH, FileAccess.WRITE)
 	if pid_file != null:
 		pid_file.store_string(str(pid))
 		pid_file.close()
 
 	while OS.is_process_running(pid):
-		if FileAccess.file_exists(ready_path):
+		if FileAccess.file_exists(READY_PATH):
 			_focus_game_window()
+			_launch_pid = -1
+			DirAccess.remove_absolute(CANCEL_PATH)
 			app.get_tree().quit(GAME_READY_EXIT)
 			return
 		await app.get_tree().create_timer(0.2).timeout
-	OS.get_process_exit_code(pid)
+	var code := OS.get_process_exit_code(pid)
+	_launch_pid = -1
+	DirAccess.remove_absolute(CANCEL_PATH)
 	app._busy = false
+	if _launch_cancelled:
+		app.show_menu()
+		return
+	if FileAccess.file_exists(READY_PATH):
+		# The game window opened, then Dolphin exited before the shell could
+		# hand off. Treat that as a normal return to the menu.
+		app.show_menu()
+		return
+	if code == 0:
+		# A clean Dolphin exit can beat the ready-file poll on a slow start.
+		app.show_menu()
+		return
 	_start_error("Dolphin exited before the game window opened.")
 
 

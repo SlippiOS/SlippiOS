@@ -328,6 +328,11 @@ else
 SlippiOS USB image ${version}.
 
 What's new:
+- First launch is fast: the stable AppImage is pre-extracted into the image cache.
+- First boot always offers Slippi sign-in after controller setup, even when Ethernet is connected and a Melee ISO is already on the drive.
+- Escape during the launching screen cancels cleanly and returns to the menu.
+- The launching screen no longer gives up after 60 seconds on a cold start.
+- Account now has a Sign out button.
 - A launching screen with a spinner covers Dolphin startup; the shell closes once Melee is up and returns to the menu when Melee exits.
 - Standard pads are detected and configured automatically. The Glyph uses a Linux evdev profile.
 - Escape and the Guide button exit Melee.
@@ -337,6 +342,10 @@ What's new:
 - The shell is capped at 60 FPS and hides the cursor while a gamepad is active.
 
 Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
+
+The full USB images are larger than GitHub's 2 GiB asset limit. Download them from the SlippiOS mirror:
+https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/${signed_name}
+https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/${unsigned_name}
 
 The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data.
 EOF
@@ -359,11 +368,17 @@ assets=(
   "$ASSETS_DIR/SHA256SUMS"
 )
 for asset in "${assets[@]}"; do
+  name=$(basename "$asset")
+  size=$(stat -c '%s' "$asset")
+  if (( size >= limit )); then
+    # GitHub rejects assets at or above 2 GiB. They are published to R2 by
+    # scripts/publish-r2; keep the GitHub release for the smaller assets.
+    echo "skipping $name on GitHub (2 GiB limit); publish it to R2" >&2
+    continue
+  fi
   if gh release upload "$TAG" "$asset" --repo "$repo" --clobber; then
     continue
   fi
-  name=$(basename "$asset")
-  size=$(stat -c '%s' "$asset")
   remote=$(gh api "repos/$repo/releases/tags/$TAG/assets" \
     --jq ".[] | select(.name == \"$name\") | .size" 2>/dev/null || true)
   if [[ "$remote" != "$size" ]]; then

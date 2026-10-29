@@ -25,7 +25,7 @@ func present(message: String = "") -> void:
 	if app.net.mode == "setup":
 		label("Step 1: add Melee. Step 2: sign in or skip.", 0.65)
 		_status = label(message if message != "" else "Waiting for setup…", 0.75)
-		button("Skip for now", app.skip_setup)
+		button("Skip for offline play", app.skip_setup)
 	else:
 		label("Upload a Melee ISO." if app.net.mode == "iso" else "Enter your Slippi email and password.", 0.7)
 		_status = label("Waiting…", 0.7)

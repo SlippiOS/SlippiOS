@@ -111,6 +111,9 @@ in {
           # updates, so existing consoles keep the copy they already have.
           "/system/apps/stable".source = slippiApps.stable;
           "/system/apps/beta".source = slippiApps.beta;
+          # Pre-extract the stable AppImage so the first launch does not spend
+          # minutes unpacking it behind the launching screen.
+          "/users/default/cache/appimage-run".source = slippiApps.stableCache;
           "/system/playback/3.5.2".source = slippiApps.playback;
           "/system/playback/.version".source =
             pkgs.writeText "slippios-playback-version" "3.5.2\n";

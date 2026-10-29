@@ -20,11 +20,17 @@
       ${pkgs.coreutils}/bin/mkdir -p \
         /data/isos /data/system /data/users/default/dolphin \
         /data/users/default/dolphin-stable \
-        /data/users/default/replays /data/users/default/logs
+        /data/users/default/replays /data/users/default/logs \
+        /data/users/default/cache
       ${pkgs.coreutils}/bin/chown player:users \
         /data /data/isos /data/system /data/users /data/users/default \
         /data/users/default/dolphin /data/users/default/dolphin-stable \
-        /data/users/default/replays /data/users/default/logs || true
+        /data/users/default/replays /data/users/default/logs \
+        /data/users/default/cache || true
+      # The image seeds the extracted stable AppImage as root. The runner
+      # writes its shim and hook into that cache, so hand it to the player.
+      ${pkgs.coreutils}/bin/chown -R player:users \
+        /data/users/default/cache || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
       main=/data/users/default/dolphin
@@ -33,7 +39,7 @@
         "$main" "$main/Config" "$main/Config/Profiles" \
         "$main/Config/Profiles/GCPad" "$main/GameSettings" "$main/Slippi" \
         "$stable" "$stable/Config" "$stable/Slippi" \
-        /data/system/apps /data/system/playback
+        /data/system/apps /data/system/playback /data/users/default/cache
       ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini \
         "$main/Config/Profiles/GCPad"/ || true
       # Older images shipped a Windows/XInput Glyph profile. Replace it with

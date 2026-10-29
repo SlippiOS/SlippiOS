@@ -12,7 +12,8 @@
 ## Flash
 
 Download `slippios-usb-<version>.img.xz` and `SHA256SUMS` from the
-[latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
+[latest release](https://github.com/SlippiOS/SlippiOS/releases/latest) or the
+[SlippiOS mirror](https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/).
 
 The download is an xz-compressed image. Most desktops cannot open it by
 double-clicking, so use one of the methods below.
@@ -79,15 +80,18 @@ and reconnect the stick, or check that the image finished writing.
    This is optional; you can also add them from the setup page.
 3. Boot from the USB in UEFI mode.
 4. Wait for setup. The data partition grows to fill the stick.
-5. Scan the setup QR with a phone, or open the shown address on any computer on
+5. **Game.** If the console asks, choose one of the images on `MELEE-ROMS`.
+6. **Controller.** Confirm the detected wired controller, or choose
+   **Skip for offline play**.
+7. Scan the setup QR with a phone, or open the shown address on any computer on
    the same network.
-6. **Step 1: Game.** Choose one of the images on `MELEE-ROMS`, or upload another.
-7. **Step 2: Account.** Sign in to Slippi, or choose **Skip for offline play**.
-8. The console starts the selected image automatically.
+8. **Account.** Sign in to Slippi, or choose **Skip for offline play**.
+9. The console returns to the shell menu. Press **Play** to start Melee.
 
 The setup page is a two-step browser wizard. It works on a phone, tablet, or
-computer. Afterwards, use **Melee ROMs** in the shell to change the selected
-image.
+computer. The sign-in step is offered on first boot even when Ethernet is
+connected and a Melee ISO is already on the drive. Afterwards, use **Melee ROMs**
+in the shell to change the selected image.
 
 `MELEE-ROMS` is a normal FAT32 drive, so you can plug the stick into any PC and
 add or remove images later. SlippiOS does not rename them.
@@ -117,7 +121,9 @@ only for Melee images.
 ## Sign in
 
 First boot signs you in on the browser setup page. Later, use **Account → Sign in**
-on the console or **Sign in on another device**.
+on the console or **Sign in on another device**. To remove the saved login, use
+**Account → Sign out**; Melee will ask you to sign in again the next time you
+start it.
 
 Passwords are not stored. `slippi-user.json` is an auth token, readable only by
 the `player` user, and bound to the current PC. Moving the USB to another PC
@@ -130,8 +136,10 @@ them on a trusted network.
 
 **Play** launches Slippi Dolphin with the selected ISO. Use wired controllers:
 the GameCube adapter or a wired USB pad. Wireless controllers are not
-supported because Melee is latency-sensitive. Press **Guide** on a standard pad
-to stop Melee and return to the shell. **Settings → Dolphin Settings**
+supported because Melee is latency-sensitive. Press **Escape** to exit Melee and
+return to the shell. Press **Guide** to stop the current match and stay in
+Dolphin. While the launching screen is visible, **Escape** cancels the launch
+and returns to the menu. **Settings → Dolphin Settings**
 changes Dolphin's graphics backend,
 internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
 leaving the console. SlippiOS maps these onto Dolphin's command-line config.
@@ -211,8 +219,8 @@ If the shim cannot boot, use the unsigned image with Secure Boot off.
 ## Troubleshooting
 
 **The network page stopped.** The setup page exited. The console shows the
-reason. Press **Skip for now** to reach the menu, or reboot to retry the
-wizard. Only one page can run at a time.
+reason. Press **Skip for offline play** to reach the menu, or reboot to retry
+the wizard. Only one page can run at a time.
 
 **The setup page does not load.** The device and console must be on the same
 network. Disable VPN or client isolation. In the QEMU VM, use
@@ -220,7 +228,7 @@ network. Disable VPN or client isolation. In the QEMU VM, use
 
 **No Melee image.** The file must be a GameCube Melee `.iso` with ID `GALE01`,
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
-or reboot to reopen the setup page.
+to choose it, or **Settings → Run setup again**.
 
 **The console shows a recovery menu instead of the shell.** The graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and
@@ -235,6 +243,7 @@ image requires Secure Boot off. The signed image requires a one-time MOK
 enrollment; see [the enrollment steps](../secure-boot/ENROLL.txt). Some
 firmware also requires **Allow Microsoft 3rd Party UEFI CA**.
 
-**The update check fails.** Check network access to GitHub and retry.
+**The update check fails.** Check network access to the SlippiOS mirror and
+retry.
 
 **End-of-support warning.** Update the system or flash a current release.

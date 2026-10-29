@@ -30,6 +30,8 @@ func present(message: String = "") -> void:
 		label(message, 0.9)
 	button("Continue", _continue)
 	button("Controller settings", app.show_controllers)
+	if app.setup_flow or app.onboarding:
+		button("Skip for offline play", app.skip_setup)
 	focus()
 
 
@@ -41,6 +43,11 @@ func _port1_profile(ports: Array) -> String:
 
 
 func _continue() -> void:
+	if app.setup_flow or app.onboarding:
+		# First boot and Run setup again both continue into the browser
+		# account step, where sign-in or offline play is offered.
+		app.start_net("setup")
+		return
 	if launch_after and not app.needs_setup():
 		app.launch_game()
 		return
@@ -48,4 +55,7 @@ func _continue() -> void:
 
 
 func back() -> void:
+	if app.setup_flow or app.onboarding:
+		app.show_menu()
+		return
 	app.show_setup()

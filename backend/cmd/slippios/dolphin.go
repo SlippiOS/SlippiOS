@@ -77,7 +77,7 @@ func runDolphinConfig(mode *modes) error {
 		if err := stable.Configure(paths.ProfileDir, paths.DolphinStableDir, paths.ISODir, values, width, height, false); err != nil {
 			return mode.fail(err.Error())
 		}
-		returncode, err = runDolphin(paths, appimage, paths.DolphinStableDir, nil, "")
+		returncode, err = runDolphin(paths, appimage, paths.DolphinStableDir, nil, "", "")
 		if err != nil {
 			return mode.fail(err.Error())
 		}
@@ -96,7 +96,7 @@ func runDolphinConfig(mode *modes) error {
 		}
 		arguments := dolphinArgs(values)
 		arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=False")
-		returncode, err = runDolphin(paths, appimage, paths.DolphinDir, arguments, "")
+		returncode, err = runDolphin(paths, appimage, paths.DolphinDir, arguments, "", "")
 		if err != nil {
 			return mode.fail(err.Error())
 		}

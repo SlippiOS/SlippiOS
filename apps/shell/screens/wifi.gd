@@ -32,6 +32,8 @@ func present(message: String = "") -> void:
 			button(network_label, _select.bind(ssid, security))
 
 	button("Rescan", present.bind(""))
+	if app.setup_flow:
+		button("Skip for offline play", app.skip_setup)
 	button("Back", back)
 	focus()
 

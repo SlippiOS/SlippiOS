@@ -36,6 +36,10 @@ func present(message: String = "") -> void:
 
 	if first_iso != "":
 		button("Use %s" % first_name, _use_iso.bind(first_iso))
+		# Wait for the user to choose the image. The button continues to the
+		# controller and account steps.
+		focus()
+		return
 
 	if app.net.local_ip() == "":
 		if app.net.wired_link():
@@ -46,7 +50,7 @@ func present(message: String = "") -> void:
 			label("No Ethernet interface found. Connect Wi-Fi.", 0.8)
 		button("Wi-Fi settings", app.show_wifi.bind(""))
 		button("Retry", present.bind(""))
-		button("Skip for now", app.skip_setup)
+		button("Skip for offline play", app.skip_setup)
 		focus()
 		# Give USB Ethernet/DHCP a bounded chance to come up. The screen stays
 		# usable; this is not an indefinite gate on network access.
@@ -61,7 +65,9 @@ func present(message: String = "") -> void:
 
 	label("Starting setup…", 0.75)
 	await app.get_tree().create_timer(0.4).timeout
-	app.start_net("setup", message)
+	# Configure the controller before the browser account step so first boot
+	# can sign in with a pad in hand.
+	app.show_controller_setup(message, false)
 
 
 func _use_iso(path: String) -> void:

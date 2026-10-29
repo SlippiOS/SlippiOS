@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/auth"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
@@ -92,6 +95,69 @@ func TestLoginCommandInstallsLogin(t *testing.T) {
 	}
 }
 
+func TestLogoutCommandRemovesLogin(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("SLIPPIOS_DATA", root)
+	paths := settings.PathsFor(root)
+	targets := []string{
+		paths.Resolve(settings.DefaultUserJSON),
+		paths.DolphinUserFile,
+		filepath.Join(paths.DolphinStableDir, "Slippi", "user.json"),
+	}
+	for _, target := range targets {
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte(`{"uid":"u","playKey":"k","connectCode":"A#1"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var output bytes.Buffer
+	mode := &modes{json: true, out: &output, err: &output}
+	if err := runLogout(mode); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range targets {
+		if _, err := os.Stat(target); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists (err=%v)", target, err)
+		}
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(output.Bytes(), &payload); err != nil {
+		t.Fatalf("output = %q: %v", output.String(), err)
+	}
+	if payload["ok"] != true || payload["signed_in"] != false {
+		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestWatchCancelStopsProcessGroup(t *testing.T) {
+	command := exec.Command("sleep", "30")
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := command.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	path := filepath.Join(t.TempDir(), "cancel")
+	go watchCancel(path, command.Process.Pid, done)
+
+	wait := make(chan error, 1)
+	go func() { wait <- command.Wait() }()
+	if err := os.WriteFile(path, []byte("cancel\n"), 0o644); err != nil {
+		close(done)
+		t.Fatal(err)
+	}
+
+	select {
+	case <-wait:
+	case <-time.After(5 * time.Second):
+		close(done)
+		t.Fatal("process was not stopped")
+	}
+	close(done)
+}
+
 func TestDolphinArgsPerPort(t *testing.T) {
 	values := map[string]any{"dolphin": map[string]any{
 		"controller1": "pad",
@@ -122,6 +188,7 @@ func TestCommandTree(t *testing.T) {
 		{"settings", "set"},
 		{"isos"},
 		{"login"},
+		{"logout"},
 		{"net"},
 		{"update"},
 		{"os"},

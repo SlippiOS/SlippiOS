@@ -1,4 +1,4 @@
-{ runCommand, fetchurl, unzip }:
+{ appimageTools, runCommand, fetchurl, unzip }:
 
 let
   stableZip = fetchurl {
@@ -22,8 +22,23 @@ let
     rm -f $out/*.zsync
     chmod +x $out/${appimage}
   '';
-in {
+
   stable = extract "slippios-stable-app-3.6.4" stableZip "Slippi_Online-x86_64.AppImage";
+
+  # The AppImage runner extracts the AppImage into the profile cache on first
+  # launch. Seed that cache in the image so the first launch does not spend
+  # minutes unpacking it while the launching screen is visible.
+  stableCache = runCommand "slippios-stable-appimage-cache" { } ''
+    appimage=${stable}/Slippi_Online-x86_64.AppImage
+    hash=$(sha256sum "$appimage" | cut -d' ' -f1)
+    mkdir -p $out
+    ${appimageTools.appimage-exec}/bin/appimage-exec.sh -x "$out/$hash" "$appimage"
+    # The AppImage stores its files read-only. The runner patches its hook and
+    # creates a shim inside the cache, so leave the owner write bit set.
+    chmod -R u+w "$out/$hash"
+  '';
+in {
+  inherit stable stableCache;
   playback = extract "slippios-playback-app-3.5.2" playbackZip "Slippi_Playback-x86_64.AppImage";
   beta = runCommand "slippios-beta-app-4.0.0-mainline-beta.19" { } ''
     mkdir -p $out

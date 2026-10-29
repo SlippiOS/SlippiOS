@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
@@ -22,6 +24,7 @@ import (
 type playOptions struct {
 	requireLogin bool
 	readyFile    string
+	cancelFile   string
 }
 
 func newPlayCommand(mode *modes) *cobra.Command {
@@ -36,6 +39,7 @@ func newPlayCommand(mode *modes) *cobra.Command {
 	}
 	command.Flags().BoolVar(&options.requireLogin, "require-login", false, "refuse to start without a saved login")
 	command.Flags().StringVar(&options.readyFile, "ready-file", "", "write this file once the Dolphin window is visible")
+	command.Flags().StringVar(&options.cancelFile, "cancel-file", "", "stop Dolphin when this file appears")
 	return command
 }
 
@@ -115,7 +119,7 @@ func runPlay(mode *modes, options playOptions) error {
 		userDir = paths.DolphinStableDir
 		arguments = []string{"-b", "-e", iso}
 	}
-	returncode, err := runDolphin(paths, appimage, userDir, arguments, options.readyFile)
+	returncode, err := runDolphin(paths, appimage, userDir, arguments, options.readyFile, options.cancelFile)
 	if err != nil {
 		return mode.fail(err.Error())
 	}
@@ -193,7 +197,7 @@ func dolphinArgs(values map[string]any) []string {
 	return arguments
 }
 
-func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string, readyFile string) (int, error) {
+func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string, readyFile, cancelFile string) (int, error) {
 	environment := os.Environ()
 	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
 	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
@@ -251,15 +255,32 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 		command.Stderr = os.Stderr
 	}
 
+	// Keep Dolphin and the AppImage wrapper in their own process group so a
+	// cancelled launch can be stopped without touching the shell.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	if err := command.Start(); err != nil {
 		return 0, err
 	}
 	done := make(chan struct{})
+	var windowSeen atomic.Bool
 	if readyFile != "" {
-		go watchDolphinWindow(readyFile, done)
+		go watchDolphinWindow(readyFile, done, &windowSeen)
+	}
+	if cancelFile != "" {
+		go watchCancel(cancelFile, command.Process.Pid, done)
 	}
 	err := command.Wait()
 	close(done)
+	if cancelFile != "" {
+		_ = os.Remove(cancelFile)
+	}
+	// The game can map its window and exit before the shell notices the ready
+	// file. Record the successful start so the shell returns to the menu
+	// instead of reporting a launch failure.
+	if readyFile != "" && windowSeen.Load() {
+		_ = os.WriteFile(readyFile, []byte("ready\n"), 0o644)
+	}
 	if err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
@@ -271,20 +292,48 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 }
 
 // watchDolphinWindow writes the ready file once Dolphin has mapped its game
-// window. The shell keeps its launching screen visible until then.
-func watchDolphinWindow(path string, done <-chan struct{}) {
-	deadline := time.Now().Add(60 * time.Second)
-	for time.Now().Before(deadline) {
+// window. The shell keeps its launching screen visible until then. There is no
+// deadline: a cold first start can spend minutes extracting the AppImage
+// before the window appears, and the watcher ends when Dolphin exits.
+func watchDolphinWindow(path string, done <-chan struct{}, seen *atomic.Bool) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
 		select {
 		case <-done:
 			return
-		default:
+		case <-ticker.C:
+			if dolphinWindowVisible() {
+				seen.Store(true)
+				_ = os.WriteFile(path, []byte("ready\n"), 0o644)
+				return
+			}
 		}
-		if dolphinWindowVisible() {
-			_ = os.WriteFile(path, []byte("ready\n"), 0o644)
+	}
+}
+
+// watchCancel stops the launch when the shell creates the cancel file. The
+// Dolphin process group gets SIGTERM first and SIGKILL if it does not exit.
+func watchCancel(path string, pid int, done <-chan struct{}) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			if _, err := os.Stat(path); err != nil {
+				continue
+			}
+			_ = syscall.Kill(-pid, syscall.SIGTERM)
+			select {
+			case <-done:
+				return
+			case <-time.After(3 * time.Second):
+				_ = syscall.Kill(-pid, syscall.SIGKILL)
+			}
 			return
 		}
-		time.Sleep(200 * time.Millisecond)
 	}
 }
 
