@@ -1,0 +1,44 @@
+# Source code for SlippiOS
+
+SlippiOS is built from <https://github.com/SlippiOS/SlippiOS>.
+The release manifest (`manifest.json`) records the exact commit. On a running
+system, `/etc/slippios/build` also records the commit.
+
+## Slippi / Dolphin
+
+- Slippi stable 3.6.4 (Ishiiruka):
+  <https://github.com/project-slippi/Ishiiruka>
+- Slippi beta 4.0.0-mainline-beta.19 (Dolphin):
+  <https://github.com/project-slippi/dolphin>
+- Slippi playback 3.5.2:
+  <https://github.com/project-slippi/Ishiiruka-Playback>
+
+  Verify the corresponding playback source with the Slippi project before
+  commercial distribution. The GitHub API currently returns 404 for this
+  repository. The stable and beta sources are available.
+
+## Kernel
+
+- CachyOS BORE kernel 7.3.0:
+  <https://github.com/xddxdd/nix-cachyos-kernel>
+  Exact inputs: `flake.lock` in the SlippiOS repository.
+
+## NixOS
+
+- NixOS / nixpkgs: <https://github.com/NixOS/nixpkgs>
+  Exact revision: `flake.lock`.
+
+## Godot
+
+- Godot 4: <https://github.com/godotengine/godot>
+
+## Go dependencies
+
+See `backend/go.mod` and `backend/go.sum`. Module sources are on their
+upstream repositories.
+
+## License texts
+
+The release includes `LICENSE`, `NOTICE`, `THIRD_PARTY_LICENSES.md`, and the
+`licenses/` directory. Keep the source available for at least three years
+after distribution.

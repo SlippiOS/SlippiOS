@@ -1,4 +1,5 @@
 {
+  lib,
   stdenv,
   godot_4,
 }:
@@ -48,5 +49,6 @@ stdenv.mkDerivation {
     description = "Compiled SlippiOS Godot shell";
     mainProgram = "slippios-shell";
     platforms = [ "x86_64-linux" ];
+    license = lib.licenses.gpl3Plus;
   };
 }

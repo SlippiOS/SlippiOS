@@ -1,9 +1,21 @@
-{ pkgs, slippiosPackages, ... }:
+{ lib, pkgs, slippiosPackages, ... }:
 
 let
-  amdgpuFirmware = pkgs.runCommand "amdgpu-firmware" { } ''
+  amdgpuFirmware = pkgs.runCommand "amdgpu-firmware" {
+    meta.license = lib.licenses.unfreeRedistributableFirmware;
+  } ''
     mkdir -p $out/lib/firmware
     cp -r ${pkgs.linux-firmware}/lib/firmware/amdgpu $out/lib/firmware/
+  '';
+
+  licenseBundle = pkgs.runCommand "slippios-licenses" { } ''
+    mkdir -p $out
+    cp ${../../LICENSE} $out/LICENSE
+    cp ${../../NOTICE} $out/NOTICE
+    cp ${../../THIRD_PARTY_LICENSES.md} $out/THIRD_PARTY_LICENSES.md
+    cp ${../../SOURCE} $out/SOURCE
+    cp ${../../README.md} $out/README.md
+    cp -r ${../../licenses}/. $out/
   '';
 in
 {
@@ -92,6 +104,7 @@ in
     Settings live in /data/users/default/settings.toml.
     Game images live in /data/isos/.
   '';
+  environment.etc."slippios/licenses".source = licenseBundle;
 
   systemd.tmpfiles.rules = [
     "d /home/player 0755 player users -"

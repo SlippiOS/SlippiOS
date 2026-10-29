@@ -16,7 +16,9 @@ Secure Boot off (a one-time firmware setting). The signed image uses a one-time
 MOK enrollment; see [secure-boot/README.md](secure-boot/README.md).
 
 1. Download `slippios-usb-<version>.img.xz` from the
-   [latest release](https://github.com/SlippiOS/SlippiOS/releases/latest).
+   [SlippiOS SourceForge project](https://sourceforge.net/projects/slippios/files/).
+   Release notes and source are on
+   [GitHub](https://github.com/SlippiOS/SlippiOS/releases/latest).
 2. Flash it with balenaEtcher, or extract it with 7-Zip and use Rufus in DD
    mode. See the [user guide](docs/users.md#flash) for macOS and Linux
    commands.
@@ -42,6 +44,15 @@ mise run test
 No Docker or system Nix is required. The build falls back to nix-portable.
 
 **Full guide:** [docs/developers.md](docs/developers.md)
+
+## License
+
+SlippiOS is free software under **GPL-3.0-or-later**. See
+[LICENSE](LICENSE), [NOTICE](NOTICE),
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and [SOURCE](SOURCE).
+The image includes third-party software under its own licenses, including
+GPL-2.0-or-later Slippi/Dolphin builds and redistributable firmware. The
+Melee ISO is not included; users supply their own game image.
 
 ## Docs
 

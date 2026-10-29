@@ -204,6 +204,13 @@ once; automatic updates start with `0.3.0`. After that, updates use semver.
 Reflashing the whole USB erases this partition. There is no automatic backup
 yet.
 
+## License
+
+SlippiOS is free software under **GPL-3.0-or-later**. The source is at
+<https://github.com/SlippiOS/SlippiOS>. The release includes `LICENSE`,
+`NOTICE`, `THIRD_PARTY_LICENSES.md`, and `SOURCE`. The Melee ISO is not
+included; you must supply your own game image.
+
 ## Secure Boot
 
 The signed image boots with Secure Boot on. The first boot needs a one-time

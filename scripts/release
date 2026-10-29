@@ -290,17 +290,29 @@ jq -n \
     uki: { name: $uki_name, sha256: $uki_sha, size: $uki_size }
   }' > "$ASSETS_DIR/manifest.json"
 
+cp -f LICENSE NOTICE THIRD_PARTY_LICENSES.md SOURCE README.md "$ASSETS_DIR/"
+rm -rf "$ASSETS_DIR/licenses"
+cp -r licenses "$ASSETS_DIR/licenses"
+tar -C "$ASSETS_DIR" -czf "$ASSETS_DIR/LICENSES.tar.gz" \
+  LICENSE NOTICE THIRD_PARTY_LICENSES.md SOURCE README.md licenses
+
 (
   cd "$ASSETS_DIR"
   sha256sum "$signed_name" "$unsigned_name" "$raw_name" \
-    "$raw_name.zsync" "$uki_name" manifest.json > SHA256SUMS
+    "$raw_name.zsync" "$uki_name" manifest.json \
+    LICENSE NOTICE THIRD_PARTY_LICENSES.md SOURCE README.md \
+    LICENSES.tar.gz > SHA256SUMS
+  sha256sum "$raw_name" "$raw_name.zsync" "$uki_name" manifest.json \
+    > SHA256SUMS.update
 )
 
 echo
 ls -lh "$ASSETS_DIR/$signed_name" "$ASSETS_DIR/$unsigned_name" \
   "$ASSETS_DIR/$raw_name" "$ASSETS_DIR/$raw_name.zsync" \
   "$ASSETS_DIR/$uki_name" "$ASSETS_DIR/manifest.json" \
-  "$ASSETS_DIR/SHA256SUMS"
+  "$ASSETS_DIR/SHA256SUMS" "$ASSETS_DIR/SHA256SUMS.update" \
+  "$ASSETS_DIR/LICENSE" "$ASSETS_DIR/THIRD_PARTY_LICENSES.md" \
+  "$ASSETS_DIR/SOURCE" "$ASSETS_DIR/LICENSES.tar.gz"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo
@@ -343,9 +355,10 @@ What's new:
 
 Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
 
-The full USB images are larger than GitHub's 2 GiB asset limit. Download them from the SlippiOS mirror:
-https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/${signed_name}
-https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/${unsigned_name}
+The full USB images are larger than GitHub's 2 GiB asset limit. Download them from the SourceForge project:
+https://sourceforge.net/projects/slippios/files/v${version}/
+
+SlippiOS is licensed under GPL-3.0-or-later. The release includes LICENSE, NOTICE, THIRD_PARTY_LICENSES.md, SOURCE, and LICENSES.tar.gz. The source is at https://github.com/SlippiOS/SlippiOS.
 
 The image contains an A/B system store and a growable \`SLIPPIOS\` data partition. Updates are installed in place from the console and never touch user data.
 EOF
@@ -366,6 +379,13 @@ assets=(
   "$ASSETS_DIR/$uki_name"
   "$ASSETS_DIR/manifest.json"
   "$ASSETS_DIR/SHA256SUMS"
+  "$ASSETS_DIR/SHA256SUMS.update"
+  "$ASSETS_DIR/LICENSE"
+  "$ASSETS_DIR/NOTICE"
+  "$ASSETS_DIR/THIRD_PARTY_LICENSES.md"
+  "$ASSETS_DIR/SOURCE"
+  "$ASSETS_DIR/README.md"
+  "$ASSETS_DIR/LICENSES.tar.gz"
 )
 for asset in "${assets[@]}"; do
   name=$(basename "$asset")

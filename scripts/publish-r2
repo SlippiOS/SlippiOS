@@ -52,15 +52,16 @@ names=()
 add_asset() {
   [[ -f "$1" ]] || return 0
   files+=("$1")
-  names+=("$(basename "$1")")
+  names+=("${2:-$(basename "$1")}")
 }
-for file in "$assets"/slippios-usb-*.img.xz \
-  "$assets"/slippios_*.nix-store.raw \
+# R2 is the update mirror. Full USB images live on SourceForge and are not
+# uploaded here.
+for file in "$assets"/slippios_*.nix-store.raw \
   "$assets"/slippios_*.nix-store.raw.zsync \
-  "$assets"/slippios_*.efi \
-  "$assets"/SHA256SUMS; do
+  "$assets"/slippios_*.efi; do
   add_asset "$file"
 done
+add_asset "$assets/SHA256SUMS.update" "SHA256SUMS"
 add_asset "$assets/manifest.json"
 if [[ ${#files[@]} -eq 0 ]]; then
   echo "no release assets found in $assets" >&2

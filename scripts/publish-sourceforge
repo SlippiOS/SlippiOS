@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Upload the full USB images and license files to SourceForge.
+#
+# SourceForge hosts the install media. R2 hosts only the update assets.
+# Set SF_USER to your SourceForge username and add the SSH public key from
+# SF_KEY (default ~/.ssh/sourceforge_slippios) to your SourceForge account.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+assets=${1:?usage: scripts/publish-sourceforge ASSETS_DIR}
+user=${SF_USER:?set SF_USER to your SourceForge username}
+project=${SF_PROJECT:-slippios}
+key=${SF_KEY:-$HOME/.ssh/sourceforge_slippios}
+version=$(jq -r .version "$assets/manifest.json")
+remote="/home/frs/project/$project/v$version"
+target="$user@frs.sourceforge.net:$remote"
+
+if [[ ! -f "$key" ]]; then
+  echo "missing SSH key $key" >&2
+  exit 1
+fi
+
+files=(
+  "$assets/slippios-usb-$version.img.xz"
+  "$assets/slippios-usb-$version-unsigned.img.xz"
+  "$assets/SHA256SUMS"
+  "$assets/LICENSE"
+  "$assets/NOTICE"
+  "$assets/THIRD_PARTY_LICENSES.md"
+  "$assets/SOURCE"
+  "$assets/README.md"
+  "$assets/LICENSES.tar.gz"
+)
+for file in "${files[@]}"; do
+  if [[ ! -f "$file" ]]; then
+    echo "missing $file" >&2
+    exit 1
+  fi
+done
+
+ssh -i "$key" -o StrictHostKeyChecking=accept-new \
+  "$user@frs.sourceforge.net" "mkdir -p '$remote'"
+rsync -avP -e "ssh -i $key -o StrictHostKeyChecking=accept-new" \
+  "${files[@]}" "$target/"
+
+echo
+echo "Uploaded to https://sourceforge.net/projects/$project/files/v$version/"
+echo "Set the signed image as the default download in the SourceForge file manager."

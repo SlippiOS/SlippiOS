@@ -1,4 +1,4 @@
-{ buildGoModule }:
+{ lib, buildGoModule }:
 
 buildGoModule {
   pname = "slippios";
@@ -18,5 +18,6 @@ buildGoModule {
   meta = {
     description = "SlippiOS control CLI";
     mainProgram = "slippios";
+    license = lib.licenses.gpl3Plus;
   };
 }
