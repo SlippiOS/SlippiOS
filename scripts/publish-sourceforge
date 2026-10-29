@@ -47,8 +47,29 @@ for file in "${files[@]}"; do
   fi
 done
 
-ssh -i "$key" -o StrictHostKeyChecking=accept-new \
-  "$user@frs.sourceforge.net" "mkdir -p '$remote'"
+# The FRS account is a restricted shell: it only accepts file-transfer
+# commands. Use SFTP to create the release directory, then rsync the files.
+if ! sftp -q -b - -i "$key" -o StrictHostKeyChecking=accept-new \
+  "$user@frs.sourceforge.net" >/dev/null 2>&1 <<EOF
+ls /home/frs/project/$project
+EOF
+then
+  echo "SourceForge project '$project' not found." >&2
+  echo "Create it at https://sourceforge.net/create/ and wait for approval." >&2
+  exit 1
+fi
+
+if ! sftp -q -b - -i "$key" -o StrictHostKeyChecking=accept-new \
+  "$user@frs.sourceforge.net" >/dev/null 2>&1 <<EOF
+-mkdir /home/frs/project/$project/v$version
+ls /home/frs/project/$project/v$version
+EOF
+then
+  echo "Could not create /home/frs/project/$project/v$version." >&2
+  echo "Create the v$version folder in the SourceForge file manager, then rerun." >&2
+  exit 1
+fi
+
 rsync -avP -e "ssh -i $key -o StrictHostKeyChecking=accept-new" \
   "${files[@]}" "$target/"
 
