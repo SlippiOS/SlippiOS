@@ -127,6 +127,44 @@ short, deterministic check can recommend them instead of guessing.
 - [ ] Consider extracting the measurement engine into a standalone tool for
       non-SlippiOS users if there is demand.
 
+## Next: release distribution
+
+- [ ] Create the SourceForge project and upload the current signed/unsigned
+      images plus `LICENSE`, `NOTICE`, `THIRD_PARTY_LICENSES.md`, `SOURCE`, and
+      `LICENSES.tar.gz`.
+- [ ] Delete the full images from R2; keep only the manifest, nix-store raw,
+      zsync, UKI, and `SHA256SUMS.update`.
+- [ ] Archive superseded full images on the Internet Archive.
+- [ ] Add the license/source offer to the release page and the USB package.
+- [ ] Rebuild the image so `/etc/slippios/licenses` is present in the next
+      release.
+
+## Later: commercial distribution
+
+Selling pre-flashed USBs is allowed under GPL-3.0-or-later; the software stays
+free. This is a future business/legal track, not a release gate.
+
+- [ ] Decide the business model: USB hardware, testing, support, updates, and
+      warranty. The software remains GPL-3.0-or-later.
+- [ ] Verify the Slippi playback source repository with the Slippi project;
+      stable and beta sources are available.
+- [ ] Replace the temporary Slippi mark with an original SlippiOS mark or get
+      permission; confirm the "SlippiOS" trademark policy.
+- [ ] Review the Slippi online service terms for commercial use.
+- [ ] Confirm firmware redistribution terms and include the notices.
+- [ ] Define the source-offer process for physical USBs: include `LICENSE`,
+      `NOTICE`, `THIRD_PARTY_LICENSES.md`, `SOURCE`, and the license texts;
+      keep the exact source available for at least three years.
+- [ ] Review consumer warranty, product liability, tax, shipping, returns, and
+      export-control requirements with a lawyer.
+- [ ] Review GPLv3 installation-information obligations if selling a locked
+      console/PC; a USB-only product is simpler.
+- [ ] Decide whether to use a CLA/DCO for future dual-licensing of SlippiOS's
+      own code; bundled GPL components cannot be relicensed.
+- [ ] Keep the Melee ISO out of the product; users supply their own game.
+- [ ] Build a repeatable USB production and verification script with a QA
+      checklist.
+
 ## Not planned yet
 
 - Dual-boot alongside Windows or another Linux install.
