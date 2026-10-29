@@ -46,6 +46,7 @@ var actions
 var _screen_node = null
 var _busy := false
 var setup_flow := false
+var _cursor_hidden := false
 
 
 func _ready() -> void:
@@ -58,6 +59,8 @@ func _ready() -> void:
 	_ensure_gamepad_actions()
 	for device in Input.get_connected_joypads():
 		printerr("joypad %d: %s" % [device, Input.get_joy_name(device)])
+	if not Input.get_connected_joypads().is_empty():
+		_set_cursor_hidden(true)
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_fit_window()
 	_build_base()
@@ -103,6 +106,26 @@ func _add_joy_button(action: String, button: int) -> void:
 
 func _on_joy_connection_changed(device: int, connected: bool) -> void:
 	printerr("joypad %d connected=%s" % [device, connected])
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton:
+		_set_cursor_hidden(true)
+	elif event is InputEventJoypadMotion:
+		if absf(event.axis_value) >= 0.25:
+			_set_cursor_hidden(true)
+	elif event is InputEventMouseMotion:
+		if event.relative.length() >= 2.0:
+			_set_cursor_hidden(false)
+	elif event is InputEventMouseButton:
+		_set_cursor_hidden(false)
+
+
+func _set_cursor_hidden(hidden: bool) -> void:
+	if _cursor_hidden == hidden:
+		return
+	_cursor_hidden = hidden
+	Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN if hidden else Input.MOUSE_MODE_VISIBLE)
 
 
 func _unhandled_input(event: InputEvent) -> void:
