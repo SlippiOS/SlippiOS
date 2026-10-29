@@ -14,7 +14,10 @@ controllers have no Guide binding; use the console power button to shut down.
 
 ## Glyph profile
 
-`Device = XInput/0/Gamepad`. SDL sees a standard gamepad:
+The Glyph uses `XInput/0/Gamepad` on Windows. On Linux it reports as
+`Mad Catz Xbox 360 Controller`; the profile carries a `# Model =` line so
+SlippiOS detects it, and applying it fills in the Linux device (`SDL/0/...`)
+automatically. The mapping is the same:
 
 | Action | Dolphin binding | SDL |
 |---|---|---|
@@ -57,16 +60,19 @@ SlippiOS seeds these profiles into
 `/data/users/default/dolphin/Config/Profiles/GCPad/` when needed (existing
 files are not overwritten):
 
-- SlippiOS: `Xbox 360 (Mad Catz)`, `Xbox 360 (Microsoft)`, `Keyboard`
+- SlippiOS: `Xbox 360 (Microsoft)`, `Keyboard`
 - Slippi: B0XX_Linux, Frame1_Linux, Glyph, HayBox_DInput_Linux,
   HayBox_XInput_Linux
 
-The Xbox profiles use evdev and the standard Xbox 360 button/axis layout. The
-keyboard profile matches Dolphin's default Linux keyboard bindings.
+The Xbox 360 profile uses evdev and the standard Xbox 360 button/axis layout.
+The Glyph profile is portable: its Windows device line is replaced with the
+detected Linux device when applied. The keyboard profile matches Dolphin's
+default Linux keyboard bindings.
 
-A standard-pad profile selects the first matching evdev device. For four-player
-local play, use the GameCube adapter, which provides all four ports natively.
-Assigning the same pad profile to several ports reads the same physical pad.
+Profiles with a fixed Linux device line select that device. Portable profiles
+such as Glyph use the detected pad. For four-player local play, use the GameCube
+adapter, which provides all four ports natively. Assigning the same pad profile
+to several ports reads the same physical pad.
 
 `Frame1_Linux.ini` is derived from the upstream Ishiiruka Frame1 profile with
 the DirectInput bindings translated to evdev names. The device is named

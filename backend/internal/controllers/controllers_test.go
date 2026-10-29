@@ -22,7 +22,7 @@ func TestDefaultsAndProfiles(t *testing.T) {
 	for _, profile := range profiles {
 		names[profile.Name] = true
 	}
-	for _, want := range []string{"Keyboard", "Xbox 360 (Mad Catz)", "Xbox 360 (Microsoft)"} {
+	for _, want := range []string{"Keyboard", "Xbox 360 (Microsoft)"} {
 		if !names[want] {
 			t.Fatalf("missing profile %q in %#v", want, names)
 		}
@@ -39,7 +39,7 @@ func TestApplyProfileKeepsOtherPorts(t *testing.T) {
 	if err := os.WriteFile(path, original, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ApplyProfile(dir, 2, "Xbox 360 (Mad Catz)"); err != nil {
+	if err := ApplyProfile(dir, 2, "Xbox 360 (Microsoft)"); err != nil {
 		t.Fatal(err)
 	}
 	file, err := ini.Load(path)
@@ -50,7 +50,7 @@ func TestApplyProfileKeepsOtherPorts(t *testing.T) {
 		t.Fatalf("port 1 changed: %#v", got)
 	}
 	port2 := file.Lines("GCPad2")
-	if len(port2) == 0 || port2[0] != "Device = evdev/0/Mad Catz Xbox 360 Controller" {
+	if len(port2) == 0 || port2[0] != "Device = evdev/0/Microsoft X-Box 360 pad" {
 		t.Fatalf("port 2 = %#v", port2)
 	}
 	if !strings.Contains(strings.Join(port2, "\n"), "Buttons/A = `Button 0`") {
@@ -92,10 +92,10 @@ func TestPortsAndConfigured(t *testing.T) {
 func TestConfigureHotkeys(t *testing.T) {
 	dir := t.TempDir()
 	values := map[string]any{"dolphin": map[string]any{}}
-	if err := SetPort(values, 1, DevicePad, "Xbox 360 (Mad Catz)"); err != nil {
+	if err := SetPort(values, 1, DevicePad, "Xbox 360 (Microsoft)"); err != nil {
 		t.Fatal(err)
 	}
-	if err := ApplyProfile(dir, 1, "Xbox 360 (Mad Catz)"); err != nil {
+	if err := ApplyProfile(dir, 1, "Xbox 360 (Microsoft)"); err != nil {
 		t.Fatal(err)
 	}
 	if err := ConfigureHotkeys(dir, values); err != nil {
@@ -106,10 +106,27 @@ func TestConfigureHotkeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Join(file.Lines("Hotkeys"), "\n")
-	if !strings.Contains(lines, "Device = evdev/0/Mad Catz Xbox 360 Controller") {
+	if !strings.Contains(lines, "Device = evdev/0/Microsoft X-Box 360 pad") {
 		t.Fatalf("hotkeys = %s", lines)
 	}
 	if !strings.Contains(lines, "General/Stop = `Button MODE`") {
 		t.Fatalf("hotkeys = %s", lines)
+	}
+}
+
+func TestPortableProfileModel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Glyph.ini")
+	data := "# Model = Mad Catz Xbox 360 Controller\n[Profile]\nDevice = XInput/0/Gamepad\nButtons/A = `Button A`\n"
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := profileDevice(path); got != "Mad Catz Xbox 360 Controller" {
+		t.Fatalf("profileDevice = %q", got)
+	}
+	if !profileUsesSDL([]string{"Device = XInput/0/Gamepad", "Buttons/A = `Button A`"}) {
+		t.Fatal("SDL profile not recognized")
+	}
+	if profileUsesSDL([]string{"Device = evdev/0/Pad", "Buttons/A = `Button 0`"}) {
+		t.Fatal("evdev profile reported as SDL")
 	}
 }

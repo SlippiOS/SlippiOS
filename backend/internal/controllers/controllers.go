@@ -180,6 +180,9 @@ func MatchProfile(profiles []Profile, pads []string) string {
 }
 
 func profileDevice(path string) string {
+	if model := profileModel(path); model != "" {
+		return model
+	}
 	file, err := ini.Load(path)
 	if err != nil {
 		return ""
@@ -188,6 +191,22 @@ func profileDevice(path string) string {
 		key, value, ok := strings.Cut(line, "=")
 		if ok && strings.TrimSpace(key) == "Device" {
 			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+// profileModel reads the optional "# Model = ..." line. Portable profiles use
+// it to describe the physical controller while keeping a Windows Device line.
+func profileModel(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# Model =") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "# Model ="))
 		}
 	}
 	return ""
@@ -217,6 +236,7 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	if len(lines) == 0 {
 		return fmt.Errorf("profile %q has no [Profile] section", name)
 	}
+	lines = linuxProfileLines(lines)
 	padPath := PadConfigPath(dolphinDir)
 	pad, err := ini.Load(padPath)
 	if err != nil {
@@ -224,6 +244,49 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	}
 	pad.SetLines(fmt.Sprintf("GCPad%d", port), lines)
 	return ini.Save(padPath, pad)
+}
+
+// linuxProfileLines replaces a Windows XInput device line with the Linux
+// device that is actually connected. Portable profiles keep their Windows
+// Device line so the same mapping can be used on both platforms.
+func linuxProfileLines(lines []string) []string {
+	for i, line := range lines {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "Device" {
+			continue
+		}
+		if !strings.HasPrefix(strings.TrimSpace(value), "XInput/") {
+			return lines
+		}
+		pads := DetectedPads()
+		if len(pads) == 0 {
+			return lines
+		}
+		backend := "evdev"
+		if profileUsesSDL(lines) {
+			backend = "SDL"
+		}
+		lines[i] = "Device = " + backend + "/0/" + pads[0]
+		return lines
+	}
+	return lines
+}
+
+func profileUsesSDL(lines []string) bool {
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		for _, marker := range []string{
+			"button a", "button b", "button x", "button y",
+			"shoulder", "trigger l", "trigger r",
+			"pad n", "pad s", "pad e", "pad w",
+			"left x", "left y", "right x", "right y",
+		} {
+			if strings.Contains(lower, marker) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ConfigureHotkeys binds Dolphin's Stop hotkey to the Guide button on the
@@ -236,16 +299,16 @@ func ConfigureHotkeys(dolphinDir string, values map[string]any) error {
 		if port.Device != DevicePad {
 			continue
 		}
-		if port.Profile != "" && port.Profile != ProfileCustom {
+		// The applied GCPad section is authoritative: portable profiles have
+		// their Linux device filled in when the profile is applied.
+		device = padDevice(dolphinDir, port.Port)
+		if device == "" && port.Profile != "" && port.Profile != ProfileCustom {
 			for _, profile := range profiles {
 				if profile.Name == port.Profile {
 					device = profile.Device
 					break
 				}
 			}
-		}
-		if device == "" {
-			device = padDevice(dolphinDir, port.Port)
 		}
 		if device != "" {
 			break
