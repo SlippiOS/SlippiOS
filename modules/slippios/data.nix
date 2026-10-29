@@ -36,6 +36,13 @@
         /data/system/apps /data/system/playback
       ${pkgs.coreutils}/bin/cp -n ${../../assets/controller-profiles}/*.ini \
         "$main/Config/Profiles/GCPad"/ || true
+      # Older images shipped a Windows/XInput Glyph profile. Replace it with
+      # the Linux evdev mapping and drop the duplicate Glyph_Linux name.
+      glyph="$main/Config/Profiles/GCPad/Glyph.ini"
+      if [ -f "$glyph" ] && ${pkgs.gnugrep}/bin/grep -q 'XInput/0/Gamepad' "$glyph"; then
+        ${pkgs.coreutils}/bin/cp -f ${../../assets/controller-profiles}/Glyph.ini "$glyph"
+      fi
+      ${pkgs.coreutils}/bin/rm -f "$main/Config/Profiles/GCPad/Glyph_Linux.ini"
       ${pkgs.coreutils}/bin/chown -R player:users \
         "$main/Config" "$main/GameSettings" "$main/Slippi" || true
 

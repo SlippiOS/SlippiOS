@@ -179,6 +179,82 @@ func MatchProfile(profiles []Profile, pads []string) string {
 	return ProfileCustom
 }
 
+// MatchProfileForPad returns the first profile matching one detected pad.
+func MatchProfileForPad(profiles []Profile, pad string) string {
+	for _, profile := range profiles {
+		if matchesPad(profile.Device, []string{pad}) {
+			return profile.Name
+		}
+	}
+	return ProfileCustom
+}
+
+// AdapterPresent reports whether a GameCube adapter is connected.
+func AdapterPresent() bool {
+	entries, err := filepath.Glob("/sys/bus/usb/devices/*")
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		vendor, err := os.ReadFile(filepath.Join(entry, "idVendor"))
+		if err != nil {
+			continue
+		}
+		product, err := os.ReadFile(filepath.Join(entry, "idProduct"))
+		if err != nil {
+			continue
+		}
+		if strings.TrimSpace(string(vendor)) == "057e" &&
+			strings.TrimSpace(string(product)) == "0337" {
+			return true
+		}
+	}
+	return false
+}
+
+// AutoAssign gives detected standard pads the empty ports when no GameCube
+// adapter is present. A console with any manually configured port is left
+// alone. It reports whether the settings changed.
+func AutoAssign(values map[string]any, dolphinDir string) ([]Port, bool, error) {
+	ports := Ports(values)
+	if AdapterPresent() {
+		return ports, false, nil
+	}
+	for _, port := range ports {
+		if port.Device != DeviceAdapter || port.Profile != "" {
+			return ports, false, nil
+		}
+	}
+	pads := DetectedPads()
+	if len(pads) == 0 {
+		return ports, false, nil
+	}
+	profiles, err := ListProfiles(dolphinDir)
+	if err != nil {
+		return ports, false, err
+	}
+	changed := false
+	for index, pad := range pads {
+		if index >= 4 {
+			break
+		}
+		profile := MatchProfileForPad(profiles, pad)
+		if profile == "" {
+			profile = ProfileCustom
+		}
+		if profile != ProfileCustom {
+			if err := ApplyProfile(dolphinDir, index+1, profile); err != nil {
+				return Ports(values), changed, err
+			}
+		}
+		if err := SetPort(values, index+1, DevicePad, profile); err != nil {
+			return Ports(values), changed, err
+		}
+		changed = true
+	}
+	return Ports(values), changed, nil
+}
+
 func profileDevice(path string) string {
 	if model := profileModel(path); model != "" {
 		return model
@@ -196,8 +272,8 @@ func profileDevice(path string) string {
 	return ""
 }
 
-// profileModel reads the optional "# Model = ..." line. Portable profiles use
-// it to describe the physical controller while keeping a Windows Device line.
+// profileModel reads the optional "# Model = ..." line used to match a
+// profile to the controller name reported by the kernel.
 func profileModel(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -210,6 +286,49 @@ func profileModel(path string) string {
 		}
 	}
 	return ""
+}
+
+// ResolveProfile returns the installed name for a profile, accepting the old
+// *_Linux suffix when the unsuffixed profile exists.
+func ResolveProfile(dolphinDir, name string) string {
+	if name == "" || name == ProfileCustom {
+		return name
+	}
+	dir := ProfilesDir(dolphinDir)
+	if _, err := os.Stat(filepath.Join(dir, name+".ini")); err == nil {
+		return name
+	}
+	if strings.HasSuffix(name, "_Linux") {
+		base := strings.TrimSuffix(name, "_Linux")
+		if _, err := os.Stat(filepath.Join(dir, base+".ini")); err == nil {
+			return base
+		}
+	}
+	return name
+}
+
+// NormalizeProfiles rewrites profile names that no longer exist (for example
+// Glyph_Linux after the Linux-only profile rename). It reports whether the
+// settings changed.
+func NormalizeProfiles(values map[string]any, dolphinDir string) (bool, error) {
+	if err := EnsureDefaults(dolphinDir); err != nil {
+		return false, err
+	}
+	changed := false
+	for _, port := range Ports(values) {
+		if port.Device != DevicePad || port.Profile == "" || port.Profile == ProfileCustom {
+			continue
+		}
+		resolved := ResolveProfile(dolphinDir, port.Profile)
+		if resolved == port.Profile {
+			continue
+		}
+		if err := SetPort(values, port.Port, DevicePad, resolved); err != nil {
+			return changed, err
+		}
+		changed = true
+	}
+	return changed, nil
 }
 
 // ApplyProfile copies a GCPad profile into the matching [GCPadN] section.
@@ -227,6 +346,7 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	if err := EnsureDefaults(dolphinDir); err != nil {
 		return err
 	}
+	name = ResolveProfile(dolphinDir, name)
 	profilePath := filepath.Join(ProfilesDir(dolphinDir), name+".ini")
 	profile, err := ini.Load(profilePath)
 	if err != nil {
@@ -236,7 +356,6 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	if len(lines) == 0 {
 		return fmt.Errorf("profile %q has no [Profile] section", name)
 	}
-	lines = linuxProfileLines(lines)
 	padPath := PadConfigPath(dolphinDir)
 	pad, err := ini.Load(padPath)
 	if err != nil {
@@ -244,49 +363,6 @@ func ApplyProfile(dolphinDir string, port int, name string) error {
 	}
 	pad.SetLines(fmt.Sprintf("GCPad%d", port), lines)
 	return ini.Save(padPath, pad)
-}
-
-// linuxProfileLines replaces a Windows XInput device line with the Linux
-// device that is actually connected. Portable profiles keep their Windows
-// Device line so the same mapping can be used on both platforms.
-func linuxProfileLines(lines []string) []string {
-	for i, line := range lines {
-		key, value, ok := strings.Cut(line, "=")
-		if !ok || strings.TrimSpace(key) != "Device" {
-			continue
-		}
-		if !strings.HasPrefix(strings.TrimSpace(value), "XInput/") {
-			return lines
-		}
-		pads := DetectedPads()
-		if len(pads) == 0 {
-			return lines
-		}
-		backend := "evdev"
-		if profileUsesSDL(lines) {
-			backend = "SDL"
-		}
-		lines[i] = "Device = " + backend + "/0/" + pads[0]
-		return lines
-	}
-	return lines
-}
-
-func profileUsesSDL(lines []string) bool {
-	for _, line := range lines {
-		lower := strings.ToLower(line)
-		for _, marker := range []string{
-			"button a", "button b", "button x", "button y",
-			"shoulder", "trigger l", "trigger r",
-			"pad n", "pad s", "pad e", "pad w",
-			"left x", "left y", "right x", "right y",
-		} {
-			if strings.Contains(lower, marker) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // ConfigureHotkeys binds Dolphin's Stop hotkey to the Guide button on the
@@ -314,18 +390,20 @@ func ConfigureHotkeys(dolphinDir string, values map[string]any) error {
 			break
 		}
 	}
-	if device == "" {
-		return nil
-	}
-
 	path := filepath.Join(dolphinDir, "Config", "Hotkeys.ini")
 	file, err := ini.Load(path)
 	if err != nil {
 		return err
 	}
 	lines := file.Lines("Hotkeys")
-	lines = setLine(lines, "Device", device)
-	lines = setLine(lines, "General/Stop", "`Button MODE`")
+	if device == "" {
+		// Escape must work even when no standard pad is configured (for
+		// example a fresh image whose ports still use the GameCube adapter).
+		lines = setLine(lines, "Device", "XInput2/0/Keyboard Mouse")
+	} else {
+		lines = setLine(lines, "Device", device)
+		lines = setLine(lines, "General/Stop", "`Button MODE`")
+	}
 	// Escape must be an explicit Exit binding. Creating Hotkeys.ini with only
 	// Stop drops Dolphin's default Escape -> Exit binding.
 	lines = setLine(lines, "General/Exit", "`XInput2/0/Keyboard Mouse:ESCAPE`")

@@ -1,6 +1,8 @@
 extends RefCounted
 
 
+const Spinner := preload("res://spinner.gd")
+
 const GAME_EXIT := 42
 const DOLPHIN_EXIT := 43
 const TERMINAL_EXIT := 44
@@ -20,7 +22,25 @@ func launch_game() -> void:
 	if app.needs_setup():
 		app.show_setup("No valid game image yet.")
 		return
-	await _prepare_dolphin("Starting Melee…", GAME_EXIT)
+	app._busy = true
+	app._screen_node = null
+	app.clear()
+	app.add_title("PREPARING", 44)
+	var status: Label = app.add_label("Checking for Slippi Dolphin…", 0.8)
+	var bar := _progress_bar()
+	await app.get_tree().process_frame
+	var ready := await _ensure_dolphin(status, bar)
+	if not ready:
+		return
+	if app.adapter_present():
+		# The GameCube adapter is exclusive; Godot must exit before Dolphin
+		# opens it. The wrapper relaunches the shell when Dolphin exits.
+		bar.value = 100
+		status.text = "Starting Melee…"
+		await app.get_tree().create_timer(0.2).timeout
+		app.get_tree().quit(GAME_EXIT)
+		return
+	await _launch_in_shell()
 
 
 func open_dolphin_settings() -> void:
@@ -33,6 +53,18 @@ func _prepare_dolphin(starting: String, exit_code: int) -> void:
 	app.clear()
 	app.add_title("PREPARING", 44)
 	var status: Label = app.add_label("Checking for Slippi Dolphin…", 0.8)
+	var bar := _progress_bar()
+	await app.get_tree().process_frame
+	var ready := await _ensure_dolphin(status, bar)
+	if not ready:
+		return
+	bar.value = 100
+	status.text = starting
+	await app.get_tree().create_timer(0.2).timeout
+	app.get_tree().quit(exit_code)
+
+
+func _progress_bar() -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0, 24)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -40,15 +72,17 @@ func _prepare_dolphin(starting: String, exit_code: int) -> void:
 	bar.value = 0
 	bar.show_percentage = false
 	app.add_content(bar)
-	await app.get_tree().process_frame
+	return bar
 
+
+func _ensure_dolphin(status: Label, bar: ProgressBar) -> bool:
 	var progress_path := "/data/system/dolphin-progress.json"
 	DirAccess.remove_absolute(progress_path)
 	var pid := OS.create_process("slippios",
 		PackedStringArray(["update", "--progress", progress_path]))
 	if pid <= 0:
 		_start_error("Could not start the Slippi Dolphin update.")
-		return
+		return false
 
 	while OS.is_process_running(pid):
 		_show_progress(_read_progress(progress_path), status, bar)
@@ -57,11 +91,45 @@ func _prepare_dolphin(starting: String, exit_code: int) -> void:
 	if OS.get_process_exit_code(pid) != 0:
 		var data := _read_progress(progress_path)
 		_start_error(str(data.get("error", "Could not prepare Slippi Dolphin.")))
+		return false
+	return true
+
+
+func _launch_in_shell() -> void:
+	app.clear()
+	app.add_title("LAUNCHING", 44)
+	app.add_label("Super Smash Bros. Melee", 0.9)
+	var spinner := Spinner.new()
+	app.add_content(spinner)
+	var status: Label = app.add_label("Starting Dolphin…", 0.6)
+	await app.get_tree().process_frame
+
+	var ready_path := "/data/system/game-ready"
+	DirAccess.remove_absolute(ready_path)
+	var pid := OS.create_process("slippios",
+		PackedStringArray(["play", "--ready-file", ready_path]))
+	if pid <= 0:
+		_start_error("Could not start Slippi Dolphin.")
 		return
-	bar.value = 100
-	status.text = starting
-	await app.get_tree().create_timer(0.2).timeout
-	app.get_tree().quit(exit_code)
+
+	var ready := false
+	while OS.is_process_running(pid):
+		if not ready and FileAccess.file_exists(ready_path):
+			ready = true
+			status.text = ""
+			spinner.visible = false
+			app.get_window().hide()
+			OS.low_processor_usage_mode = true
+		await app.get_tree().create_timer(0.2).timeout
+	OS.get_process_exit_code(pid)
+	OS.low_processor_usage_mode = false
+	app.get_window().show()
+	app._busy = false
+	if not ready:
+		_start_error("Dolphin exited before the game window opened.")
+		return
+	app.refresh_status()
+	app.show_menu()
 
 
 func _read_progress(path: String) -> Dictionary:

@@ -14,25 +14,19 @@ controllers have no Guide binding; use the console power button to shut down.
 
 ## Glyph profile
 
-The Glyph uses `XInput/0/Gamepad` on Windows. On Linux it reports as
-`Mad Catz Xbox 360 Controller`.
+The Glyph reports on Linux as `Mad Catz Xbox 360 Controller`. SlippiOS ships
+one Linux-only `Glyph` profile using evdev numbers and
+`Device = evdev/0/Mad Catz Xbox 360 Controller`. There is no separate Windows
+or SDL profile; stable Slippi (Ishiiruka) is evdev-only.
 
-Stable Slippi (Ishiiruka) is evdev-only, so use `Glyph_Linux`: the same
-physical mapping with evdev numbers and
-`Device = evdev/0/Mad Catz Xbox 360 Controller`. The Windows `Glyph.ini`
-remains for Windows and for Linux builds with SDL (the mainline beta).
-SlippiOS detects both from the `# Model =` hint and the device name.
-
-| Action | Dolphin binding | SDL |
-|---|---|---|
-| A | `Button A` | south face (button 0) |
-| B | `Button B` | east face |
-| X / Y | `Button X` / `Button Y` | west / north |
-| Z | `Shoulder R` | right shoulder |
-| Start | `Start` | start |
-| L / R | `Trigger L` / `Trigger R` | analog triggers |
-| Stick / C-stick | `Left X/Y`, `Right X/Y` | left / right sticks |
-| D-Pad | `Pad N/S/W/E` | dpad |
+| Action | Dolphin binding |
+|---|---|
+| A / B / X / Y | `Button 0` / `Button 1` / `Button 2` / `Button 3` |
+| Z | `Button 5` |
+| Start | `Button 7` |
+| L / R | `Axis 2+` / `Axis 5+` |
+| Stick / C-stick | `Axis 0/1`, `Axis 3/4` |
+| D-Pad | `Axis 6/7` |
 
 Hold A during the boot screen to open the menu instead of launching Melee.
 Keyboard Enter does the same for testing.
@@ -44,8 +38,10 @@ in **Wii U** mode.
 
 While the shell is running, SDL3 reads the four controller ports directly.
 Dolphin also supports the adapter natively through libusb. USB access is
-exclusive, so the shell wrapper quits Godot before starting Dolphin and starts
-Godot again after Dolphin exits. Do not run a uinput bridge at the same time.
+exclusive, so when an adapter is present the shell wrapper quits Godot before
+starting Dolphin and starts Godot again after Dolphin exits. With a standard
+pad the shell stays on its launching screen and hides itself while Dolphin
+runs. Do not run a uinput bridge at the same time.
 
 Open **Settings → Controller Settings** to assign each port. Ports set to
 **GameCube adapter** use Dolphin's native adapter support. Ports set to
@@ -64,19 +60,17 @@ SlippiOS seeds these profiles into
 `/data/users/default/dolphin/Config/Profiles/GCPad/` when needed (existing
 files are not overwritten):
 
-- SlippiOS: `Xbox 360 (Microsoft)`, `Glyph_Linux`, `Keyboard`
-- Slippi: B0XX_Linux, Frame1_Linux, Glyph (Windows XInput),
-  HayBox_DInput_Linux, HayBox_XInput_Linux
+- SlippiOS: `Xbox 360 (Microsoft)`, `Glyph`, `Keyboard`
+- Slippi: B0XX_Linux, Frame1_Linux, HayBox_DInput_Linux,
+  HayBox_XInput_Linux
 
-The Xbox 360 and Glyph_Linux profiles use evdev and the standard Xbox 360
-button/axis layout. `Glyph.ini` is the Windows XInput profile; Linux builds
-with SDL can apply it with the detected device. The keyboard profile matches
+All bundled profiles are Linux profiles. The Xbox 360 and Glyph profiles use
+evdev and the standard Xbox 360 button/axis layout. The keyboard profile matches
 Dolphin's default Linux keyboard bindings.
 
-Profiles with a fixed Linux device line select that device. Portable profiles
-such as Glyph use the detected pad. For four-player local play, use the GameCube
-adapter, which provides all four ports natively. Assigning the same pad profile
-to several ports reads the same physical pad.
+Profiles with a fixed Linux device line select that device. For four-player
+local play, use the GameCube adapter, which provides all four ports natively.
+Assigning the same pad profile to several ports reads the same physical pad.
 
 `Frame1_Linux.ini` is derived from the upstream Ishiiruka Frame1 profile with
 the DirectInput bindings translated to evdev names. The device is named

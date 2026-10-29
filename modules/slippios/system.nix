@@ -83,6 +83,7 @@ in
     nano
     xterm
     libxcvt
+    xdotool
     xrandr
     xset
   ];

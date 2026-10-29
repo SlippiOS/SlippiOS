@@ -117,19 +117,62 @@ func TestConfigureHotkeys(t *testing.T) {
 	}
 }
 
-func TestPortableProfileModel(t *testing.T) {
+func TestResolveProfileDropsLegacySuffix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(ProfilesDir(dir), "Glyph.ini")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("[Profile]\nDevice = evdev/0/Pad\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ResolveProfile(dir, "Glyph_Linux"); got != "Glyph" {
+		t.Fatalf("ResolveProfile = %q", got)
+	}
+	if got := ResolveProfile(dir, "Glyph"); got != "Glyph" {
+		t.Fatalf("ResolveProfile = %q", got)
+	}
+}
+
+func TestNormalizeProfiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(ProfilesDir(dir), "Glyph.ini")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("[Profile]\nDevice = evdev/0/Pad\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	values := map[string]any{"dolphin": map[string]any{}}
+	if err := SetPort(values, 1, DevicePad, "Glyph_Linux"); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := NormalizeProfiles(values, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed || Ports(values)[0].Profile != "Glyph" {
+		t.Fatalf("changed = %v, ports = %#v", changed, Ports(values))
+	}
+}
+
+func TestMatchProfileForPad(t *testing.T) {
+	profiles := []Profile{
+		{Name: "Other", Device: "evdev/0/Other"},
+		{Name: "Glyph", Device: "Mad Catz Xbox 360 Controller"},
+	}
+	if got := MatchProfileForPad(profiles, "Mad Catz Xbox 360 Controller"); got != "Glyph" {
+		t.Fatalf("MatchProfileForPad = %q", got)
+	}
+}
+
+func TestProfileModel(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "Glyph.ini")
-	data := "# Model = Mad Catz Xbox 360 Controller\n[Profile]\nDevice = XInput/0/Gamepad\nButtons/A = `Button A`\n"
+	data := "# Model = Mad Catz Xbox 360 Controller\n[Profile]\nDevice = evdev/0/Mad Catz Xbox 360 Controller\nButtons/A = `Button 0`\n"
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := profileDevice(path); got != "Mad Catz Xbox 360 Controller" {
 		t.Fatalf("profileDevice = %q", got)
-	}
-	if !profileUsesSDL([]string{"Device = XInput/0/Gamepad", "Buttons/A = `Button A`"}) {
-		t.Fatal("SDL profile not recognized")
-	}
-	if profileUsesSDL([]string{"Device = evdev/0/Pad", "Buttons/A = `Button 0`"}) {
-		t.Fatal("evdev profile reported as SDL")
 	}
 }

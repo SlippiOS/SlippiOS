@@ -70,7 +70,7 @@ func _use_iso(path: String) -> void:
 		present(str(saved.get("error", "Could not save the Melee image.")))
 		return
 	app.refresh_status()
-	app.skip_setup()
+	app.show_controller_setup()
 
 
 func back() -> void:

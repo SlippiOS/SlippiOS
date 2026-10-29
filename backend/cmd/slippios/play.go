@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
@@ -20,6 +21,7 @@ import (
 
 type playOptions struct {
 	requireLogin bool
+	readyFile    string
 }
 
 func newPlayCommand(mode *modes) *cobra.Command {
@@ -33,6 +35,7 @@ func newPlayCommand(mode *modes) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&options.requireLogin, "require-login", false, "refuse to start without a saved login")
+	command.Flags().StringVar(&options.readyFile, "ready-file", "", "write this file once the Dolphin window is visible")
 	return command
 }
 
@@ -44,6 +47,13 @@ func runPlay(mode *modes, options playOptions) error {
 	values, err := paths.Load()
 	if err != nil {
 		return mode.fail("no game image")
+	}
+	if changed, err := controllers.NormalizeProfiles(values, paths.DolphinDir); err != nil {
+		return mode.fail(err.Error())
+	} else if changed {
+		if err := paths.Save(values); err != nil {
+			return mode.fail(err.Error())
+		}
 	}
 	game, _ := values["game"].(map[string]any)
 	raw, _ := game["iso"].(string)
@@ -105,7 +115,7 @@ func runPlay(mode *modes, options playOptions) error {
 		userDir = paths.DolphinStableDir
 		arguments = []string{"-b", "-e", iso}
 	}
-	returncode, err := runDolphin(paths, appimage, userDir, arguments)
+	returncode, err := runDolphin(paths, appimage, userDir, arguments, options.readyFile)
 	if err != nil {
 		return mode.fail(err.Error())
 	}
@@ -183,7 +193,7 @@ func dolphinArgs(values map[string]any) []string {
 	return arguments
 }
 
-func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string) (int, error) {
+func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string, readyFile string) (int, error) {
 	environment := os.Environ()
 	runtime := fmt.Sprintf("/run/user/%d", os.Getuid())
 	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
@@ -241,7 +251,16 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 		command.Stderr = os.Stderr
 	}
 
-	if err := command.Run(); err != nil {
+	if err := command.Start(); err != nil {
+		return 0, err
+	}
+	done := make(chan struct{})
+	if readyFile != "" {
+		go watchDolphinWindow(readyFile, done)
+	}
+	err := command.Wait()
+	close(done)
+	if err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
 			return exitError.ExitCode(), nil
@@ -249,4 +268,30 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 		return 0, err
 	}
 	return 0, nil
+}
+
+// watchDolphinWindow writes the ready file once Dolphin has mapped its game
+// window. The shell keeps its launching screen visible until then.
+func watchDolphinWindow(path string, done <-chan struct{}) {
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if dolphinWindowVisible() {
+			_ = os.WriteFile(path, []byte("ready\n"), 0o644)
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func dolphinWindowVisible() bool {
+	output, err := exec.Command("xdotool", "search", "--onlyvisible", "--name", "Dolphin").Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(output)) != ""
 }

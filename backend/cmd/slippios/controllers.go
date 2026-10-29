@@ -44,7 +44,44 @@ func newControllersCommand(mode *modes) *cobra.Command {
 			return runControllersSet(mode, args[0], args[1], profile)
 		},
 	})
+	command.AddCommand(&cobra.Command{
+		Use:   "auto",
+		Short: "Assign detected standard pads to empty ports",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runControllersAuto(mode)
+		},
+	})
 	return command
+}
+
+func runControllersAuto(mode *modes) error {
+	paths := settings.DefaultPaths()
+	values, err := paths.Load()
+	if err != nil {
+		return mode.fail(err.Error())
+	}
+	ports, changed, err := controllers.AutoAssign(values, paths.DolphinDir)
+	if err != nil {
+		return mode.fail(err.Error())
+	}
+	if changed {
+		if err := paths.Save(values); err != nil {
+			return mode.fail(err.Error())
+		}
+	}
+	return mode.emit(map[string]any{
+		"ok":      true,
+		"changed": changed,
+		"ports":   ports,
+		"pads":    controllers.DetectedPads(),
+	}, func() {
+		if changed {
+			mode.println("Controller assigned.")
+		} else {
+			mode.println("No controller changes.")
+		}
+	})
 }
 
 func runControllersList(mode *modes) error {
@@ -56,6 +93,13 @@ func runControllersList(mode *modes) error {
 	profiles, err := controllers.ListProfiles(paths.DolphinDir)
 	if err != nil {
 		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	}
+	if changed, err := controllers.NormalizeProfiles(values, paths.DolphinDir); err != nil {
+		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+	} else if changed {
+		if err := paths.Save(values); err != nil {
+			return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
+		}
 	}
 	ports := controllers.Ports(values)
 	return mode.emit(map[string]any{
@@ -111,6 +155,10 @@ func runControllersSet(mode *modes, rawPort, device, profile string) error {
 			profile = controllers.ProfileCustom
 		}
 		if profile != controllers.ProfileCustom {
+			if err := controllers.EnsureDefaults(paths.DolphinDir); err != nil {
+				return mode.fail(err.Error())
+			}
+			profile = controllers.ResolveProfile(paths.DolphinDir, profile)
 			if err := controllers.ApplyProfile(paths.DolphinDir, port, profile); err != nil {
 				return mode.fail(err.Error())
 			}

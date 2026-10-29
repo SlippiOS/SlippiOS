@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/network"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
@@ -50,7 +51,7 @@ func statusPayload() map[string]any {
 	if !login {
 		login, loginDetail = paths.LoginStatus(filepath.Join(paths.DolphinStableDir, "Slippi", "user.json"))
 	}
-	adapter := adapterPresent()
+	adapter := controllers.AdapterPresent()
 	currentDolphin := dolphinCurrent()
 	return map[string]any{
 		"ok":       true,
@@ -77,28 +78,6 @@ func readTrimmed(path string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
-}
-
-func adapterPresent() bool {
-	entries, err := filepath.Glob("/sys/bus/usb/devices/*")
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		vendor, err := os.ReadFile(filepath.Join(entry, "idVendor"))
-		if err != nil {
-			continue
-		}
-		product, err := os.ReadFile(filepath.Join(entry, "idProduct"))
-		if err != nil {
-			continue
-		}
-		if strings.TrimSpace(string(vendor)) == "057e" &&
-			strings.TrimSpace(string(product)) == "0337" {
-			return true
-		}
-	}
-	return false
 }
 
 func dolphinCurrent() string {

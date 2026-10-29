@@ -21,6 +21,7 @@ const CustomModeScreen := preload("res://screens/display_custom.gd")
 const ExpertScreen := preload("res://screens/expert.gd")
 const DolphinScreen := preload("res://screens/dolphin.gd")
 const ControllersScreen := preload("res://screens/controllers.gd")
+const ControllerSetupScreen := preload("res://screens/controller_setup.gd")
 const ControllerPortScreen := preload("res://screens/controller_port.gd")
 const GeckoScreen := preload("res://screens/gecko.gd")
 const GeckoCustomScreen := preload("res://screens/gecko_custom.gd")
@@ -64,6 +65,7 @@ func _ready() -> void:
 	net.login_done.connect(_on_net_login_done)
 	update_job.finished.connect(_on_os_update_finished)
 	refresh_status()
+	_auto_controllers()
 	# The graphical session, not the terminal session, applies the saved mode.
 	await _apply_display()
 	if OS.get_environment("SLIPPIOS_SKIP_SPLASH") == "1":
@@ -255,6 +257,11 @@ func show_controllers(message: String = "") -> void:
 	_present(ControllersScreen.new(self), message)
 
 
+func show_controller_setup(message: String = "") -> void:
+	stop_net()
+	_present(ControllerSetupScreen.new(self), message)
+
+
 func show_controller_port(port: int, message: String = "") -> void:
 	stop_net()
 	var screen = ControllerPortScreen.new(self)
@@ -440,6 +447,16 @@ func connect_wifi(ssid: String, password: String) -> void:
 
 func refresh_status() -> void:
 	shell_status.refresh()
+
+
+func _auto_controllers() -> void:
+	var result := cli(["controllers", "auto"])
+	if bool(result.get("changed", false)):
+		refresh_status()
+
+
+func adapter_present() -> bool:
+	return bool(status.get("adapter", {}).get("present", false))
 
 
 func needs_setup() -> bool:

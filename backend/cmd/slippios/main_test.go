@@ -137,6 +137,7 @@ func TestCommandTree(t *testing.T) {
 		{"controllers", "list"},
 		{"controllers", "profiles"},
 		{"controllers", "set"},
+		{"controllers", "auto"},
 		{"gecko"},
 		{"gecko", "list"},
 		{"gecko", "set"},
