@@ -191,6 +191,16 @@
               splash=1
               continue
             fi
+            if [ "$code" -eq 48 ]; then
+              game_pid=$(cat /data/system/game.pid 2>/dev/null || true)
+              while [ -n "$game_pid" ] && kill -0 "$game_pid" 2>/dev/null; do
+                ${pkgs.coreutils}/bin/sleep 1
+              done
+              rm -f /data/system/game.pid
+              autoplay=0
+              splash=1
+              continue
+            fi
 
             echo "slippios-shell exited with $code" >>"$log"
             exit "$code"

@@ -8,6 +8,7 @@ const DOLPHIN_EXIT := 43
 const TERMINAL_EXIT := 44
 const EDITOR_EXIT := 45
 const REPLAY_EXIT := 47
+const GAME_READY_EXIT := 48
 
 var app
 
@@ -105,33 +106,28 @@ func _launch_in_shell() -> void:
 	await app.get_tree().process_frame
 
 	var ready_path := "/data/system/game-ready"
+	var pid_path := "/data/system/game.pid"
 	DirAccess.remove_absolute(ready_path)
+	DirAccess.remove_absolute(pid_path)
 	var pid := OS.create_process("slippios",
 		PackedStringArray(["play", "--ready-file", ready_path]))
 	if pid <= 0:
 		_start_error("Could not start Slippi Dolphin.")
 		return
+	var pid_file := FileAccess.open(pid_path, FileAccess.WRITE)
+	if pid_file != null:
+		pid_file.store_string(str(pid))
+		pid_file.close()
 
-	var ready := false
 	while OS.is_process_running(pid):
-		if not ready and FileAccess.file_exists(ready_path):
-			ready = true
-			status.text = ""
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
-			OS.low_processor_usage_mode = true
-			await app.get_tree().create_timer(0.4).timeout
+		if FileAccess.file_exists(ready_path):
 			_focus_game_window()
+			app.get_tree().quit(GAME_READY_EXIT)
+			return
 		await app.get_tree().create_timer(0.2).timeout
 	OS.get_process_exit_code(pid)
-	OS.low_processor_usage_mode = false
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	app._fit_window()
 	app._busy = false
-	if not ready:
-		_start_error("Dolphin exited before the game window opened.")
-		return
-	app.refresh_status()
-	app.show_menu()
+	_start_error("Dolphin exited before the game window opened.")
 
 
 func _focus_game_window() -> void:

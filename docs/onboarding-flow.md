@@ -69,8 +69,10 @@ Observed on dev image `0.3.0.2vfi1nn`:
 1. Show **LAUNCHING** with the game title and an animated spinner.
 2. Start `slippios play --ready-file` and keep the shell visible.
 3. When the Dolphin window is mapped, hide the non-fullscreen launcher frame,
-   activate the fullscreen render window, and minimize the shell.
-4. When Dolphin exits, restore the shell and show the menu.
+   activate the fullscreen render window, and exit the shell with
+   `GAME_READY_EXIT`.
+4. The wrapper waits for the `slippios play` process, then restarts the shell
+   at the menu.
 5. Escape exits Melee from the focused game window.
 
 ## 4. Decisions
@@ -93,23 +95,27 @@ Observed on dev image `0.3.0.2vfi1nn`:
 > **Fallback:** The controller step can be reopened from Settings and the
 > profile can be changed per port.
 
-> **Why & What - The shell stays up during launch**
+> **Why & What - The shell covers launch, then exits**
 >
 > **What:** The shell shows the launching screen, starts Dolphin itself, and
-> minimizes only after the game window is mapped.
+> exits only after the game window is mapped. The wrapper waits for the game
+> process and restarts the shell at the menu.
 >
 > **Why:** The desktop gap is the difference between a console and a desktop
-> with a game on it. The shell also owns the recovery path if Dolphin fails.
-> This does not solve the cold AppImage extraction time; it only covers it.
+> with a game on it. Exiting after the window is mapped keeps the shell out of
+> memory during gameplay without exposing the desktop. This does not solve the
+> cold AppImage extraction time; it only covers it.
 >
 > **Alternatives considered:**
+> - *Keep the shell minimized during Melee:* no restart cost, but the shell
+>   process stays resident and the user sees a second window in the stack.
 > - *Exit the shell immediately and let the wrapper launch Dolphin:* simple,
 >   but exposes the desktop and gives the user no status.
 > - *A separate splash process:* works for the adapter handoff, but adds a
 >   second UI process and a second visual language.
 >
 > **Fallback:** The GameCube adapter path still exits the shell before Dolphin
-> opens the adapter. The wrapper relaunches the shell after Dolphin exits.
+> opens the adapter. The wrapper launches Dolphin and relaunches the shell.
 
 > **Why & What - ISO upload is always available**
 >
@@ -151,9 +157,12 @@ Observed on dev image `0.3.0.2vfi1nn`:
 
 ## 7. Costs and risks
 
-- Keeping the shell alive during launch means the shell process still owns
-  its SDL joystick handles. Standard pads are read by both processes through
-  evdev; the GameCube adapter remains on the exit-and-relaunch path.
+- The shell exits during Melee. The wrapper must wait for the game process;
+  the shell writes its PID before exiting. A stale PID or a crash can leave the
+  wrapper waiting, so the PID file is removed before each launch and after the
+  wait.
+- The GameCube adapter remains on the exit-before-launch path because the
+  adapter is exclusive USB.
 - Hiding the Dolphin launcher frame uses X11 window inspection. A future
   Dolphin update that changes window titles or states must update that check.
 - The cold AppImage extraction remains slow. Pre-seeding the extracted cache

@@ -49,6 +49,7 @@ var setup_flow := false
 
 
 func _ready() -> void:
+	Engine.max_fps = 60
 	shell_status = ShellStatus.new(self)
 	actions = Actions.new(self)
 	# CI only imports/parses the project; skip the CLI and display probing.
