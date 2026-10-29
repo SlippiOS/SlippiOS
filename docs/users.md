@@ -12,8 +12,9 @@
 ## Flash
 
 Download `slippios-usb-<version>.img.xz` and `SHA256SUMS` from the
-[latest release](https://github.com/SlippiOS/SlippiOS/releases/latest) or the
-[SlippiOS mirror](https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/).
+[SlippiOS SourceForge project](https://sourceforge.net/projects/slippios/files/).
+Release notes and source are on
+[GitHub](https://github.com/SlippiOS/SlippiOS/releases/latest).
 
 The download is an xz-compressed image. Most desktops cannot open it by
 double-clicking, so use one of the methods below.
@@ -22,10 +23,10 @@ Verify the download first:
 
 ```sh
 # Linux
-sha256sum -c SHA256SUMS
+grep 'slippios-usb-<version>.img.xz' SHA256SUMS | sha256sum -c -
 
 # macOS
-shasum -a 256 -c SHA256SUMS
+grep 'slippios-usb-<version>.img.xz' SHA256SUMS | shasum -a 256 -c -
 ```
 
 On Windows, compare the output of this with the matching line in `SHA256SUMS`:
