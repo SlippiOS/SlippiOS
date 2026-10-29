@@ -340,18 +340,13 @@ else
 SlippiOS USB image ${version}.
 
 What's new:
-- First launch is fast: the stable AppImage is pre-extracted into the image cache.
-- First boot always offers Slippi sign-in after controller setup, even when Ethernet is connected and a Melee ISO is already on the drive.
-- Escape during the launching screen cancels cleanly and returns to the menu.
-- The launching screen no longer gives up after 60 seconds on a cold start.
-- Account now has a Sign out button.
-- A launching screen with a spinner covers Dolphin startup; the shell closes once Melee is up and returns to the menu when Melee exits.
-- Standard pads are detected and configured automatically. The Glyph uses a Linux evdev profile.
-- Escape and the Guide button exit Melee.
-- Controller setup is part of onboarding, and Expert mode can run setup again.
-- Upload ISO is available from Melee ROMs at any time.
-- The replay list shows character, tag, and stage summaries, and playback returns to the menu.
-- The shell is capped at 60 FPS and hides the cursor while a gamepad is active.
+- New SlippiOS mark: a blue shine hexagon with a neutral S.
+- Plymouth plays a multishine pulse; only the shine moves, the S stays still.
+- The Godot splash uses the same layered mark and mipmapped textures, so it
+  stays smooth when scaled down.
+- The boot progress bar takes its color from the theme.
+- The X handoff wallpaper is rendered for the desktop resolution instead of
+  scaling a 4K image down.
 
 Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
 
