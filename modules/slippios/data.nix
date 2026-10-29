@@ -31,6 +31,10 @@
       # writes its shim and hook into that cache, so hand it to the player.
       ${pkgs.coreutils}/bin/chown -R player:users \
         /data/users/default/cache || true
+      # Nix store paths are read-only. The AppImage runner writes its shim
+      # and patches the AppImage hook inside this cache on first launch.
+      ${pkgs.coreutils}/bin/chmod -R u+w \
+        /data/users/default/cache || true
       ${pkgs.coreutils}/bin/chmod 0775 /data || true
 
       main=/data/users/default/dolphin
