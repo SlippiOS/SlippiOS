@@ -36,6 +36,7 @@ func present(message: String = "") -> void:
 		label("No Melee images found on MELEE-ROMS.", 0.8)
 	if message != "":
 		label(message, 0.9)
+	button("Upload ISO", app.start_iso_upload)
 	button("Rescan", present.bind(""))
 	button("Back", app.show_menu)
 	focus()

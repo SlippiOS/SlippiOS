@@ -77,4 +77,4 @@ func back() -> void:
 		"setup":
 			app.show_menu()
 		_:
-			app.show_setup()
+			app.show_roms("")

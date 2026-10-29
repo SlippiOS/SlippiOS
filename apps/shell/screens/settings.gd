@@ -18,6 +18,7 @@ func present(message: String = "") -> void:
 	button("Update", app.show_update)
 	button("Expert mode: %s" % ("on" if expert_on else "off"), _toggle_expert)
 	if expert_on:
+		button("Run setup again", _run_setup)
 		button("Expert tools", app.show_expert)
 	if message != "":
 		label(message, 0.9)
@@ -52,6 +53,10 @@ func _toggle_expert() -> void:
 		app.show_settings(str(saved.get("error", "Could not save expert mode.")))
 		return
 	app.show_settings("Expert mode %s." % ("disabled" if enabled else "enabled"))
+
+
+func _run_setup() -> void:
+	app.show_setup()
 
 
 func back() -> void:

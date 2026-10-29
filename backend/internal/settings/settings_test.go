@@ -27,6 +27,27 @@ func TestSaveLoadDefaults(t *testing.T) {
 	}
 }
 
+func TestEnsureCreatesDefaults(t *testing.T) {
+	paths := PathsFor(t.TempDir())
+	values, err := paths.Ensure()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["schema_version"].(int64) != SchemaVersion {
+		t.Fatalf("schema = %v", values["schema_version"])
+	}
+	if _, err := os.Stat(paths.SettingsFile); err != nil {
+		t.Fatalf("settings file not created: %v", err)
+	}
+	loaded, err := paths.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded["schema_version"].(int64) != SchemaVersion {
+		t.Fatalf("loaded schema = %v", loaded["schema_version"])
+	}
+}
+
 func TestLoadMigratesSingleController(t *testing.T) {
 	paths := PathsFor(t.TempDir())
 	if err := os.MkdirAll(filepath.Dir(paths.SettingsFile), 0o755); err != nil {

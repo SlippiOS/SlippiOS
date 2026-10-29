@@ -57,7 +57,7 @@ func newControllersCommand(mode *modes) *cobra.Command {
 
 func runControllersAuto(mode *modes) error {
 	paths := settings.DefaultPaths()
-	values, err := paths.Load()
+	values, err := paths.Ensure()
 	if err != nil {
 		return mode.fail(err.Error())
 	}
@@ -86,7 +86,7 @@ func runControllersAuto(mode *modes) error {
 
 func runControllersList(mode *modes) error {
 	paths := settings.DefaultPaths()
-	values, err := paths.Load()
+	values, err := paths.Ensure()
 	if err != nil {
 		return mode.emit(map[string]any{"ok": false, "error": err.Error()}, nil)
 	}
@@ -139,7 +139,7 @@ func runControllersSet(mode *modes, rawPort, device, profile string) error {
 		return mode.fail("input must be adapter, pad, keyboard or none")
 	}
 	paths := settings.DefaultPaths()
-	values, err := paths.Load()
+	values, err := paths.Ensure()
 	if err != nil {
 		return mode.fail(err.Error())
 	}

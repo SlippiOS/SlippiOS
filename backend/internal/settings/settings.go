@@ -130,6 +130,23 @@ func merge(dst, src map[string]any) {
 		dst[key] = value
 	}
 }
+
+// Ensure loads settings, creating a default file when it is missing.
+func (p Paths) Ensure() (map[string]any, error) {
+	values, err := p.Load()
+	if err == nil {
+		return values, nil
+	}
+	if _, statErr := os.Stat(p.SettingsFile); statErr == nil {
+		return nil, err
+	}
+	values = Defaults()
+	if err := p.Save(values); err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
 func (p Paths) Load() (map[string]any, error) {
 	raw, err := os.ReadFile(p.SettingsFile)
 	if err != nil {

@@ -318,6 +318,10 @@ func start_net(mode: String, message: String = "") -> void:
 	_present(NetScreen.new(self), message)
 
 
+func start_iso_upload() -> void:
+	start_net("iso", "Upload a Melee ISO from a browser.")
+
+
 func stop_net() -> void:
 	net.stop()
 
@@ -372,7 +376,7 @@ func _on_net_setup_done() -> void:
 
 func _on_net_upload_done() -> void:
 	refresh_status()
-	show_setup("Game image added.")
+	show_roms("Game image added.")
 
 
 func _on_net_login_done() -> void:
