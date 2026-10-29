@@ -19,7 +19,7 @@ func present(message: String = "") -> void:
 	var current := _current(result.get("ports", []))
 	var device := text_value(current.get("device"), "adapter")
 	var profile := text_value(current.get("profile"), "")
-	var profiles: Array = result.get("profiles", [])
+	var profiles: Array = array_value(result.get("profiles", []))
 
 	if message != "":
 		label(message, 0.9)

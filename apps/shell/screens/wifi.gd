@@ -20,7 +20,7 @@ func present(message: String = "") -> void:
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not scan for networks.")), 0.9)
 	else:
-		var networks: Array = result.get("networks", [])
+		var networks: Array = array_value(result.get("networks", []))
 		if networks.is_empty():
 			label("No networks found.", 0.7)
 		for network in networks:

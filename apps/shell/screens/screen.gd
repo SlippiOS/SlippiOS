@@ -46,3 +46,9 @@ func cli(args: Array, read_stderr: bool = true) -> Dictionary:
 
 func text_value(value: Variant, fallback: String) -> String:
 	return app.text_value(value, fallback)
+
+
+func array_value(value: Variant) -> Array:
+	if value is Array:
+		return value
+	return []

@@ -15,7 +15,7 @@ func present(message: String = "") -> void:
 	if message != "":
 		label(message, 0.9)
 
-	var codes: Array = result.get("codes", [])
+	var codes: Array = array_value(result.get("codes", []))
 	if codes.is_empty():
 		label("No Gecko codes found.", 0.8)
 	for code in codes:

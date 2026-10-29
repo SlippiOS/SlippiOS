@@ -45,7 +45,7 @@ func List(profileDir string) ([]Replay, error) {
 	}
 
 	seen := map[string]bool{}
-	var replays []Replay
+	replays := make([]Replay, 0)
 	for _, directory := range directories {
 		entries, err := os.ReadDir(directory)
 		if err != nil {

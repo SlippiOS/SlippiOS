@@ -15,7 +15,7 @@ func present(message: String = "") -> void:
 		focus()
 		return
 
-	var replays: Array = result.get("replays", [])
+	var replays: Array = array_value(result.get("replays", []))
 	if replays.is_empty():
 		label("No Slippi replays found yet.", 0.7)
 	for item in replays:

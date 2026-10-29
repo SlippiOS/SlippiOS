@@ -30,3 +30,18 @@ func TestListFindsSLP(t *testing.T) {
 		}
 	}
 }
+
+func TestListEmptyReturnsArray(t *testing.T) {
+	profile := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
+	if err := os.MkdirAll(filepath.Join(profile, "replays"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	replays, err := List(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replays == nil {
+		t.Fatal("empty replay list is nil")
+	}
+}

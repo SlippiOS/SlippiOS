@@ -11,7 +11,7 @@ func present(_message: String = "") -> void:
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not list audio outputs.")), 0.8)
 	else:
-		var sinks: Array = result.get("sinks", [])
+		var sinks: Array = array_value(result.get("sinks", []))
 		if sinks.is_empty():
 			label("No audio outputs found.", 0.8)
 		for sink in sinks:

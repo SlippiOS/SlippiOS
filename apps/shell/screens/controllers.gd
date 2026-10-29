@@ -15,7 +15,7 @@ func present(message: String = "") -> void:
 		focus()
 		return
 
-	var pads: Array = result.get("pads", [])
+	var pads: Array = array_value(result.get("pads", []))
 	if pads.is_empty():
 		label("No standard pad detected.", 0.6)
 	else:
