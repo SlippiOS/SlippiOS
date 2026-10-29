@@ -3,14 +3,75 @@
 let
   shell = slippiosPackages.shell;
   theme = import ../../theme/default.nix;
-  splashBoot = ../../apps/shell/assets/slippi-boot.png;
+  splashMark = ../../apps/shell/assets/slippi-mark.png;
+
+  # The splash mark is markFraction * markFit of the screen height. Render a
+  # wallpaper for every common desktop size so xwallpaper can use a 1:1 image
+  # instead of scaling a 4K one down and aliasing the thin S stroke.
+  markFraction = theme.splash.markFraction * theme.splash.markFit;
+  wallpaperSizes = [
+    "640x480"
+    "800x600"
+    "1024x768"
+    "1280x720"
+    "1280x800"
+    "1366x768"
+    "1440x900"
+    "1600x900"
+    "1680x1050"
+    "1920x1080"
+    "1920x1200"
+    "2560x1440"
+    "2560x1600"
+    "3840x2160"
+  ];
+  wallpapers = pkgs.runCommand "slippios-wallpapers" {
+    nativeBuildInputs = [ pkgs.imagemagick ];
+  } ''
+    mkdir -p "$out"
+    ${lib.concatMapStringsSep "\n" (size:
+      let
+        parts = lib.splitString "x" size;
+        height = lib.toInt (lib.elemAt parts 1);
+        mark = builtins.floor (height * markFraction + 0.5);
+      in ''
+        magick -size "${size}" xc:'${theme.background}' \
+          \( ${splashMark} -resize "x${toString mark}" \) \
+          -gravity center -composite "$out/${size}.png"
+      '') wallpaperSizes}
+    for image in "$out"/*.png; do
+      printf '%s %s\n' "$(basename "$image" .png)" "$image"
+    done > "$out/list"
+  '';
 
   wallpaper = pkgs.writeShellScriptBin "slippios-wallpaper" ''
     if [ -z "''${DISPLAY:-}" ]; then
       exit 0
     fi
     ${pkgs.xsetroot}/bin/xsetroot -solid '${theme.background}' || true
-    ${pkgs.xwallpaper}/bin/xwallpaper --maximize ${splashBoot} || true
+
+    resolution=$(${pkgs.xrandr}/bin/xrandr --current 2>/dev/null |
+      ${pkgs.gawk}/bin/awk '/ connected/ {
+        for (i = 1; i <= NF; i++)
+          if ($i ~ /^[0-9]+x[0-9]+\+/) { print $i; exit }
+      }' | ${pkgs.coreutils}/bin/cut -d+ -f1)
+
+    image=${wallpapers}/''${resolution:-1280x800}.png
+    if [ ! -f "$image" ]; then
+      image=$(${pkgs.gawk}/bin/awk -v w="''${resolution%x*}" -v h="''${resolution#*x}" '
+        {
+          split($1, a, "x");
+          area = a[1] * a[2];
+          if (area > largest_area) { largest = $2; largest_area = area }
+          if (a[1] >= w && a[2] >= h && (best == "" || area < best_area)) {
+            best = $2;
+            best_area = area;
+          }
+        }
+        END { print (best != "" ? best : largest) }
+      ' ${wallpapers}/list)
+    fi
+    ${pkgs.xwallpaper}/bin/xwallpaper --maximize "$image" || true
   '';
 
   session = pkgs.writeShellScript "slippios-x-session" ''

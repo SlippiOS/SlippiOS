@@ -44,7 +44,7 @@ func _add_boot_bar() -> ProgressBar:
 	background.corner_radius_bottom_left = 2
 	background.corner_radius_bottom_right = 2
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = SlippiTheme.accent
+	fill.bg_color = SlippiTheme.progress
 	fill.corner_radius_top_left = 2
 	fill.corner_radius_top_right = 2
 	fill.corner_radius_bottom_left = 2

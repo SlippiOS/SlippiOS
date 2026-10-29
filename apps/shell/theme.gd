@@ -5,8 +5,11 @@ var background := Color("#0b0b10")
 var surface := Color("#202633")
 var accent := Color("#44a963")
 var text := Color("#eef1f7")
+var brand := Color("#4aa8ff")
+var progress := Color("#4aa8ff")
 
 var mark_fraction := 0.30
+var mark_fit := 0.92
 var pulse_speed := 5.2
 var pulse_min := 0.35
 var pulse_max := 1.0
@@ -30,8 +33,11 @@ func _load() -> void:
 	surface = _color(data.get("surface"), surface)
 	accent = _color(data.get("accent"), accent)
 	text = _color(data.get("text"), text)
+	brand = _color(data.get("brand"), brand)
+	progress = _color(data.get("progress"), progress)
 	var splash: Dictionary = data.get("splash", {})
 	mark_fraction = float(splash.get("mark_fraction", mark_fraction))
+	mark_fit = float(splash.get("mark_fit", mark_fit))
 	pulse_speed = float(splash.get("pulse_speed", pulse_speed))
 	pulse_min = float(splash.get("pulse_min", pulse_min))
 	pulse_max = float(splash.get("pulse_max", pulse_max))

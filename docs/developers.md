@@ -312,9 +312,11 @@ the wait expires; the theme module replaces that file with `DeviceTimeout=1` in
 both the initrd and stage 2. With `loglevel=0` and `ShowStatus=no`, the splash
 covers the console immediately and no TTY lines leak through.
 
-When the session starts, the X session script paints
-`apps/shell/assets/slippi-boot.png` on the X root window before Godot starts, so
-the handoff shows the same mark instead of a blank screen. A minimal Openbox
+When the session starts, the X session script paints a wallpaper generated for
+the current desktop size on the X root window before Godot starts, so the
+handoff shows the same mark instead of a blank screen. `session.nix` renders
+the common sizes from `slippi-mark.png`; using a matching image instead of
+scaling a 4K one down keeps the thin S stroke smooth. A minimal Openbox
 starts before the Godot shell. It has no decorations or keybindings and handles
 fullscreen, focus, and dialogs; the shell still sizes itself explicitly as a
 fallback. If the shell exits, Openbox remains as the diagnostic desktop.

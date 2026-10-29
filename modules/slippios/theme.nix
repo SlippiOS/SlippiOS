@@ -1,21 +1,27 @@
 { lib, pkgs, ... }:
 
 let
-  splashMark = ../../apps/shell/assets/slippi-mark.png;
   theme = import ../../theme/default.nix;
+  logo = ../../assets/marks/logo.svg;
+  splitLayers = ../../assets/marks/split-layers.py;
+  markHeight = theme.splash.plymouthMarkHeight;
+
   plymouthConf = ''
     [Daemon]
     ShowDelay=0
     DeviceTimeout=1
     Theme=slippios
   '';
+
   themeBackground = pkgs.runCommand "slippios-theme-background.png" { } ''
     ${pkgs.imagemagick}/bin/magick -size 1920x1080 xc:'${theme.background}' "$out"
   '';
+
   themeJson = pkgs.writeText "slippios-theme.json" (builtins.toJSON {
-    inherit (theme) background surface accent text;
+    inherit (theme) background surface accent text brand progress;
     splash = {
       mark_fraction = theme.splash.markFraction;
+      mark_fit = theme.splash.markFit;
       pulse_speed = theme.splash.pulseSpeed;
       pulse_min = theme.splash.pulseMin;
       pulse_max = theme.splash.pulseMax;
@@ -23,16 +29,60 @@ let
     };
   });
 
-  slippiosPlymouth = pkgs.runCommand "slippios-plymouth" { } ''
+  # The two-step theme shows the throbber animation; a transparent logo
+  # prevents a static copy of the shine from sitting behind the pulse.
+  transparentLogo = pkgs.runCommand "slippios-plymouth-logo" { } ''
+    ${pkgs.imagemagick}/bin/magick -size 1x1 xc:none PNG32:$out
+  '';
+
+  slippiosPlymouth = pkgs.runCommand "slippios-plymouth" {
+    nativeBuildInputs = [ pkgs.librsvg pkgs.imagemagick pkgs.python3 ];
+  } ''
     theme=$out/share/plymouth/themes/slippios
     mkdir -p "$theme"
+
     # Two-step aborts without these dialog assets, even in boot mode.
     cp ${pkgs.plymouth}/share/plymouth/themes/spinner/{lock,entry,keyboard,capslock,keymap-render,bullet}.png "$theme"/
-    for frame in $(seq 1 ${toString theme.splash.plymouthFrames}); do
-      alpha=$(awk -v i="$frame" 'BEGIN { pi = atan2(0, -1); print ${toString theme.splash.pulseMin} + (${toString theme.splash.pulseMax} - ${toString theme.splash.pulseMin}) * (0.5 + 0.5 * sin(2 * pi * i / ${toString theme.splash.plymouthFrames})) }')
-      ${pkgs.imagemagick}/bin/magick ${splashMark} -resize x${toString theme.splash.plymouthMarkHeight} \
-        -channel A -evaluate multiply "$alpha" +channel PNG32:"$theme/throbber-$(printf %04d "$frame").png"
+
+    # Split the full mark into the pulsing shine and the static S.
+    python3 ${splitLayers} "$TMPDIR/shine.svg" "$TMPDIR/s.svg" ${logo}
+
+    rsvg-convert -w ${toString markHeight} -h ${toString markHeight} \
+      -o "$TMPDIR/shine.png" "$TMPDIR/shine.svg"
+    rsvg-convert -w ${toString markHeight} -h ${toString markHeight} \
+      -o "$TMPDIR/s.png" "$TMPDIR/s.svg"
+
+    frames=${toString theme.splash.plymouthFrames}
+    pulse_frames=${toString theme.splash.plymouthPulseFrames}
+    for frame in $(seq 0 $((frames - 1))); do
+      phase=$((frame % pulse_frames))
+      read -r pulse opacity scale flash glow < <(awk -v p="$phase" -v n="$pulse_frames" 'BEGIN {
+        pi = atan2(0, -1);
+        pulse = sin(pi * p / (n - 1)) ^ 3;
+        printf "%.6f %.6f %.6f %.6f %.6f\n",
+          pulse, 0.22 + 0.78 * pulse, 1.0 + 0.04 * pulse,
+          0.70 * pulse, 0.50 * pulse;
+      }')
+      scale_pct=$(awk -v s="$scale" 'BEGIN { printf "%.2f", s * 100 }')
+
+      magick "$TMPDIR/shine.png" -resize "$scale_pct%" \
+        -channel A -evaluate multiply "$opacity" +channel \
+        "$TMPDIR/shine-frame.png"
+      magick "$TMPDIR/shine.png" -resize "$scale_pct%" \
+        -fill white -colorize 100 -channel A -evaluate multiply "$flash" +channel \
+        "$TMPDIR/flash.png"
+      magick "$TMPDIR/shine.png" -resize "$scale_pct%" \
+        -blur 0x9 -channel A -evaluate multiply "$glow" +channel \
+        "$TMPDIR/glow.png"
+
+      magick -size ${toString markHeight}x${toString markHeight} xc:none \
+        "$TMPDIR/glow.png" -gravity center -composite \
+        "$TMPDIR/flash.png" -gravity center -composite \
+        "$TMPDIR/shine-frame.png" -gravity center -composite \
+        "$TMPDIR/s.png" -gravity center -composite \
+        PNG32:"$theme/throbber-$(printf %04d $((frame + 1))).png"
     done
+
     cat > "$theme/slippios.plymouth" <<EOF
     [Plymouth Theme]
     Name=SlippiOS
@@ -50,7 +100,7 @@ let
     Transition=none
     TransitionDuration=0.0
     ProgressBarBackgroundColor=0x${lib.removePrefix "#" theme.surface}
-    ProgressBarForegroundColor=0x${lib.removePrefix "#" theme.accent}
+    ProgressBarForegroundColor=0x${lib.removePrefix "#" theme.brand}
     MessageBelowAnimation=true
 
     [boot-up]
@@ -68,7 +118,7 @@ in {
     enable = true;
     theme = "slippios";
     themePackages = [ slippiosPlymouth ];
-    logo = splashMark;
+    logo = transparentLogo;
   };
 
   # NixOS hardcodes DeviceTimeout=8 and duplicate keys keep the first value,
