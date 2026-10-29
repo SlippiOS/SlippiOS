@@ -289,7 +289,10 @@ func watchDolphinWindow(path string, done <-chan struct{}) {
 }
 
 func dolphinWindowVisible() bool {
-	output, err := exec.Command("xdotool", "search", "--onlyvisible", "--name", "Dolphin").Output()
+	// Stable and playback title themselves "Faster Melee - Slippi (...)";
+	// mainline uses a Dolphin title. Exclude the shell's "SlippiOS Shell".
+	output, err := exec.Command("xdotool", "search", "--onlyvisible", "--name",
+		`Faster Melee|Dolphin|Slippi \(`).Output()
 	if err != nil {
 		return false
 	}
