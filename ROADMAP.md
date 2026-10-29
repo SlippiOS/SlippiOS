@@ -130,12 +130,12 @@ short, deterministic check can recommend them instead of guessing.
 ## Next: release distribution
 
 - [x] Create the SourceForge project (`slippi-os`).
-- [ ] Upload the current signed/unsigned images plus `LICENSE`, `NOTICE`,
+- [x] Upload the current signed/unsigned images plus `LICENSE`, `NOTICE`,
       `THIRD_PARTY_LICENSES.md`, `SOURCE`, and `LICENSES.tar.gz`.
-- [ ] Delete the full images from R2; keep only the manifest, nix-store raw,
+- [x] Delete the full images from R2; keep only the manifest, nix-store raw,
       zsync, UKI, and `SHA256SUMS.update`.
 - [ ] Archive superseded full images on the Internet Archive.
-- [ ] Add the license/source offer to the release page and the USB package.
+- [x] Add the license/source offer to the release page and the USB package.
 - [ ] Rebuild the image so `/etc/slippios/licenses` is present in the next
       release.
 
