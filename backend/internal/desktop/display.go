@@ -109,8 +109,7 @@ func ApplyCustomMode(spec string) error {
 		!strings.Contains(string(output), "already exists") {
 		return fmt.Errorf("%s", strings.TrimSpace(string(output)))
 	}
-	if output, err := exec.Command("xrandr", "--output", output, "--mode", name, "--rate",
-		fmt.Sprintf("%g", rate)).CombinedOutput(); err != nil {
+	if output, err := exec.Command("xrandr", "--output", output, "--mode", name).CombinedOutput(); err != nil {
 		return fmt.Errorf("%s", strings.TrimSpace(string(output)))
 	}
 	return nil
