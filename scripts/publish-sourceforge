@@ -18,7 +18,7 @@ if [[ -z "$user" ]]; then
   echo "fish: scripts/publish-sourceforge ASSETS_DIR name" >&2
   exit 1
 fi
-project=${SF_PROJECT:-slippios}
+project=${SF_PROJECT:-slippi-os}
 key=${SF_KEY:-$HOME/.ssh/sourceforge_slippios}
 version=$(jq -r .version "$assets/manifest.json")
 remote="/home/frs/project/$project/v$version"

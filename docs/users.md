@@ -12,7 +12,7 @@
 ## Flash
 
 Download `slippios-usb-<version>.img.xz` and `SHA256SUMS` from the
-[SlippiOS SourceForge project](https://sourceforge.net/projects/slippios/files/).
+[SlippiOS SourceForge project](https://sourceforge.net/projects/slippi-os/files/).
 Release notes and source are on
 [GitHub](https://github.com/SlippiOS/SlippiOS/releases/latest).
 

@@ -15,7 +15,7 @@ Secure Boot off (a one-time firmware setting). The signed image uses a one-time
 MOK enrollment; see [secure-boot/README.md](secure-boot/README.md).
 
 1. Download `slippios-usb-<version>.img.xz` from the
-   [SlippiOS SourceForge project](https://sourceforge.net/projects/slippios/files/).
+   [SlippiOS SourceForge project](https://sourceforge.net/projects/slippi-os/files/).
    Release notes and source are on
    [GitHub](https://github.com/SlippiOS/SlippiOS/releases/latest).
 2. Flash it with balenaEtcher, or extract it with 7-Zip and use Rufus in DD

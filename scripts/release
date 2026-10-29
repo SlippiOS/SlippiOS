@@ -356,7 +356,7 @@ What's new:
 Use \`${signed_name}\` for Secure Boot. The first boot needs a one-time MOK enrollment; see https://github.com/${repo}/blob/main/docs/users.md#secure-boot. Use \`${unsigned_name}\` if the shim cannot boot your PC; it requires Secure Boot off.
 
 The full USB images are larger than GitHub's 2 GiB asset limit. Download them from the SourceForge project:
-https://sourceforge.net/projects/slippios/files/v${version}/
+https://sourceforge.net/projects/slippi-os/files/v${version}/
 
 SlippiOS is licensed under GPL-3.0-or-later. The release includes LICENSE, NOTICE, THIRD_PARTY_LICENSES.md, SOURCE, and LICENSES.tar.gz. The source is at https://github.com/SlippiOS/SlippiOS.
 

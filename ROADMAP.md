@@ -129,9 +129,9 @@ short, deterministic check can recommend them instead of guessing.
 
 ## Next: release distribution
 
-- [ ] Create the SourceForge project and upload the current signed/unsigned
-      images plus `LICENSE`, `NOTICE`, `THIRD_PARTY_LICENSES.md`, `SOURCE`, and
-      `LICENSES.tar.gz`.
+- [x] Create the SourceForge project (`slippi-os`).
+- [ ] Upload the current signed/unsigned images plus `LICENSE`, `NOTICE`,
+      `THIRD_PARTY_LICENSES.md`, `SOURCE`, and `LICENSES.tar.gz`.
 - [ ] Delete the full images from R2; keep only the manifest, nix-store raw,
       zsync, UKI, and `SHA256SUMS.update`.
 - [ ] Archive superseded full images on the Internet Archive.
