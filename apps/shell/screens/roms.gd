@@ -43,7 +43,7 @@ func present(message: String = "") -> void:
 
 
 func _select(path: String) -> void:
-	var first_setup := app.needs_setup()
+	var first_setup: bool = app.needs_setup()
 	var result := cli(["settings", "set", "game.iso", path])
 	if not result.get("ok", false):
 		present(str(result.get("error", "Could not save the Melee image.")))

@@ -144,9 +144,10 @@ func (s *Server) page(message string, isError bool) string {
 	}
 	var rendered strings.Builder
 	if err := pageTemplate.Execute(&rendered, pageData{
-		Token:   s.Token,
-		Message: message,
-		Tone:    tone,
+		Token:      s.Token,
+		Message:    message,
+		Tone:       tone,
+		UploadOnly: s.Mode == "iso",
 	}); err != nil {
 		return ""
 	}

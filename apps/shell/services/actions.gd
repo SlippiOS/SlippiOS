@@ -117,13 +117,13 @@ func _launch_in_shell() -> void:
 		if not ready and FileAccess.file_exists(ready_path):
 			ready = true
 			status.text = ""
-			spinner.visible = false
-			app.get_window().hide()
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
 			OS.low_processor_usage_mode = true
 		await app.get_tree().create_timer(0.2).timeout
 	OS.get_process_exit_code(pid)
 	OS.low_processor_usage_mode = false
-	app.get_window().show()
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	app._fit_window()
 	app._busy = false
 	if not ready:
 		_start_error("Dolphin exited before the game window opened.")

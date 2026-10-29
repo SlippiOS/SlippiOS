@@ -62,7 +62,6 @@ func (s *Server) receiveISO(w http.ResponseWriter, request *http.Request) (strin
 		return "", false
 	}
 	_ = os.Chmod(destination, 0o444)
-	s.writeMarker(name, destination)
 	return name, true
 }
 
@@ -72,4 +71,7 @@ func (s *Server) upload(w http.ResponseWriter, request *http.Request) {
 		return
 	}
 	s.sendText(w, http.StatusOK, fmt.Sprintf("Added %s. Return to the console.", name))
+	// Write the marker after the response so the shell cannot stop the
+	// server before the browser sees a successful upload.
+	s.writeMarker(name, filepath.Join(s.Paths.ISODir, name))
 }

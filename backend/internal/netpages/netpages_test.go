@@ -248,6 +248,28 @@ func TestUploadLengthErrors(t *testing.T) {
 	}
 }
 
+func TestISOPageOnlyUpload(t *testing.T) {
+	paths := settings.PathsFor(t.TempDir())
+	server := New("abc123", 0, paths)
+	server.Mode = "iso"
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+
+	response, err := http.Get(httpServer.URL + "/abc123/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	page := string(body)
+	if strings.Contains(page, "Sign in to Slippi") {
+		t.Fatalf("ISO page contains sign-in form: %s", page)
+	}
+	if !strings.Contains(page, "Add a game image") {
+		t.Fatalf("ISO page missing upload form: %s", page)
+	}
+}
+
 func TestSetupFlow(t *testing.T) {
 	paths := settings.PathsFor(t.TempDir())
 	if err := os.MkdirAll(paths.ISODir, 0o755); err != nil {

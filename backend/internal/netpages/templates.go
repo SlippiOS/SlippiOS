@@ -7,9 +7,10 @@ import (
 )
 
 type pageData struct {
-	Token   string
-	Message string
-	Tone    string
+	Token      string
+	Message    string
+	Tone       string
+	UploadOnly bool
 }
 
 var pageTemplate = template.Must(template.New("page").Parse(`<!doctype html>
@@ -29,12 +30,14 @@ button[disabled]{opacity:.7;cursor:wait}
 <h1>SlippiOS</h1>
 <p>This page is only reachable on your local network.</p>
 {{if .Message}}<p class="{{.Tone}}">{{.Message}}</p>{{end}}
+{{if not .UploadOnly}}
 <h2>Sign in to Slippi</h2>
 <form method="post" action="/{{.Token}}/auth" onsubmit="busy(this,'Signing in…')">
   <input type="email" name="email" placeholder="Email" autocomplete="username" required>
   <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
   <button type="submit">Sign in</button>
 </form>
+{{end}}
 <h2>Add a game image</h2>
 <p>Select a Melee 1.02 ISO. It is copied to <code>/data/isos</code>.</p>
 <input id="file" type="file" accept=".iso,application/x-iso9660-image">
