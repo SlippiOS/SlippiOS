@@ -95,6 +95,8 @@ the GPL-3.0-or-later project code.
 
 - Dolphin GameCube fonts: see `Sys/GC/font-licenses.txt` in the Slippi
   AppImages.
+- Maven Pro: SIL Open Font License 1.1, see
+  `apps/shell/assets/fonts/OFL.txt`.
 - Godot default fonts: see Godot's `COPYRIGHT.txt`.
 - Any additional font files retain their upstream licenses.
 

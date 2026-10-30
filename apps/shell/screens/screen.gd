@@ -48,6 +48,10 @@ func focus() -> void:
 	app.focus_first()
 
 
+func focus_or(fallback: Control) -> void:
+	app.focus_or(fallback)
+
+
 func cli(args: Array, read_stderr: bool = true) -> Dictionary:
 	return app.cli(args, read_stderr)
 

@@ -71,6 +71,7 @@ func _ready() -> void:
 		_set_cursor_hidden(true)
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_fit_window()
+	_apply_font_theme()
 	_build_base()
 	net.setup_done.connect(_on_net_setup_done)
 	net.upload_done.connect(_on_net_upload_done)
@@ -199,6 +200,15 @@ func _fit_window() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
 	DisplayServer.window_set_position(Vector2i(0, 0))
 	DisplayServer.window_set_size(size)
+
+
+func _apply_font_theme() -> void:
+	if SlippiTheme.font_ui == null:
+		return
+	var ui_theme := Theme.new()
+	ui_theme.default_font = SlippiTheme.font_ui
+	ui_theme.default_font_size = 16
+	theme = ui_theme
 
 
 func _resize_content() -> void:
@@ -638,3 +648,7 @@ func add_content(node: Control) -> void:
 
 func focus_first() -> void:
 	ui.focus_first()
+
+
+func focus_or(fallback: Control) -> void:
+	ui.restore_focus(fallback)

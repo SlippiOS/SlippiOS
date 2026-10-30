@@ -24,7 +24,9 @@ it for the common desktop sizes from `slippi-mark.png`, so the session can pick
 an image that matches the display instead of scaling a 4K one down.
 
 `icon.png` is the hand-made organization/project icon: the filled blue
-hexagon with the solid S glyph. It has a transparent background.
+hexagon with the solid S glyph. It has a transparent background. The shell
+copies it to `apps/shell/assets/slippi-os-icon.png` for the menu wordmark,
+paired with "OS" set in Maven Pro.
 
 `icon-square.png` is the same mark centered on a 1024x1024 transparent canvas,
 sized so GitHub's circular crop does not clip it. The black S needs a light

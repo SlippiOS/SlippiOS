@@ -26,6 +26,8 @@ func add_title(text: String, size: int = 56) -> Label:
 	var node := Label.new()
 	node.text = text
 	node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if SlippiTheme.font_bold != null:
+		node.add_theme_font_override("font", SlippiTheme.font_bold)
 	node.add_theme_font_size_override("font_size", size)
 	content.add_child(node)
 	return node
@@ -45,26 +47,17 @@ func add_section(text: String) -> void:
 	if content == null:
 		return
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
+	spacer.custom_minimum_size = Vector2(0, 8)
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(spacer)
 
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 8)
-	var bar := ColorRect.new()
-	bar.color = SlippiTheme.brand
-	bar.custom_minimum_size = Vector2(3, 12)
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(bar)
 	var node := Label.new()
-	node.text = text.to_upper()
+	node.text = text
+	node.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_theme_font_size_override("font_size", 13)
-	node.add_theme_color_override("font_color", SlippiTheme.brand)
-	row.add_child(node)
-	content.add_child(row)
+	node.add_theme_color_override("font_color", Color(SlippiTheme.text, 0.5))
+	content.add_child(node)
 
 
 func add_button(text: String, callback: Callable, height: int = 46) -> Button:
@@ -81,12 +74,19 @@ func add_content(node: Control) -> void:
 
 
 func focus_first() -> void:
+	restore_focus()
+
+
+func restore_focus(fallback: Control = null) -> void:
 	if _focus_key != "":
 		var previous := _find_button_by_key(content, _focus_key)
 		_focus_key = ""
 		if previous != null:
 			previous.grab_focus()
 			return
+	if fallback != null and is_instance_valid(fallback):
+		fallback.grab_focus()
+		return
 	var first := _find_button(content)
 	if first != null:
 		first.grab_focus()

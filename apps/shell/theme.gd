@@ -1,6 +1,8 @@
 extends Node
 
 
+const FONT_PATH := "res://assets/fonts/MavenPro-Variable.ttf"
+
 var background := Color("#0b0b10")
 var surface := Color("#202633")
 var accent := Color("#44a963")
@@ -8,6 +10,10 @@ var text := Color("#eef1f7")
 var brand := Color("#4aa8ff")
 var progress := Color("#4aa8ff")
 var danger := Color("#e06c75")
+
+var font_ui: Font
+var font_bold: Font
+var font_wordmark: Font
 
 var mark_fraction := 0.30
 var mark_fit := 0.92
@@ -19,7 +25,24 @@ var scale_pulse := 0.015
 
 func _ready() -> void:
 	_load()
+	_load_fonts()
 	RenderingServer.set_default_clear_color(background)
+
+
+func _load_fonts() -> void:
+	var base := load(FONT_PATH)
+	if base == null:
+		return
+	font_ui = _font_variation(base, 500)
+	font_bold = _font_variation(base, 700)
+	font_wordmark = _font_variation(base, 800)
+
+
+func _font_variation(base: Font, weight: int) -> FontVariation:
+	var font := FontVariation.new()
+	font.base_font = base
+	font.variation_opentype = {"wght": weight}
+	return font
 
 
 func _load() -> void:
