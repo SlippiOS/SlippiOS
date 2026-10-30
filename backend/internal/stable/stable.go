@@ -33,6 +33,15 @@ func Configure(profileDir, stableDir, isoDir string, values map[string]any, widt
 	dolphinINI.Set("Display", "RenderWindowAutoSize", "False")
 	dolphinINI.Set("Display", "RenderWindowWidth", fmt.Sprintf("%d", width))
 	dolphinINI.Set("Display", "RenderWindowHeight", fmt.Sprintf("%d", height))
+	// Keep the render window off-screen while the settings launcher is open.
+	// Otherwise it maps a white frame at the top-left and leaves it behind.
+	if fullscreen {
+		dolphinINI.Set("Display", "RenderWindowXPos", "0")
+		dolphinINI.Set("Display", "RenderWindowYPos", "0")
+	} else {
+		dolphinINI.Set("Display", "RenderWindowXPos", "-10000")
+		dolphinINI.Set("Display", "RenderWindowYPos", "-10000")
+	}
 	dolphinINI.Set("Core", "CPUThread", "True")
 	dolphinINI.Set("Core", "GFXBackend", backend)
 	dolphinINI.Set("Core", "SlippiReplayDir", filepath.Join(profileDir, "replays"))

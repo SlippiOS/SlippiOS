@@ -95,7 +95,10 @@ func runDolphinConfig(mode *modes) error {
 			return mode.fail(err.Error())
 		}
 		arguments := dolphinArgs(values)
-		arguments = append(arguments, "-C", "Dolphin.Display.Fullscreen=False")
+		arguments = append(arguments,
+			"-C", "Dolphin.Display.Fullscreen=False",
+			"-C", "Dolphin.Display.RenderWindowXPos=-10000",
+			"-C", "Dolphin.Display.RenderWindowYPos=-10000")
 		returncode, err = runDolphin(paths, appimage, paths.DolphinDir, arguments, "", "")
 		if err != nil {
 			return mode.fail(err.Error())
