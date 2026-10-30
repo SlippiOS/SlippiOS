@@ -324,9 +324,10 @@ else
   notes=$(cat <<EOF
 SlippiOS ${version} — new mark, multishine boot animation, smoother splash.
 
-Full USB images: https://sourceforge.net/projects/slippi-os/files/v${version}/
+Full image (apps preinstalled): https://sourceforge.net/projects/slippi-os/files/v${version}/
+Minimal image (apps install on first boot): \`slippios-usb-${version}-minimal.img.xz\` from this release.
 
-Secure Boot: \`${signed_name}\` (one-time MOK enrollment) or \`${unsigned_name}\` with Secure Boot off.
+Secure Boot: signed images need a one-time MOK enrollment; unsigned images need Secure Boot off.
 
 GPL-3.0-or-later · https://github.com/${repo}
 EOF
