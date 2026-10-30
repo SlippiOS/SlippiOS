@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Build, sign, and add the minimal USB image to an existing release.
+#
+# Run scripts/release first so the update assets, manifest, and SHA256SUMS
+# exist. This script only adds the minimal image pair and updates SHA256SUMS.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
+version=$(cat VERSION)
+assets="$CACHE/release/$version"
+signed_name="slippios-usb-${version}-minimal.img.xz"
+unsigned_name="slippios-usb-${version}-minimal-unsigned.img.xz"
+signed_raw="$assets/slippios-usb-${version}-minimal-secureboot.raw"
+unsigned_raw="$assets/slippios-usb-${version}-minimal-unsigned.raw"
+result="result-minimal-image"
+
+key="${SLIPPIOS_SB_KEY:-$HOME/.config/slippios/secureboot/slippios.key}"
+cert="${SLIPPIOS_SB_CERT:-$HOME/.config/slippios/secureboot/slippios.crt}"
+
+if [[ ! -f "$assets/manifest.json" ]]; then
+  echo "missing $assets/manifest.json; run scripts/release first" >&2
+  exit 1
+fi
+if [[ ! -f "$key" || ! -f "$cert" ]]; then
+  echo "set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT, or install the key at $HOME/.config/slippios/secureboot" >&2
+  exit 1
+fi
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "working tree is dirty; commit first" >&2
+  exit 1
+fi
+
+export SLIPPIOS_SB_KEY="$key"
+export SLIPPIOS_SB_CERT="$cert"
+export SLIPPIOS_CACHE="$CACHE"
+
+SLIPPI_CONFIG=slippios-usb-minimal SLIPPI_RESULT="$result" ./scripts/build-image
+
+image_xz=$(find -L "$result" -maxdepth 1 -name 'slippios_*.raw.xz' \
+  ! -name '*.nix-store.raw.xz' -print -quit)
+if [[ -z "$image_xz" ]]; then
+  echo "cannot find the minimal image in $result" >&2
+  exit 1
+fi
+image_xz=$(readlink -f "$image_xz")
+
+cleanup() {
+  rm -f "$signed_raw" "$unsigned_raw"
+}
+trap cleanup EXIT
+
+echo "Decompressing minimal image..."
+xz -d -T0 -c "$image_xz" > "$unsigned_raw"
+fallocate --dig-holes "$unsigned_raw" 2>/dev/null || true
+
+echo "Signing minimal image..."
+./scripts/nix shell --inputs-from . \
+  nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
+  nixpkgs#parted nixpkgs#openssl nixpkgs#curl \
+  -c ./scripts/sign-image "$unsigned_raw" "$signed_raw"
+
+echo "Compressing minimal image..."
+xz -T0 -1 -c "$signed_raw" > "$assets/$signed_name"
+cp -f "$image_xz" "$assets/$unsigned_name"
+
+# Keep the shared checksum file in sync with the new pair.
+grep -v -E "slippios-usb-${version}-minimal(-unsigned)?\.img\.xz" \
+  "$assets/SHA256SUMS" > "$assets/SHA256SUMS.tmp" || true
+(
+  cd "$assets"
+  sha256sum "$signed_name" "$unsigned_name" >> SHA256SUMS.tmp
+)
+mv "$assets/SHA256SUMS.tmp" "$assets/SHA256SUMS"
+
+echo
+ls -lh "$assets/$signed_name" "$assets/$unsigned_name" "$assets/SHA256SUMS"
+echo
+echo "Minimal image ready. Publish it with:"
+echo "  scripts/publish-sourceforge $assets <sourceforge-user>"

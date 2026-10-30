@@ -40,6 +40,11 @@ files=(
   "$assets/README.md"
   "$assets/LICENSES.tar.gz"
 )
+minimal_signed="$assets/slippios-usb-$version-minimal.img.xz"
+minimal_unsigned="$assets/slippios-usb-$version-minimal-unsigned.img.xz"
+if [[ -f "$minimal_signed" ]]; then
+  files+=("$minimal_signed" "$minimal_unsigned")
+fi
 for file in "${files[@]}"; do
   if [[ ! -f "$file" ]]; then
     echo "missing $file" >&2
