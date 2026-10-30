@@ -5,7 +5,7 @@ const BootLogo := preload("res://boot_logo.gd")
 const BOOT_HOLD_MS := 2600
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	app.center_content_vertically(true)
 	var logo := BootLogo.new()

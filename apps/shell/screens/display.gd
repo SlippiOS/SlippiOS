@@ -3,7 +3,7 @@ extends "res://screens/screen.gd"
 const MAX_MODE_ROWS := 24
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("DISPLAY", 44)
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
@@ -12,7 +12,7 @@ func present(message: String = "") -> void:
 	var result := cli(["display", "modes"])
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not read the display modes.")), 0.9)
-		button("Back", app.show_settings.bind(""))
+		button("Back", app.show_settings)
 		focus()
 		return
 
@@ -22,9 +22,8 @@ func present(message: String = "") -> void:
 	if name != "":
 		heading = "%s (%s)" % [output, name]
 	label(heading, 0.65)
-	if message != "":
-		label(message, 0.9)
 
+	section("Resolution")
 	var current_res := text_value(display.get("resolution"), "auto")
 	var current_rate := text_value(display.get("rate"), "")
 	button("Auto (native)%s" % ("  (current)" if current_res == "auto" and
@@ -51,8 +50,9 @@ func present(message: String = "") -> void:
 		label("No modes reported by the display.", 0.8)
 
 	if expert:
-		button("Custom mode…", app.show_custom_mode.bind(""))
-	button("Back", app.show_settings.bind(""))
+		section("Advanced")
+		button("Custom mode…", app.show_custom_mode)
+	button("Back", app.show_settings)
 	focus()
 
 
@@ -74,12 +74,13 @@ func _select(resolution: String, rate: String) -> void:
 		cli(["settings", "set", "display.resolution", "auto"])
 		cli(["settings", "set", "display.rate", ""])
 		cli(["settings", "set", "display.custom", ""])
-		app.show_settings("Display set to auto.")
+		toast("Display set to auto.", "success")
+		app.show_settings()
 		return
 	var result := cli(["display", "mode", resolution, rate])
 	if not result.get("ok", false):
-		app.show_display("Could not switch mode: %s" %
-			str(result.get("error", "unknown error")))
+		toast("Could not switch mode: %s" % str(result.get("error", "unknown error")), "error")
+		app.show_display()
 		return
 	app.restart_shell()
 

@@ -4,7 +4,7 @@ extends "res://screens/screen.gd"
 var _status: Label
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	match app.net.mode:
 		"setup":
@@ -24,7 +24,7 @@ func present(message: String = "") -> void:
 
 	if app.net.mode == "setup":
 		label("Step 1: add Melee. Step 2: sign in or skip.", 0.65)
-		_status = label(message if message != "" else "Waiting for setup…", 0.75)
+		_status = label("Waiting for setup…", 0.75)
 		button("Skip for offline play", app.skip_setup)
 	else:
 		label("Upload a Melee ISO." if app.net.mode == "iso" else "Enter your Slippi email and password.", 0.7)
@@ -77,4 +77,4 @@ func back() -> void:
 		"setup":
 			app.show_menu()
 		_:
-			app.show_roms("")
+			app.show_roms()

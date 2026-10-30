@@ -6,6 +6,7 @@ const NetPage := preload("res://services/net_page.gd")
 const UpdateJob := preload("res://services/update_job.gd")
 const InstallJob := preload("res://services/install_job.gd")
 const Ui := preload("res://services/ui.gd")
+const Toasts := preload("res://services/toast.gd")
 const ShellStatus := preload("res://services/status.gd")
 const Actions := preload("res://services/actions.gd")
 
@@ -43,6 +44,7 @@ var net = NetPage.new()
 var update_job = UpdateJob.new()
 var install_job = InstallJob.new()
 var ui = Ui.new()
+var toasts = Toasts.new()
 var shell_status
 var actions
 
@@ -177,6 +179,7 @@ func _build_base() -> void:
 	center.add_child(content)
 	ui.content = content
 	ui.scroll = scroll
+	toasts.attach(self)
 	_resize_content()
 	get_viewport().size_changed.connect(_resize_content)
 
@@ -205,10 +208,14 @@ func _resize_content() -> void:
 	content.custom_minimum_size.x = clampf(available, 0.0, 760.0)
 
 
-func _present(screen, message: String = "") -> void:
+func _present(screen) -> void:
+	var same_screen: bool = _screen_node != null and is_instance_valid(_screen_node) and \
+		_screen_node.get_script() == screen.get_script()
+	ui.preserve_focus = same_screen
 	_screen_node = screen
 	center_content_vertically(false)
-	screen.present(message)
+	screen.present()
+	ui.preserve_focus = true
 
 
 func center_content_vertically(enabled: bool) -> void:
@@ -227,15 +234,15 @@ func show_menu() -> void:
 	_present(MenuScreen.new(self))
 
 
-func show_roms(message: String = "") -> void:
+func show_roms() -> void:
 	stop_net()
-	_present(RomsScreen.new(self), message)
+	_present(RomsScreen.new(self))
 
 
-func show_setup(message: String = "") -> void:
+func show_setup() -> void:
 	stop_net()
 	setup_flow = true
-	_present(SetupScreen.new(self), message)
+	_present(SetupScreen.new(self))
 
 
 func show_account() -> void:
@@ -256,9 +263,9 @@ func show_auth_password(email: String) -> void:
 	_present(screen)
 
 
-func show_settings(message: String = "") -> void:
+func show_settings() -> void:
 	stop_net()
-	_present(SettingsScreen.new(self), message)
+	_present(SettingsScreen.new(self))
 
 
 func show_audio() -> void:
@@ -266,14 +273,14 @@ func show_audio() -> void:
 	_present(AudioScreen.new(self))
 
 
-func show_display(message: String = "") -> void:
+func show_display() -> void:
 	stop_net()
-	_present(DisplayScreen.new(self), message)
+	_present(DisplayScreen.new(self))
 
 
-func show_custom_mode(message: String = "") -> void:
+func show_custom_mode() -> void:
 	stop_net()
-	_present(CustomModeScreen.new(self), message)
+	_present(CustomModeScreen.new(self))
 
 
 func show_expert() -> void:
@@ -281,59 +288,59 @@ func show_expert() -> void:
 	_present(ExpertScreen.new(self))
 
 
-func show_dolphin(message: String = "") -> void:
+func show_dolphin() -> void:
 	stop_net()
-	_present(DolphinScreen.new(self), message)
+	_present(DolphinScreen.new(self))
 
 
-func show_controllers(message: String = "") -> void:
+func show_controllers() -> void:
 	stop_net()
-	_present(ControllersScreen.new(self), message)
+	_present(ControllersScreen.new(self))
 
 
-func show_controller_setup(message: String = "", launch_after: bool = false) -> void:
+func show_controller_setup(launch_after: bool = false) -> void:
 	stop_net()
 	var screen = ControllerSetupScreen.new(self)
 	screen.launch_after = launch_after
-	_present(screen, message)
+	_present(screen)
 
 
-func show_controller_port(port: int, message: String = "") -> void:
+func show_controller_port(port: int) -> void:
 	stop_net()
 	var screen = ControllerPortScreen.new(self)
 	screen.port = port
-	_present(screen, message)
+	_present(screen)
 
 
-func show_gecko(message: String = "") -> void:
+func show_gecko() -> void:
 	stop_net()
-	_present(GeckoScreen.new(self), message)
+	_present(GeckoScreen.new(self))
 
 
-func show_gecko_custom(message: String = "") -> void:
+func show_gecko_custom() -> void:
 	stop_net()
-	_present(GeckoCustomScreen.new(self), message)
+	_present(GeckoCustomScreen.new(self))
 
 
-func show_replays(message: String = "") -> void:
+func show_replays() -> void:
 	stop_net()
-	_present(ReplaysScreen.new(self), message)
+	_present(ReplaysScreen.new(self))
 
 
 func play_replay(path: String) -> void:
 	await actions.play_replay(path)
 
 
-func show_wifi(message: String = "") -> void:
+func show_wifi() -> void:
 	stop_net()
-	_present(WifiScreen.new(self), message)
+	_present(WifiScreen.new(self))
 
 
-func show_wifi_password(ssid: String, message: String = "") -> void:
+func show_wifi_password(ssid: String) -> void:
 	stop_net()
 	var screen = WifiPasswordScreen.new(self)
 	screen.ssid = ssid
-	_present(screen, message)
+	_present(screen)
 
 
 func show_update() -> void:
@@ -346,16 +353,17 @@ func show_quit() -> void:
 	_present(QuitScreen.new(self))
 
 
-func start_net(mode: String, message: String = "") -> void:
+func start_net(mode: String) -> void:
 	if net.local_ip() == "":
-		show_wifi("Connect to Wi-Fi or Ethernet, then retry.")
+		toast("Connect to Wi-Fi or Ethernet, then retry.")
+		show_wifi()
 		return
 	net.start(mode)
-	_present(NetScreen.new(self), message)
+	_present(NetScreen.new(self))
 
 
 func start_iso_upload() -> void:
-	start_net("iso", "Upload a Melee ISO from a browser.")
+	start_net("iso")
 
 
 func stop_net() -> void:
@@ -391,13 +399,15 @@ func start_onboarding() -> void:
 	if not needs_setup():
 		# A fresh flash can already have a valid ISO. Go straight to the
 		# controller and account steps so sign-in is still offered.
-		show_controller_setup("", false)
+		show_controller_setup(false)
 		return
 	var settings: Dictionary = status.get("settings", {})
 	if settings.get("exists", false) and has_valid_isos():
-		show_roms("Choose the Melee image for this console.")
+		toast("Choose the Melee image for this console.")
+		show_roms()
 	elif not net.wired_present():
-		show_wifi("No Ethernet interface found. Connect Wi-Fi to continue setup.")
+		toast("No Ethernet interface found. Connect Wi-Fi to continue setup.")
+		show_wifi()
 	else:
 		show_setup()
 
@@ -462,7 +472,8 @@ func _on_net_setup_done() -> void:
 
 func _on_net_upload_done() -> void:
 	refresh_status()
-	show_roms("Game image added.")
+	toast("Game image added.", "success")
+	show_roms()
 
 
 func _on_net_login_done() -> void:
@@ -491,10 +502,12 @@ func after_splash() -> void:
 	if needs_setup():
 		var settings: Dictionary = status.get("settings", {})
 		if settings.get("exists", false) and has_valid_isos():
-			show_roms("Default Melee image is missing. Choose one.")
+			toast("Default Melee image is missing. Choose one.")
+			show_roms()
 		elif not net.wired_present():
 			setup_flow = true
-			show_wifi("No Ethernet interface found. Connect Wi-Fi to continue setup.")
+			toast("No Ethernet interface found. Connect Wi-Fi to continue setup.")
+			show_wifi()
 		else:
 			# A wired interface exists. Keep the combined setup screen instead
 			# of forcing the Wi-Fi-only page while DHCP is still running.
@@ -510,9 +523,11 @@ func after_splash() -> void:
 func on_play() -> void:
 	if needs_setup():
 		if has_valid_isos():
-			show_roms("Choose a Melee image to play.")
+			toast("Choose a Melee image to play.")
+			show_roms()
 		else:
-			show_setup("No valid game image yet.")
+			toast("No valid game image yet.")
+			show_setup()
 		return
 	if not shell_status.apps_installed():
 		start_app_install()
@@ -605,8 +620,16 @@ func add_label(text: String, alpha: float = 0.65) -> Label:
 	return ui.add_label(text, alpha)
 
 
-func add_button(text: String, callback: Callable, height: int = 50) -> Button:
+func add_section(text: String) -> void:
+	ui.add_section(text)
+
+
+func add_button(text: String, callback: Callable, height: int = 46) -> Button:
 	return ui.add_button(text, callback, height)
+
+
+func toast(text: String, kind: String = "info") -> void:
+	toasts.show(text, kind)
 
 
 func add_content(node: Control) -> void:

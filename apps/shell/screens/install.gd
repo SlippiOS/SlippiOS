@@ -9,7 +9,7 @@ var _wifi: Button
 var _done := false
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("INSTALLING SLIPPI", 44)
 	label("Downloading the stable, beta, and playback builds. This needs internet.", 0.7)
@@ -117,7 +117,8 @@ func _fail(message: String) -> void:
 
 
 func _open_wifi() -> void:
-	app.show_wifi("Connect to Wi-Fi or Ethernet, then retry the install.")
+	app.toast("Connect to Wi-Fi or Ethernet, then retry the install.")
+	app.show_wifi()
 
 
 func back() -> void:

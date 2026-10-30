@@ -1,13 +1,11 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("CUSTOM CODES", 40)
 	label("Add codes from the Expert terminal, then enable them here.", 0.7)
 	label("slippios gecko add /path/to/code.txt", 0.9)
-	if message != "":
-		label(message, 0.9)
 
 	var result := cli(["gecko", "list"])
 	if result.get("ok", false):
@@ -33,9 +31,11 @@ func present(message: String = "") -> void:
 func _remove(name: String) -> void:
 	var result := cli(["gecko", "remove", name])
 	if not result.get("ok", false):
-		app.show_gecko_custom(str(result.get("error", "Could not remove the code.")))
+		toast(str(result.get("error", "Could not remove the code.")), "error")
+		app.show_gecko_custom()
 		return
-	app.show_gecko_custom("Removed %s." % name)
+	toast("Removed %s." % name, "success")
+	app.show_gecko_custom()
 
 
 func back() -> void:

@@ -7,11 +7,9 @@ var stage := "email"
 var email := ""
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("EMAIL" if stage == "email" else "PASSWORD", 40)
-	if message != "":
-		label(message, 0.9)
 	var keyboard = Keyboard.new(stage == "password")
 	keyboard.submitted.connect(_on_submitted)
 	add_content(keyboard)
@@ -24,24 +22,24 @@ func _on_submitted(value: String) -> void:
 	if stage == "email":
 		var address := value.strip_edges()
 		if address == "" or not address.contains("@"):
-			present("Enter a valid email address.")
+			toast("Enter a valid email address.", "error")
 			return
 		email = address
 		stage = "password"
-		present("")
+		present()
 		return
 	_submit_login(value)
 
 
 func _submit_login(password: String) -> void:
 	if password == "":
-		present("Password cannot be empty.")
+		toast("Password cannot be empty.", "error")
 		return
 
 	var path := ProjectSettings.globalize_path("user://credentials.json")
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		present("Could not prepare the sign-in request.")
+		toast("Could not prepare the sign-in request.", "error")
 		return
 	file.store_string(JSON.stringify({"email": email, "password": password}))
 	file.close()
@@ -52,9 +50,10 @@ func _submit_login(password: String) -> void:
 
 	if result.get("ok", false):
 		app.refresh_status()
+		toast("Signed in.", "success")
 		app.show_account()
 	else:
-		present(str(result.get("error", "Sign-in failed.")))
+		toast(str(result.get("error", "Sign-in failed.")), "error")
 
 
 func back() -> void:

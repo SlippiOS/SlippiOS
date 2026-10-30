@@ -4,7 +4,7 @@ extends "res://screens/screen.gd"
 var _status: Label
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("UPDATING SYSTEM", 44)
 	label("Downloading the system update. This can take a while.", 0.7)

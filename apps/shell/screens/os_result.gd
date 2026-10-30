@@ -5,7 +5,7 @@ var mode := "installed"
 var message := ""
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	match mode:
 		"installed":

@@ -3,7 +3,7 @@ extends "res://screens/screen.gd"
 var _generation := 0
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	_generation += 1
 	var generation := _generation
 	clear()
@@ -31,8 +31,6 @@ func present(message: String = "") -> void:
 		label("No Melee images found on MELEE-ROMS.", 0.8)
 	else:
 		label("Found %d Melee %s." % [count, "image" if count == 1 else "images"], 0.8)
-	if message != "":
-		label(message, 0.9)
 
 	if first_iso != "":
 		button("Use %s" % first_name, _use_iso.bind(first_iso))
@@ -48,8 +46,8 @@ func present(message: String = "") -> void:
 			label("Ethernet cable not detected. Plug it in, or connect Wi-Fi.", 0.8)
 		else:
 			label("No Ethernet interface found. Connect Wi-Fi.", 0.8)
-		button("Wi-Fi settings", app.show_wifi.bind(""))
-		button("Retry", present.bind(""))
+		button("Wi-Fi settings", app.show_wifi)
+		button("Retry", present)
 		button("Skip for offline play", app.skip_setup)
 		focus()
 		# Give USB Ethernet/DHCP a bounded chance to come up. The screen stays
@@ -59,7 +57,8 @@ func present(message: String = "") -> void:
 			if generation != _generation or app._screen_node != self:
 				return
 			if app.net.local_ip() != "":
-				present("Network connected.")
+				toast("Network connected.", "success")
+				present()
 				return
 		return
 
@@ -67,16 +66,17 @@ func present(message: String = "") -> void:
 	await app.get_tree().create_timer(0.4).timeout
 	# Configure the controller before the browser account step so first boot
 	# can sign in with a pad in hand.
-	app.show_controller_setup(message, false)
+	app.show_controller_setup(false)
 
 
 func _use_iso(path: String) -> void:
 	var saved := cli(["settings", "set", "game.iso", path])
 	if not saved.get("ok", false):
-		present(str(saved.get("error", "Could not save the Melee image.")))
+		toast(str(saved.get("error", "Could not save the Melee image.")), "error")
+		present()
 		return
 	app.refresh_status()
-	app.show_controller_setup("", true)
+	app.show_controller_setup(true)
 
 
 func back() -> void:

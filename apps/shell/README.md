@@ -41,6 +41,18 @@ template. For a manual export with templates installed:
 godot --headless --path . --export-release "Linux" build/slippios-shell
 ```
 
+## UI conventions
+
+- Build screens with the helpers in `screens/screen.gd` (`title`, `label`,
+  `section`, `button`).
+- Group related buttons with `section("Name")`. Section rows are labels, so
+  gamepad focus skips them.
+- Confirmations and errors are toasts: call `toast("Saved.", "success")` or
+  `toast("Could not save.", "error")` before navigating. Do not add inline
+  message labels to a screen.
+- Screens are rebuilt on navigation. `ui.gd` restores focus to the button with
+  the same key (the text before `:`) when the same screen is presented again.
+
 ## Runtime contract
 
 - `slippios` must be on `PATH` and return JSON when stdout is piped.

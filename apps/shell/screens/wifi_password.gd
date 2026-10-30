@@ -5,16 +5,14 @@ const Keyboard := preload("res://widgets/keyboard.gd")
 var ssid := ""
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("WI-FI PASSWORD", 40)
 	label(ssid, 0.8)
-	if message != "":
-		label(message, 0.9)
 	var keyboard = Keyboard.new(true)
 	keyboard.submitted.connect(_submit)
 	add_content(keyboard)
-	button("Back", app.show_wifi.bind(""))
+	button("Back", app.show_wifi)
 	focus()
 
 

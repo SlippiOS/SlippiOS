@@ -5,7 +5,7 @@ const DEVICES := ["adapter", "pad", "keyboard", "none"]
 var port := 1
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("PORT %d" % port, 44)
 
@@ -21,8 +21,6 @@ func present(message: String = "") -> void:
 	var profile := text_value(current.get("profile"), "")
 	var profiles: Array = array_value(result.get("profiles", []))
 
-	if message != "":
-		label(message, 0.9)
 	button("Input: %s" % _device_label(device), _cycle_device.bind(device, profile))
 	if device == "pad":
 		button("Profile: %s" % _profile_label(profile, profiles),
@@ -77,9 +75,11 @@ func _cycle_device(current: String, profile: String) -> void:
 		profile = _detected_profile()
 	var saved := cli(["controllers", "set", str(port), next, profile])
 	if not saved.get("ok", false):
-		app.show_controller_port(port, str(saved.get("error", "Could not save the controller.")))
+		toast(str(saved.get("error", "Could not save the controller.")), "error")
+		app.show_controller_port(port)
 		return
-	app.show_controller_port(port, "Port %d set to %s." % [port, _device_label(next)])
+	toast("Port %d set to %s." % [port, _device_label(next)], "success")
+	app.show_controller_port(port)
 
 
 func _cycle_profile(current: String, profiles: Array) -> void:
@@ -93,9 +93,11 @@ func _cycle_profile(current: String, profiles: Array) -> void:
 	var next := names[(index + 1) % names.size()]
 	var saved := cli(["controllers", "set", str(port), "pad", next])
 	if not saved.get("ok", false):
-		app.show_controller_port(port, str(saved.get("error", "Could not apply the profile.")))
+		toast(str(saved.get("error", "Could not apply the profile.")), "error")
+		app.show_controller_port(port)
 		return
-	app.show_controller_port(port, "Profile set to %s." % _profile_label(next, profiles))
+	toast("Profile set to %s." % _profile_label(next, profiles), "success")
+	app.show_controller_port(port)
 
 
 func _detected_profile() -> String:

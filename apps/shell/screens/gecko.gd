@@ -1,7 +1,7 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("GECKO CODES", 40)
 	label("Required codes are locked. Changes apply the next time Melee starts.", 0.6)
@@ -12,9 +12,8 @@ func present(message: String = "") -> void:
 		button("Back", app.show_dolphin)
 		focus()
 		return
-	if message != "":
-		label(message, 0.9)
 
+	section("Codes")
 	var codes: Array = array_value(result.get("codes", []))
 	if codes.is_empty():
 		label("No Gecko codes found.", 0.8)
@@ -29,6 +28,7 @@ func present(message: String = "") -> void:
 			row += "  (required)"
 		button(row, _toggle.bind(name, enabled, required))
 
+	section("Custom")
 	button("Custom codes…", app.show_gecko_custom)
 	button("Back", app.show_dolphin)
 	focus()
@@ -36,13 +36,16 @@ func present(message: String = "") -> void:
 
 func _toggle(name: String, enabled: bool, required: bool) -> void:
 	if required:
-		app.show_gecko("%s is required and cannot be disabled." % name)
+		toast("%s is required and cannot be disabled." % name, "error")
+		app.show_gecko()
 		return
 	var result := cli(["gecko", "set", name, "off" if enabled else "on"])
 	if not result.get("ok", false):
-		app.show_gecko(str(result.get("error", "Could not save the Gecko code.")))
+		toast(str(result.get("error", "Could not save the Gecko code.")), "error")
+		app.show_gecko()
 		return
-	app.show_gecko("%s is now %s." % [name, "off" if enabled else "on"])
+	toast("%s is now %s." % [name, "off" if enabled else "on"], "success")
+	app.show_gecko()
 
 
 func back() -> void:

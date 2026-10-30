@@ -54,7 +54,8 @@ func launch_game() -> void:
 	if app._busy:
 		return
 	if app.needs_setup():
-		app.show_setup("No valid game image yet.")
+		app.toast("No valid game image yet.")
+		app.show_setup()
 		return
 	app._busy = true
 	app._screen_node = null
@@ -294,10 +295,14 @@ func connect_wifi(ssid: String, password: String) -> void:
 	if result.get("ok", false):
 		app.refresh_status()
 		if app.setup_flow:
-			app.show_setup("Wi-Fi connected.")
+			app.toast("Wi-Fi connected.", "success")
+			app.show_setup()
 		else:
-			app.show_wifi("Connected to %s" % ssid)
+			app.toast("Connected to %s." % ssid, "success")
+			app.show_wifi()
 	elif password == "":
-		app.show_wifi("Could not connect: %s" % str(result.get("error", "unknown error")))
+		app.toast("Could not connect: %s" % str(result.get("error", "unknown error")), "error")
+		app.show_wifi()
 	else:
-		app.show_wifi_password(ssid, str(result.get("error", "Could not connect.")))
+		app.toast(str(result.get("error", "Could not connect.")), "error")
+		app.show_wifi_password(ssid)

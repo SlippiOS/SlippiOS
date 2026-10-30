@@ -8,7 +8,7 @@ func _init(shell) -> void:
 	app = shell
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	pass
 
 
@@ -28,12 +28,20 @@ func label(text: String, alpha: float = 0.65) -> Label:
 	return app.add_label(text, alpha)
 
 
-func button(text: String, callback: Callable, height: int = 50) -> Button:
+func section(text: String) -> void:
+	app.add_section(text)
+
+
+func button(text: String, callback: Callable, height: int = 46) -> Button:
 	return app.add_button(text, callback, height)
 
 
 func add_content(node: Control) -> void:
 	app.add_content(node)
+
+
+func toast(text: String, kind: String = "info") -> void:
+	app.toast(text, kind)
 
 
 func focus() -> void:

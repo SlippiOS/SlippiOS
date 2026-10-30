@@ -7,6 +7,7 @@ var accent := Color("#44a963")
 var text := Color("#eef1f7")
 var brand := Color("#4aa8ff")
 var progress := Color("#4aa8ff")
+var danger := Color("#e06c75")
 
 var mark_fraction := 0.30
 var mark_fit := 0.92
@@ -35,6 +36,7 @@ func _load() -> void:
 	text = _color(data.get("text"), text)
 	brand = _color(data.get("brand"), brand)
 	progress = _color(data.get("progress"), progress)
+	danger = _color(data.get("danger"), danger)
 	var splash: Dictionary = data.get("splash", {})
 	mark_fraction = float(splash.get("mark_fraction", mark_fraction))
 	mark_fit = float(splash.get("mark_fit", mark_fit))

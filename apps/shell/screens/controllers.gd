@@ -1,17 +1,15 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
-	title("CONTROLLER SETTINGS", 36)
+	title("CONTROLLER SETTINGS", 44)
 	label("Assign an input to each GameCube port.", 0.7)
-	if message != "":
-		label(message, 0.9)
 
 	var result := cli(["controllers", "list"])
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not read the controller settings.")), 0.9)
-		button("Back", app.show_settings)
+		button("Back", back)
 		focus()
 		return
 
@@ -24,6 +22,7 @@ func present(message: String = "") -> void:
 			names.append(str(pad))
 		label("Detected: %s" % ", ".join(names), 0.65)
 
+	section("Ports")
 	for port in result.get("ports", []):
 		var number := int(port.get("port", 0))
 		if number < 1:
@@ -32,7 +31,7 @@ func present(message: String = "") -> void:
 			app.show_controller_port.bind(number))
 
 	label("A GameCube adapter provides all four ports. Standard pads use a Dolphin profile.", 0.6)
-	button("Back", app.show_settings)
+	button("Back", back)
 	focus()
 
 
@@ -50,4 +49,7 @@ func _device_label(port: Dictionary) -> String:
 
 
 func back() -> void:
-	app.show_settings()
+	if app.setup_flow or app.onboarding:
+		app.show_controller_setup()
+	else:
+		app.show_settings()

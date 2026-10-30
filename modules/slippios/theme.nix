@@ -18,7 +18,7 @@ let
   '';
 
   themeJson = pkgs.writeText "slippios-theme.json" (builtins.toJSON {
-    inherit (theme) background surface accent text brand progress;
+    inherit (theme) background surface accent text brand progress danger;
     splash = {
       mark_fraction = theme.splash.markFraction;
       mark_fit = theme.splash.markFit;

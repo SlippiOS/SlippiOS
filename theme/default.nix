@@ -6,6 +6,7 @@
   text = "#eef1f7";
   brand = "#4aa8ff";
   progress = "#4aa8ff";
+  danger = "#e06c75";
   logoInk = "#f7f8fa";
   logoInkLight = "#0b0b10";
 

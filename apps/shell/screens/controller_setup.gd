@@ -4,7 +4,7 @@ extends "res://screens/screen.gd"
 var launch_after := false
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("CONTROLLER", 44)
 	var result := cli(["controllers", "list"])
@@ -15,7 +15,7 @@ func present(message: String = "") -> void:
 	elif pads.is_empty():
 		label("No wired controller detected.", 0.8)
 		label("Connect a controller, then retry.", 0.6)
-		button("Retry", present.bind(""))
+		button("Retry", present)
 	else:
 		var names := PackedStringArray()
 		for pad in pads:
@@ -26,8 +26,6 @@ func present(message: String = "") -> void:
 			label("Port 1: standard pad (%s)" % profile, 0.7)
 		else:
 			label("Port 1: GameCube adapter", 0.7)
-	if message != "":
-		label(message, 0.9)
 	button("Continue", _continue)
 	button("Controller settings", app.show_controllers)
 	if app.setup_flow or app.onboarding:

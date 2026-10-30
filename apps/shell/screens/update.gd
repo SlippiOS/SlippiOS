@@ -1,7 +1,7 @@
 extends "res://screens/screen.gd"
 
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("UPDATE", 44)
 
@@ -16,6 +16,7 @@ func present(_message: String = "") -> void:
 	var os_status := cli(["os", "status"])
 	var dolphin := cli(["update", "--check"])
 
+	section("System")
 	if os_check.get("ok", false):
 		var current := text_value(os_check.get("current"), "unknown")
 		var latest := text_value(os_check.get("latest"), "unknown")
@@ -35,6 +36,7 @@ func present(_message: String = "") -> void:
 	if os_status.get("phase") == "installed":
 		button("Restart to finish update", app.request_reboot)
 
+	section("Dolphin")
 	if dolphin.get("ok", false):
 		label("Dolphin: %s" % text_value(dolphin.get("current"), "not installed"), 0.65)
 		if dolphin.get("current") != dolphin.get("latest"):

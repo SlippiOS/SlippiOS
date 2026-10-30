@@ -1,16 +1,19 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
-	title("DOLPHIN SETTINGS", 40)
+	title("DOLPHIN SETTINGS", 44)
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
 	var dolphin: Dictionary = settings.get("dolphin", {})
-	if message != "":
-		label(message, 0.9)
+
+	section("Build")
 	button("Build: %s" % text_value(dolphin.get("build"), "stable"),
 		_cycle.bind("build", ["stable", "beta"]))
-	button("Graphics: %s" % text_value(dolphin.get("backend"), "Vulkan"),
+	label("Stable is FM-Slippi. Beta is Mainline.", 0.6)
+
+	section("Graphics")
+	button("Renderer: %s" % text_value(dolphin.get("backend"), "Vulkan"),
 		_cycle.bind("backend", ["Vulkan", "OGL"]))
 	button("Resolution: %s" % _internal_resolution_label(dolphin),
 		_cycle.bind("resolution", [1, 2, 3, 4, 5, 6]))
@@ -20,10 +23,15 @@ func present(message: String = "") -> void:
 		_toggle.bind("vsync"))
 	button("Anti-aliasing: %s" % _msaa_label(dolphin),
 		_cycle.bind("msaa", [1, 2, 4, 8]))
+
+	section("Audio")
 	button("Audio: %s" % text_value(dolphin.get("audio_backend"), "Cubeb"),
 		_cycle.bind("audio_backend", ["Cubeb", "ALSA", "NoSound"]))
+
+	section("Advanced")
 	button("Gecko codes", app.show_gecko)
 	button("Reset Dolphin config", _reset)
+
 	button("Back", app.show_settings)
 	focus()
 
@@ -73,7 +81,8 @@ func _cycle(key: String, choices: Array) -> void:
 	var next: Variant = choices[(index + 1) % choices.size()]
 	var saved := cli(["settings", "set", "dolphin." + key, str(next)])
 	if not saved.get("ok", false):
-		app.show_dolphin(str(saved.get("error", "Could not save the Dolphin setting.")))
+		toast(str(saved.get("error", "Could not save the Dolphin setting.")), "error")
+		app.show_dolphin()
 		return
 	app.show_dolphin()
 
@@ -84,7 +93,8 @@ func _toggle(key: String) -> void:
 	var next := not bool(dolphin.get(key, false))
 	var saved := cli(["settings", "set", "dolphin." + key, "true" if next else "false"])
 	if not saved.get("ok", false):
-		app.show_dolphin(str(saved.get("error", "Could not save the Dolphin setting.")))
+		toast(str(saved.get("error", "Could not save the Dolphin setting.")), "error")
+		app.show_dolphin()
 		return
 	app.show_dolphin()
 
@@ -92,9 +102,11 @@ func _toggle(key: String) -> void:
 func _reset() -> void:
 	var result := cli(["dolphin", "reset"])
 	if not result.get("ok", false):
-		app.show_dolphin(str(result.get("error", "Could not reset Dolphin.")))
+		toast(str(result.get("error", "Could not reset Dolphin.")), "error")
+		app.show_dolphin()
 		return
-	app.show_dolphin("Dolphin configuration reset.")
+	toast("Dolphin configuration reset.", "success")
+	app.show_dolphin()
 
 
 func back() -> void:

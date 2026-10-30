@@ -1,6 +1,6 @@
 extends "res://screens/screen.gd"
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	if app.setup_flow:
 		title("CONNECT", 44)
@@ -13,9 +13,8 @@ func present(message: String = "") -> void:
 		label("Connected to %s" % str(status.get("ssid")), 0.8)
 	else:
 		label("Not connected.", 0.8)
-	if message != "":
-		label(message, 0.9)
 
+	section("Networks")
 	var result := cli(["wifi", "scan"])
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not scan for networks.")), 0.9)
@@ -31,7 +30,7 @@ func present(message: String = "") -> void:
 				network_label += "  (%s)" % security
 			button(network_label, _select.bind(ssid, security))
 
-	button("Rescan", present.bind(""))
+	button("Rescan", present)
 	if app.setup_flow:
 		button("Skip for offline play", app.skip_setup)
 	button("Back", back)

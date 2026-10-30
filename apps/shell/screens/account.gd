@@ -1,7 +1,7 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("ACCOUNT", 44)
 	var login: Dictionary = app.status.get("login", {})
@@ -12,8 +12,6 @@ func present(message: String = "") -> void:
 		label("Not signed in.", 0.8)
 		button("Sign in", app.show_auth_email)
 		button("Sign in on another device", app.start_net.bind("login"))
-	if message != "":
-		label(message, 0.9)
 	button("Back", app.show_menu)
 	focus()
 
@@ -21,10 +19,12 @@ func present(message: String = "") -> void:
 func _sign_out() -> void:
 	var result := cli(["logout"])
 	if not result.get("ok", false):
-		present(str(result.get("error", "Could not sign out.")))
+		toast(str(result.get("error", "Could not sign out.")), "error")
+		present()
 		return
 	app.refresh_status()
-	present("Signed out.")
+	toast("Signed out.", "success")
+	present()
 
 
 func back() -> void:

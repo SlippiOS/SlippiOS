@@ -1,11 +1,9 @@
 extends "res://screens/screen.gd"
 
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("REPLAYS", 44)
-	if message != "":
-		label(message, 0.9)
 
 	var result := cli(["replay", "list"])
 	if not result.get("ok", false):

@@ -1,6 +1,6 @@
 extends "res://screens/screen.gd"
 
-func present(message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("MELEE ROMS", 48)
 	var settings: Dictionary = app.status.get("settings", {})
@@ -34,10 +34,8 @@ func present(message: String = "") -> void:
 		label(detail, 0.8)
 	elif not found:
 		label("No Melee images found on MELEE-ROMS.", 0.8)
-	if message != "":
-		label(message, 0.9)
 	button("Upload ISO", app.start_iso_upload)
-	button("Rescan", present.bind(""))
+	button("Rescan", present)
 	button("Back", app.show_menu)
 	focus()
 
@@ -46,11 +44,12 @@ func _select(path: String) -> void:
 	var first_setup: bool = app.needs_setup()
 	var result := cli(["settings", "set", "game.iso", path])
 	if not result.get("ok", false):
-		present(str(result.get("error", "Could not save the Melee image.")))
+		toast(str(result.get("error", "Could not save the Melee image.")), "error")
+		present()
 		return
 	app.refresh_status()
 	if first_setup:
-		app.show_controller_setup("", true)
+		app.show_controller_setup(true)
 	else:
 		app.launch_game()
 

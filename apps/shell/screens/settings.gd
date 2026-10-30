@@ -1,27 +1,38 @@
 extends "res://screens/screen.gd"
 
-func present(message: String = "") -> void:
+
+func present() -> void:
 	clear()
 	title("SETTINGS", 44)
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
 	var display: Dictionary = settings.get("display", {})
 	var audio: Dictionary = settings.get("audio", {})
 	var network: Dictionary = settings.get("network", {})
+	var dolphin: Dictionary = settings.get("dolphin", {})
 	var expert: Dictionary = settings.get("expert", {})
 	var expert_on := bool(expert.get("enabled", false))
-	button("Display: %s" % _display_label(display), app.show_display.bind(""))
+
+	section("Display & Audio")
+	button("Display: %s" % _display_label(display), app.show_display)
 	button("Audio: %s" % _sink_label(audio), app.show_audio)
-	label("Network: %s" % text_value(network.get("ssid"), "(none)"), 0.8)
-	button("Wi-Fi network", app.show_wifi.bind(""))
-	button("Dolphin Settings", app.show_dolphin.bind(""))
-	button("Controller Settings", app.show_controllers.bind(""))
+
+	section("Gameplay")
+	button("Dolphin Settings: %s" % text_value(dolphin.get("build"), "stable"),
+		app.show_dolphin)
+	button("Controller Settings", app.show_controllers)
+
+	section("Network")
+	button("Wi-Fi: %s" % text_value(network.get("ssid"), "not connected"), app.show_wifi)
+
+	section("System")
 	button("Update", app.show_update)
+
+	section("Advanced")
 	button("Expert mode: %s" % ("on" if expert_on else "off"), _toggle_expert)
 	if expert_on:
 		button("Run setup again", _run_setup)
 		button("Expert tools", app.show_expert)
-	if message != "":
-		label(message, 0.9)
+
 	button("Back", app.show_menu)
 	focus()
 
@@ -50,9 +61,11 @@ func _toggle_expert() -> void:
 	var enabled: bool = app.expert_enabled()
 	var saved := cli(["settings", "set", "expert.enabled", "false" if enabled else "true"])
 	if not saved.get("ok", false):
-		app.show_settings(str(saved.get("error", "Could not save expert mode.")))
+		toast(str(saved.get("error", "Could not save expert mode.")), "error")
+		app.show_settings()
 		return
-	app.show_settings("Expert mode %s." % ("disabled" if enabled else "enabled"))
+	toast("Expert mode %s." % ("disabled" if enabled else "enabled"), "success")
+	app.show_settings()
 
 
 func _run_setup() -> void:

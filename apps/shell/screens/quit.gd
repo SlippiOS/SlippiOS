@@ -1,6 +1,6 @@
 extends "res://screens/screen.gd"
 
-func present(_message: String = "") -> void:
+func present() -> void:
 	clear()
 	title("QUIT", 44)
 	label("Power off the console, or leave the desktop running.", 0.8)
