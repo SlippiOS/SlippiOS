@@ -58,6 +58,7 @@ func statusPayload() map[string]any {
 		"settings": summary,
 		"login":    map[string]any{"signed_in": login, "detail": loginDetail},
 		"dolphin":  map[string]any{"current": currentDolphin},
+		"apps":     appsStatusPayload(),
 		"adapter":  map[string]any{"present": adapter},
 		"network":  network.StatusNow(),
 		"os":       map[string]any{"version": osVersion(), "build": osBuild()},

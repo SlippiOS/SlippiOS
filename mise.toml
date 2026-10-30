@@ -25,6 +25,10 @@ run = "./scripts/dev push"
 description = "Build an uncompressed USB image for local boot testing"
 run = "SLIPPI_DEV=1 ./scripts/build-image"
 
+[tasks."build:image-minimal"]
+description = "Build the minimal USB image (apps install on first boot)"
+run = "SLIPPI_CONFIG=slippios-usb-minimal ./scripts/build-image"
+
 [tasks."run:image"]
 description = "Boot the newest local USB image in QEMU/UEFI"
 run = "./scripts/run-image"

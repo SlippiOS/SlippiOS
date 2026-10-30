@@ -4,6 +4,7 @@ extends Control
 const Cli := preload("res://services/cli.gd")
 const NetPage := preload("res://services/net_page.gd")
 const UpdateJob := preload("res://services/update_job.gd")
+const InstallJob := preload("res://services/install_job.gd")
 const Ui := preload("res://services/ui.gd")
 const ShellStatus := preload("res://services/status.gd")
 const Actions := preload("res://services/actions.gd")
@@ -29,6 +30,7 @@ const ReplaysScreen := preload("res://screens/replays.gd")
 const WifiScreen := preload("res://screens/wifi.gd")
 const WifiPasswordScreen := preload("res://screens/wifi_password.gd")
 const UpdateScreen := preload("res://screens/update.gd")
+const InstallScreen := preload("res://screens/install.gd")
 const OSUpdateScreen := preload("res://screens/os_update.gd")
 const OSResultScreen := preload("res://screens/os_result.gd")
 const NetScreen := preload("res://screens/net.gd")
@@ -39,6 +41,7 @@ var content: VBoxContainer
 var center: CenterContainer
 var net = NetPage.new()
 var update_job = UpdateJob.new()
+var install_job = InstallJob.new()
 var ui = Ui.new()
 var shell_status
 var actions
@@ -84,6 +87,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	net.poll(delta)
 	update_job.poll(delta)
+	install_job.poll(delta)
 
 
 func _ensure_gamepad_actions() -> void:
@@ -364,7 +368,10 @@ func skip_setup() -> void:
 	onboarding = false
 	setup_flow = false
 	refresh_status()
-	show_menu()
+	if shell_status.apps_installed():
+		show_menu()
+	else:
+		start_app_install()
 
 
 func onboarded() -> bool:
@@ -403,6 +410,16 @@ func finish_onboarding() -> void:
 	show_menu()
 
 
+func start_app_install() -> void:
+	stop_net()
+	_present(InstallScreen.new(self))
+
+
+func finish_app_install() -> void:
+	refresh_status()
+	finish_onboarding()
+
+
 func start_os_update() -> void:
 	stop_net()
 	if update_job.active():
@@ -436,7 +453,11 @@ func _present_os_result(mode: String, message: String) -> void:
 
 
 func _on_net_setup_done() -> void:
-	finish_onboarding()
+	refresh_status()
+	if shell_status.apps_installed():
+		finish_onboarding()
+	else:
+		start_app_install()
 
 
 func _on_net_upload_done() -> void:
@@ -478,6 +499,8 @@ func after_splash() -> void:
 			# A wired interface exists. Keep the combined setup screen instead
 			# of forcing the Wi-Fi-only page while DHCP is still running.
 			show_setup()
+	elif not shell_status.apps_installed():
+		start_app_install()
 	elif OS.get_environment("SLIPPIOS_AUTOPLAY") == "0":
 		show_menu()
 	else:
@@ -490,6 +513,9 @@ func on_play() -> void:
 			show_roms("Choose a Melee image to play.")
 		else:
 			show_setup("No valid game image yet.")
+		return
+	if not shell_status.apps_installed():
+		start_app_install()
 		return
 	launch_game()
 

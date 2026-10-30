@@ -17,6 +17,11 @@ func needs_setup() -> bool:
 	return not settings.get("exists", false) or not settings.get("iso_valid", false)
 
 
+func apps_installed() -> bool:
+	var apps: Dictionary = app.status.get("apps", {})
+	return bool(apps.get("installed", false))
+
+
 func has_valid_isos() -> bool:
 	var result: Dictionary = app.cli(["isos"])
 	for entry in result.get("isos", []):

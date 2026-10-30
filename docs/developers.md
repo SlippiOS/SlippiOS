@@ -58,6 +58,10 @@ improving the system.
   further edits embeds initrd store paths that the earlier store image does not
   contain, so the installed system drops to emergency mode. CI is safe because
   it builds from one clean checkout.
+- `SLIPPI_CONFIG=slippios-usb-minimal` (or `mise run build:image-minimal`)
+  builds the minimal image. `hosts/minimal.nix` removes the seeded app payloads
+  and shrinks the initial `/data`; the first boot runs
+  `slippios apps install` to download the stable, beta, and playback builds.
 - Image versions are semver (`0.3.0`). `VERSION` is the source of truth.
   Release builds use it; dev builds use the release version plus the source hash
   (`0.3.0.<rev>`), which sorts above `0.3.0` and below the next release.

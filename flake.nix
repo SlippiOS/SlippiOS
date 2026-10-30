@@ -41,6 +41,20 @@
         ];
       };
 
+      # Minimal image: no app payloads; the first boot installs them.
+      nixosConfigurations.slippios-usb-minimal = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {
+          inherit cachyosKernels slippiosBuild;
+          slippiosPackages = self.packages.${system};
+        };
+        modules = [
+          ./modules/slippios.nix
+          ./hosts/minimal.nix
+          { system.image.version = releaseVersion; }
+        ];
+      };
+
       # Uncompressed image for faster local boots.
       nixosConfigurations.slippios-usb-dev = nixpkgs.lib.nixosSystem {
         inherit system;

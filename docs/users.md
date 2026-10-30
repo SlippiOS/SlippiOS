@@ -6,8 +6,18 @@
 - UEFI boot. The unsigned image needs Secure Boot off (a one-time firmware
   setting). The signed image needs a one-time MOK enrollment.
 - A Melee 1.02 ISO (NTSC-U, NTSC-J, or PAL).
-- Network access for Slippi sign-in and system updates. The stable, beta, and
-  playback builds are bundled with the image.
+- Network access for Slippi sign-in and system updates. The full image bundles
+  the stable, beta, and playback builds; the minimal image downloads them on
+  first boot.
+
+## Image variants
+
+- `slippios-usb-<version>.img.xz` — full image. Stable, beta, and playback are
+  preinstalled, so it works offline after the Melee ISO is added.
+- `slippios-usb-<version>-minimal.img.xz` — minimal image. The apps are
+  downloaded and installed on first boot, so setup needs internet.
+
+Both variants use the same A/B system updates.
 
 ## Flash
 
@@ -87,7 +97,9 @@ and reconnect the stick, or check that the image finished writing.
 7. Scan the setup QR with a phone, or open the shown address on any computer on
    the same network.
 8. **Account.** Sign in to Slippi, or choose **Skip for offline play**.
-9. The console returns to the shell menu. Press **Play** to start Melee.
+9. **Minimal image only:** the console downloads and installs the stable, beta,
+   and playback builds. Keep it online until the install finishes.
+10. The console returns to the shell menu. Press **Play** to start Melee.
 
 The setup page is a two-step browser wizard. It works on a phone, tablet, or
 computer. The sign-in step is offered on first boot even when Ethernet is
