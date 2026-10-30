@@ -10,7 +10,6 @@ PUBLISH=0
 FORCE=0
 ALLOW_DIRTY=0
 KEEP_RAW=0
-ALLOW_LARGE=0
 TAG=""
 ASSETS_DIR=""
 
@@ -30,7 +29,6 @@ Options:
   --tag TAG           release tag (default v<version>)
   --assets-dir DIR    output directory (default .cache/release/<version>)
   --keep-raw          keep the signed raw image
-  --allow-large       allow assets above GitHub's 2 GiB limit (SourceForge only)
   -h, --help          show this help
 
 Environment:
@@ -50,7 +48,6 @@ while [[ $# -gt 0 ]]; do
     --force) FORCE=1 ;;
     --allow-dirty) ALLOW_DIRTY=1 ;;
     --keep-raw) KEEP_RAW=1 ;;
-  --allow-large) ALLOW_LARGE=1 ;;
     --tag) TAG="${2:?missing tag}"; shift ;;
     --assets-dir) ASSETS_DIR="${2:?missing directory}"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -242,18 +239,6 @@ unsigned_size=$(stat -c '%s' "$ASSETS_DIR/$unsigned_name")
 raw_size=$(stat -c '%s' "$ASSETS_DIR/$raw_name")
 uki_size=$(stat -c '%s' "$ASSETS_DIR/$uki_name")
 
-limit=$((2 * 1024 * 1024 * 1024))
-for size in "$signed_size" "$unsigned_size" "$raw_size"; do
-  if (( size >= limit )); then
-    if [[ "$ALLOW_LARGE" -eq 1 ]]; then
-      echo "warning: an asset is at or above GitHub's 2 GiB limit; publish it to SourceForge" >&2
-    else
-      echo "an asset is at or above GitHub's 2 GiB limit" >&2
-      exit 1
-    fi
-  fi
-done
-
 commit=$(git rev-parse HEAD)
 date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -354,33 +339,8 @@ EOF
     --notes "$notes"
 fi
 
-# The full images live on SourceForge and the update assets on R2. Keep the
-# GitHub release to notes, metadata, and licenses.
-assets=(
-  "$ASSETS_DIR/manifest.json"
-  "$ASSETS_DIR/SHA256SUMS"
-  "$ASSETS_DIR/SHA256SUMS.update"
-  "$ASSETS_DIR/LICENSE"
-  "$ASSETS_DIR/NOTICE"
-  "$ASSETS_DIR/THIRD_PARTY_LICENSES.md"
-  "$ASSETS_DIR/SOURCE"
-  "$ASSETS_DIR/README.md"
-  "$ASSETS_DIR/LICENSES.tar.gz"
-)
-for asset in "${assets[@]}"; do
-  name=$(basename "$asset")
-  size=$(stat -c '%s' "$asset")
-  if gh release upload "$TAG" "$asset" --repo "$repo" --clobber; then
-    continue
-  fi
-  remote=$(gh api "repos/$repo/releases/tags/$TAG/assets" \
-    --jq ".[] | select(.name == \"$name\") | .size" 2>/dev/null || true)
-  if [[ "$remote" != "$size" ]]; then
-    echo "failed to upload $name" >&2
-    exit 1
-  fi
-  echo "asset $name is already uploaded" >&2
-done
+# The GitHub release is notes-only. The full images live on SourceForge,
+# the update assets on R2, and the source in the repository.
 
 if [[ "$PUBLISH" -eq 1 ]]; then
   gh release edit "$TAG" --repo "$repo" --draft=false --latest
