@@ -19,9 +19,27 @@ have a Fedora-signed bootloader; the SlippiOS key is trusted through MOK.
 
 ## First boot
 
-See [ENROLL.txt](ENROLL.txt). The certificate is `slippios.cer` on the
-ESP. The enrollment is stored in the PC's firmware NVRAM. It survives
-reboots and SlippiOS updates.
+The signed image boots with Secure Boot on. Enroll the SlippiOS key once per
+PC:
+
+1. Boot the stick with Secure Boot on.
+2. When the shim reports “Verification failed: (0x1A) Security Violation”,
+   press OK.
+3. At the “Shim UEFI key management” screen, press any key before the
+   countdown ends.
+4. Choose “Enroll key from disk”.
+5. Choose the “BOOT” volume.
+6. Choose “slippios.cer”.
+7. Choose “Continue”, then “Yes”.
+8. Choose “Reboot”.
+
+The certificate is `slippios.cer` on the ESP. The enrollment is stored in the
+PC's firmware NVRAM. It survives reboots and SlippiOS updates. The same steps
+are on the ESP as [ENROLL.txt](ENROLL.txt).
+
+Some PCs need **Allow Microsoft 3rd Party UEFI CA** enabled; Intel T2 Macs
+need **Allow booting from external or removable media**. If the shim cannot
+boot, use the unsigned image with Secure Boot off.
 
 ## Updates
 
