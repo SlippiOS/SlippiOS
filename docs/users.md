@@ -111,7 +111,7 @@ add or remove images later. SlippiOS does not rename them.
 
 ## Connect Wi-Fi
 
-1. **Settings → Wi-Fi network**.
+1. **Settings → Network → Wi-Fi**.
 2. Select a network.
 3. Enter the password with the on-screen keyboard.
 4. Wait for the confirmation.
@@ -152,7 +152,7 @@ the GameCube adapter or a wired USB pad. Wireless controllers are not
 supported because Melee is latency-sensitive. Press **Escape** to exit Melee and
 return to the shell. Press **Guide** to stop the current match and stay in
 Dolphin. While the launching screen is visible, **Escape** cancels the launch
-and returns to the menu. **Settings → Dolphin Settings**
+and returns to the menu. **Settings → Gameplay → Dolphin Settings**
 changes Dolphin's graphics backend,
 internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
 leaving the console. SlippiOS maps these onto Dolphin's command-line config.
@@ -164,16 +164,16 @@ The same screen has **Gecko codes** for the optional Melee patches.
 xrandr/EDID), the audio outputs, Wi-Fi, and **Update**. Changes apply
 immediately and are saved for the next boot.
 
-**Settings → Controller Settings** assigns each of the four GameCube ports to a
+**Settings → Gameplay → Controller Settings** assigns each of the four GameCube ports to a
 GameCube adapter, a standard pad with a Dolphin profile, the keyboard, or
 nothing. The screen marks profiles whose device is currently connected.
 
-**Settings → Dolphin Settings → Gecko codes** toggles the built-in Slippi codes.
+**Settings → Gameplay → Dolphin Settings → Gecko codes** toggles the built-in Slippi codes.
 The required Slippi Online codes are locked; the optional codes (widescreen,
 flash on failed L-cancel, and so on) can be changed. Custom codes can be added
 from the Expert terminal with `slippios gecko add <file>`.
 
-**Expert mode** (inside Settings) unlocks tools for troubleshooting and
+**Expert mode** (Settings → Advanced) unlocks tools for troubleshooting and
 tinkering: the Dolphin GUI, a terminal, a text editor, and a custom display
 mode. The custom mode takes `WIDTHxHEIGHT` or `WIDTHxHEIGHT@HZ`; it is added
 with a CVT modeline and kept across reboots.
@@ -189,7 +189,7 @@ verified with the image. They update with system updates.
 
 ## Update
 
-1. **Settings → Update**.
+1. **Settings → System → Update**.
 2. **Install system update**.
 3. Wait, then **Restart**.
 
@@ -248,7 +248,7 @@ network. Disable VPN or client isolation. In the QEMU VM, use
 
 **No Melee image.** The file must be a GameCube Melee `.iso` with ID `GALE01`,
 `GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
-to choose it, or **Settings → Run setup again**.
+to choose it, or **Settings → Advanced → Expert mode → Run setup again**.
 
 **The console shows a recovery menu instead of the shell.** The graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and

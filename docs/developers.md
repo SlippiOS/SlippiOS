@@ -242,19 +242,19 @@ them to `-C System.Section.Key=Value` at launch. The important values:
   current X resolution so Melee fills the screen with borderless fullscreen.
 - Enums are written as integers; booleans as `True`/`False`.
 
-**Settings → Controller Settings** writes `dolphin.controllerN` and, for pad
+**Settings → Gameplay → Controller Settings** writes `dolphin.controllerN` and, for pad
 ports, copies the selected `Config/Profiles/GCPad/<name>.ini` into
 `[GCPadN]` in `Config/GCPadNew.ini`. The `custom` profile leaves that section
 alone. Detected pads are read from `/sys/class/input/js*/device/name`.
 
-**Settings → Dolphin Settings → Gecko codes** reads the global
+**Settings → Gameplay → Dolphin Settings → Gecko codes** reads the global
 `Sys/GameSettings/GALE01r2.ini` from the extracted Slippi AppImage and writes
 overrides to `users/default/dolphin/GameSettings/GALE01.ini`. Only differences
 from the global defaults go into `[Gecko_Enabled]`/`[Gecko_Disabled]`; custom
 codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
 `slippios gecko list|set|add|remove`.
 
-**Settings → Expert mode → Expert tools → Open Dolphin GUI** still opens the
+**Settings → Advanced → Expert mode → Expert tools → Open Dolphin GUI** still opens the
 real Dolphin GUI for anything the curated list does not cover.
 
 PipeWire restores per-application stream volumes, and Dolphin can come back at
@@ -461,7 +461,7 @@ slippios wifi status
 slippios wifi connect --ssid "Network" --password "secret"
 ```
 
-The shell wraps this in **Settings → Wi-Fi network**. `nmcli` comes from the
+The shell wraps this in **Settings → Network → Wi-Fi**. `nmcli` comes from the
 NetworkManager package; the `player` account is in the `networkmanager` group.
 
 ## System updates
