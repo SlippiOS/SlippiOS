@@ -34,6 +34,7 @@ func present() -> void:
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 10)
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rail.add_child(spacer)
 	var back_button := Button.new()
 	back_button.text = "Back"
@@ -147,6 +148,7 @@ func _pane_title(text: String) -> void:
 	_pane.add_child(node)
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 4)
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pane.add_child(spacer)
 
 
