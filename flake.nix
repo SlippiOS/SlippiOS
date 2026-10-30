@@ -175,6 +175,12 @@
               continue
             fi
             if [ "$code" -eq 43 ]; then
+              # Dolphin maps a white frame at the origin while its launcher
+              # starts; repaint the root so the frame does not linger.
+              ( for _ in 1 2 3 4 5 6 7 8 9 10; do
+                  ${pkgs.coreutils}/bin/sleep 1
+                  ${pkgs.xorg.xrefresh}/bin/xrefresh
+                done ) &
               "$cli_bin" dolphin config >>"$log" 2>&1 || true
               autoplay=0
               splash=1

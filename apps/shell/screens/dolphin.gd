@@ -8,6 +8,8 @@ func present(message: String = "") -> void:
 	var dolphin: Dictionary = settings.get("dolphin", {})
 	if message != "":
 		label(message, 0.9)
+	button("Build: %s" % text_value(dolphin.get("build"), "stable"),
+		_cycle.bind("build", ["stable", "beta"]))
 	button("Graphics: %s" % text_value(dolphin.get("backend"), "Vulkan"),
 		_cycle.bind("backend", ["Vulkan", "OGL"]))
 	button("Resolution: %s" % _internal_resolution_label(dolphin),
