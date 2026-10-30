@@ -13,6 +13,7 @@ let
     cp ${../../LICENSE} $out/LICENSE
     cp ${../../NOTICE} $out/NOTICE
     cp ${../../THIRD_PARTY_LICENSES.md} $out/THIRD_PARTY_LICENSES.md
+    cp ${../../apps/shell/assets/fonts/OFL.txt} $out/MavenPro-OFL.txt
     cp ${../../SOURCE} $out/SOURCE
     cp ${../../README.md} $out/README.md
     cp -r ${../../licenses}/. $out/
