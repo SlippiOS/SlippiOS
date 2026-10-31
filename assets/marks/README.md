@@ -1,22 +1,22 @@
 # Marks
 
-`logo.svg` is the SlippiOS mark: the blue shine hexagon plus a neutral S
-(white for dark backgrounds). `logo-light.svg` uses a dark S for light
-backgrounds. `logo-grayscale.svg` is the grayscale master, and
-`shine-colors.svg` is the original colored shine source. The S is a path, not
-live text; there is no font dependency.
+`icon.svg` is the current SlippiOS mark: the filled blue hexagon with the
+dark S and blue outline. `logo.svg` is the earlier outline mark, with
+`logo-light.svg` and `logo-grayscale.svg` as its light/grayscale variants;
+`shine-colors.svg` is the original colored shine source.
 
-`split-layers.py` splits `logo.svg` into the pulsing shine and the static S.
+`split-layers.py` splits `icon.svg` into the pulsing shine and the static S.
 Plymouth uses it at build time, and the Godot boot splash uses committed
-renders of both layers so only the shine moves.
+renders of both layers so only the shine moves. The game launch screen uses
+the shine layer alone as the breathing hexagon.
 
 Regenerate the shell assets:
 
 ```sh
-python3 split-layers.py shine.svg s.svg logo.svg
+python3 split-layers.py shine.svg s.svg icon.svg
 rsvg-convert -w 1024 -h 1024 shine.svg -o ../../apps/shell/assets/slippi-mark-shine.png
 rsvg-convert -w 1024 -h 1024 s.svg -o ../../apps/shell/assets/slippi-mark-s.png
-rsvg-convert -w 1024 -h 1024 logo.svg -o ../../apps/shell/assets/slippi-mark.png
+rsvg-convert -w 1024 -h 1024 icon.svg -o ../../apps/shell/assets/slippi-mark.png
 ```
 
 The X root wallpaper is not stored here: `modules/slippios/session.nix` renders

@@ -300,13 +300,15 @@ image. Wireless controllers are intentionally not included (no BlueZ or
 ## Boot splash
 
 Plymouth uses a charge-style `two-step` theme: `modules/slippios/theme.nix`
-renders 24 throbber frames from the mark with a sine opacity, and the C throbber
-plugin animates them over two seconds. This avoids the script plugin's refresh
-callback, which did not animate in QEMU's frame-buffer fallback.
+splits `assets/marks/icon.svg` into the pulsing hexagon and the static S, then
+renders 24 throbber frames with a sine opacity. The C throbber plugin animates
+them over two seconds. This avoids the script plugin's refresh callback, which
+did not animate in QEMU's frame-buffer fallback.
 
 Plymouth frames are a fixed 324 px high (30% of 1080p), because two-step themes
 cannot scale per display. The Godot splash does scale: it sizes the mark to 30%
-of the screen height and pulses it.
+of the screen height and pulses it. The game launch screen reuses only the
+hexagon layer as the breathing indicator instead of the old dot spinner.
 
 The initrd loads `virtio_gpu` and `bochs` so Plymouth has a framebuffer in a VM
 before stage 2. Physical machines use the firmware framebuffer through the

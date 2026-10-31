@@ -1,7 +1,7 @@
 extends RefCounted
 
 
-const Spinner := preload("res://spinner.gd")
+const Pulse := preload("res://pulse.gd")
 
 const GAME_EXIT := 42
 const DOLPHIN_EXIT := 43
@@ -134,8 +134,8 @@ func _launch_in_shell() -> void:
 	app.clear()
 	app.add_title("LAUNCHING", 44)
 	app.add_label("Super Smash Bros. Melee", 0.9)
-	var spinner := Spinner.new()
-	app.add_content(spinner)
+	var pulse := Pulse.new()
+	app.add_content(pulse)
 	var status: Label = app.add_label("Starting Dolphin…", 0.6)
 	await app.get_tree().process_frame
 

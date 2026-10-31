@@ -2,7 +2,7 @@
 
 let
   theme = import ../../theme/default.nix;
-  logo = ../../assets/marks/logo.svg;
+  logo = ../../assets/marks/icon.svg;
   splitLayers = ../../assets/marks/split-layers.py;
   markHeight = theme.splash.plymouthMarkHeight;
 

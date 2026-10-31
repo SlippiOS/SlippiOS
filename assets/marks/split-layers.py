@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Split the SlippiOS mark into the pulsing shine and the static S layers.
 
-The S is the only path with a 2.5 stroke; every other path is a shine facet.
+The S is the path with the text15 id or a stroke-only glow layer; every
+other path is a shine facet.
 """
 
 import sys
 import xml.etree.ElementTree as ET
+
+
+def is_s(path: ET.Element) -> bool:
+    style = path.get("style") or ""
+    return path.get("id") == "text15" or "fill:none" in style or "fill:#0b0b10" in style
 
 
 def main() -> None:
@@ -21,10 +27,7 @@ def main() -> None:
         root = tree.getroot()
         paths = [e for e in root.iter() if e.tag.split("}")[-1] == "path"]
         parent = {child: node for node in root.iter() for child in node}
-        s_paths = [
-            path for path in paths
-            if "stroke-width:2.5" in (path.get("style") or "")
-        ]
+        s_paths = [path for path in paths if is_s(path)]
         for path in paths:
             if (path in s_paths) != keep_s:
                 parent[path].remove(path)

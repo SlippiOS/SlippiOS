@@ -66,7 +66,8 @@ Observed on dev image `0.3.0.2vfi1nn`:
 
 ### 3.4 Launch
 
-1. Show **LAUNCHING** with the game title and an animated spinner.
+1. Show **LAUNCHING** with the game title and the breathing hexagon from the
+   splash shine.
 2. Start `slippios play --ready-file` and keep the shell visible.
 3. When the Dolphin window is mapped, hide the non-fullscreen launcher frame,
    activate the fullscreen render window, and exit the shell with
