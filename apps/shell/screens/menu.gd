@@ -38,10 +38,11 @@ func _wordmark() -> Control:
 	row.add_child(name)
 
 	var icon := TextureRect.new()
-	icon.texture = load("res://assets/slippi-os-icon.svg")
+	icon.texture = load("res://assets/slippi-os-icon.png")
 	icon.custom_minimum_size = Vector2(64, 64)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	row.add_child(icon)
 	return row
 

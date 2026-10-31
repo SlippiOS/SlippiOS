@@ -25,9 +25,17 @@ an image that matches the display instead of scaling a 4K one down.
 
 `icon.png` is the hand-made organization/project icon: the filled blue
 hexagon with the solid S glyph. It has a transparent background. `icon.svg`
-is the vector source for that icon. The shell uses a copy of `icon.svg` at
-`apps/shell/assets/slippi-os-icon.svg` for the menu wordmark, paired with
-"Slippi" set in Maven Pro.
+is the vector source for that icon. The shell uses the 640px `icon.png`
+bake at `apps/shell/assets/slippi-os-icon.png` for the menu wordmark,
+paired with "Slippi" set in Maven Pro. Godot's SVG importer aliases the
+thin blue outline at menu size, so the shell uses the high-resolution bake
+instead of the SVG directly.
+
+Regenerate the shell bake after changing `icon.svg`:
+
+```sh
+inkscape icon.svg --export-type=png --export-filename=../../apps/shell/assets/slippi-os-icon.png --export-width=640
+```
 
 `icon-square.png` is the same mark centered on a 1024x1024 transparent canvas,
 sized so GitHub's circular crop does not clip it. The black S needs a light
