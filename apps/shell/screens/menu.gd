@@ -26,23 +26,23 @@ func present() -> void:
 func _wordmark() -> Control:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 8)
+
+	var name := Label.new()
+	name.text = "Slippi"
+	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if SlippiTheme.font_wordmark != null:
+		name.add_theme_font_override("font", SlippiTheme.font_wordmark)
+	name.add_theme_font_size_override("font_size", 64)
+	name.add_theme_color_override("font_color", SlippiTheme.text)
+	row.add_child(name)
 
 	var icon := TextureRect.new()
-	icon.texture = load("res://assets/slippi-os-icon.png")
+	icon.texture = load("res://assets/slippi-os-icon.svg")
 	icon.custom_minimum_size = Vector2(64, 64)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(icon)
-
-	var os := Label.new()
-	os.text = "OS"
-	os.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if SlippiTheme.font_wordmark != null:
-		os.add_theme_font_override("font", SlippiTheme.font_wordmark)
-	os.add_theme_font_size_override("font_size", 64)
-	os.add_theme_color_override("font_color", SlippiTheme.text)
-	row.add_child(os)
 	return row
 
 
