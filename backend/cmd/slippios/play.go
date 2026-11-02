@@ -15,7 +15,7 @@ import (
 	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
-	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	dolphinpkg "github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 	"github.com/spf13/cobra"
@@ -83,7 +83,7 @@ func runPlay(mode *modes, options playOptions) error {
 	var userDir string
 	var arguments []string
 	if build == "beta" {
-		appimage, err = dolphin.DefaultPaths().Ensure(func(message string) {
+		appimage, err = dolphinpkg.DefaultPaths().Ensure(func(message string) {
 			fmt.Fprintln(mode.stderr(), message)
 		}, false)
 		if err != nil {
@@ -159,6 +159,12 @@ func dolphinArgs(values map[string]any) []string {
 		value, _ := dolphin[key].(bool)
 		return value
 	}
+	flagDefault := func(key string, fallback bool) bool {
+		if value, ok := dolphin[key].(bool); ok {
+			return value
+		}
+		return fallback
+	}
 	boolText := func(value bool) string {
 		if value {
 			return "True"
@@ -179,6 +185,11 @@ func dolphinArgs(values map[string]any) []string {
 		"-C", "Dolphin.Core.AudioLatency=" + strconv.FormatInt(number("audio_latency", 20), 10),
 		"-C", "Dolphin.Slippi.ReplayDir=" + filepath.Join(settings.DefaultPaths().ProfileDir, "replays"),
 		"-C", "Dolphin.Slippi.SaveReplays=True",
+		"-C", "Dolphin.Slippi.EnableJukebox=" + boolText(flagDefault("enable_music", true)),
+		"-C", "Graphics.Settings.WaitForShadersBeforeStarting=" + boolText(flag("precompile_shaders")),
+		"-C", "Graphics.Settings.ShaderCompilationMode=" + shaderModeArg(values),
+		"-C", "Graphics.Settings.ShowNetPlayPing=" + boolText(flagDefault("show_netplay_ping", true)),
+		"-C", "Graphics.Settings.ShowFPS=" + boolText(flag("show_fps")),
 	}
 	for port := 0; port < 4; port++ {
 		device := text(fmt.Sprintf("controller%d", port+1), "adapter")
@@ -195,6 +206,12 @@ func dolphinArgs(values map[string]any) []string {
 			"-C", fmt.Sprintf("Dolphin.Core.SIDevice%d=%d", port, value))
 	}
 	return arguments
+}
+
+func shaderModeArg(values map[string]any) string {
+	dolphin, _ := values["dolphin"].(map[string]any)
+	mode, _ := dolphin["shader_mode"].(string)
+	return strconv.FormatInt(dolphinpkg.ShaderModeValue(mode), 10)
 }
 
 func runDolphin(paths settings.Paths, appimage, userDir string, arguments []string, readyFile, cancelFile string) (int, error) {

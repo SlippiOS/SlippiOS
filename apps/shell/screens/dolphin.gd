@@ -23,10 +23,22 @@ func present() -> void:
 		_toggle.bind("vsync"))
 	button("Anti-aliasing: %s" % _msaa_label(dolphin),
 		_cycle.bind("msaa", [1, 2, 4, 8]))
+	button("Precompile shaders: %s" % _on_off(dolphin.get("precompile_shaders", false)),
+		_toggle.bind("precompile_shaders"))
+	button("Shader mode: %s" % _shader_label(dolphin),
+		_cycle.bind("shader_mode", ["sync", "sync_uber", "async_uber", "async_skip"]))
+	button("Netplay ping: %s" % _on_off(dolphin.get("show_netplay_ping", true)),
+		_toggle.bind("show_netplay_ping"))
+	button("Show FPS: %s" % _on_off(dolphin.get("show_fps", false)),
+		_toggle.bind("show_fps"))
 
 	section("Audio")
 	button("Audio: %s" % text_value(dolphin.get("audio_backend"), "Cubeb"),
 		_cycle.bind("audio_backend", ["Cubeb", "ALSA", "NoSound"]))
+
+	section("Slippi")
+	button("Music: %s" % _on_off(dolphin.get("enable_music", true)),
+		_toggle.bind("enable_music"))
 
 	section("Advanced")
 	button("Gecko codes", app.show_gecko)
@@ -60,6 +72,22 @@ func _msaa_label(dolphin: Dictionary) -> String:
 	if value <= 1:
 		return "off"
 	return "%dx" % value
+
+
+func _shader_label(dolphin: Dictionary) -> String:
+	match text_value(dolphin.get("shader_mode"), "async_uber"):
+		"sync":
+			return "Synchronous"
+		"sync_uber":
+			return "Synchronous (Uber)"
+		"async_skip":
+			return "Asynchronous (Skip Rendering)"
+		_:
+			return "Asynchronous (Uber)"
+
+
+func _on_off(value: Variant) -> String:
+	return "on" if bool(value) else "off"
 
 
 func _cycle(key: String, choices: Array) -> void:

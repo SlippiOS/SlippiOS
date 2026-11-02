@@ -129,6 +129,21 @@ func (f *File) Lines(name string) []string {
 	return section.Lines
 }
 
+// Value returns one key from a section, preserving the raw text after '='.
+func (f *File) Value(name, key string) (string, bool) {
+	section := f.Get(name)
+	if section == nil {
+		return "", false
+	}
+	for _, line := range section.Lines {
+		existing, value, ok := strings.Cut(line, "=")
+		if ok && strings.TrimSpace(existing) == key {
+			return strings.TrimSpace(value), true
+		}
+	}
+	return "", false
+}
+
 func (f *File) Bytes() []byte {
 	var out strings.Builder
 	for _, line := range f.Preamble {

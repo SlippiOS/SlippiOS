@@ -19,7 +19,7 @@ func newDolphinCommand(mode *modes) *cobra.Command {
 		Use:   "dolphin",
 		Short: "Open or reset Dolphin",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return mode.fail("usage: slippios dolphin config|reset")
+			return mode.fail("usage: slippios dolphin config|reset|sync")
 		},
 	}
 	command.AddCommand(&cobra.Command{
@@ -38,6 +38,14 @@ func newDolphinCommand(mode *modes) *cobra.Command {
 			return runDolphinReset(mode)
 		},
 	})
+	command.AddCommand(&cobra.Command{
+		Use:   "sync",
+		Short: "Import curated Dolphin INI changes into settings",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDolphinSync(mode)
+		},
+	})
 	return command
 }
 
@@ -48,6 +56,39 @@ func runDolphinReset(mode *modes) error {
 	}
 	return mode.emit(map[string]any{"ok": true}, func() {
 		mode.println("Dolphin configuration reset.")
+	})
+}
+
+func runDolphinSync(mode *modes) error {
+	paths := settings.DefaultPaths()
+	values, err := paths.Load()
+	if err != nil {
+		return mode.fail(err.Error())
+	}
+	dolphinSettings, _ := values["dolphin"].(map[string]any)
+	build := "stable"
+	if value, ok := dolphinSettings["build"].(string); ok && value != "" {
+		build = value
+	}
+	userDir := paths.DolphinStableDir
+	if build == "beta" {
+		userDir = paths.DolphinDir
+	}
+	changed, err := dolphin.SyncManaged(userDir, build, values)
+	if err != nil {
+		return mode.fail(err.Error())
+	}
+	if changed {
+		if err := paths.Save(values); err != nil {
+			return mode.fail(err.Error())
+		}
+	}
+	return mode.emit(map[string]any{"ok": true, "synced": changed}, func() {
+		if changed {
+			mode.println("Dolphin settings synced.")
+		} else {
+			mode.println("Dolphin settings already match.")
+		}
 	})
 }
 
@@ -63,6 +104,7 @@ func runDolphinConfig(mode *modes) error {
 		build = value
 	}
 	var returncode int
+	synced := false
 	if build == "stable" {
 		appimage, err := apps.EnsureStable(paths.DataDir, func(message string) {
 			fmt.Fprintln(mode.stderr(), message)
@@ -77,9 +119,21 @@ func runDolphinConfig(mode *modes) error {
 		if err := stable.Configure(paths.ProfileDir, paths.DolphinStableDir, paths.ISODir, values, width, height, false); err != nil {
 			return mode.fail(err.Error())
 		}
+		if err := dolphin.ApplyManaged(paths.DolphinStableDir, "stable", values); err != nil {
+			return mode.fail(err.Error())
+		}
 		returncode, err = runDolphin(paths, appimage, paths.DolphinStableDir, nil, "", "")
 		if err != nil {
 			return mode.fail(err.Error())
+		}
+		synced, err = dolphin.SyncManaged(paths.DolphinStableDir, "stable", values)
+		if err != nil {
+			return mode.fail(err.Error())
+		}
+		if synced {
+			if err := paths.Save(values); err != nil {
+				return mode.fail(err.Error())
+			}
 		}
 	} else {
 		appimage, err := dolphin.DefaultPaths().Ensure(func(message string) {
@@ -99,12 +153,27 @@ func runDolphinConfig(mode *modes) error {
 			"-C", "Dolphin.Display.Fullscreen=False",
 			"-C", "Dolphin.Display.RenderWindowXPos=-10000",
 			"-C", "Dolphin.Display.RenderWindowYPos=-10000")
+		if err := dolphin.ApplyManaged(paths.DolphinDir, "beta", values); err != nil {
+			return mode.fail(err.Error())
+		}
 		returncode, err = runDolphin(paths, appimage, paths.DolphinDir, arguments, "", "")
 		if err != nil {
 			return mode.fail(err.Error())
 		}
+		synced, err = dolphin.SyncManaged(paths.DolphinDir, "beta", values)
+		if err != nil {
+			return mode.fail(err.Error())
+		}
+		if synced {
+			if err := paths.Save(values); err != nil {
+				return mode.fail(err.Error())
+			}
+		}
 	}
-	return mode.emit(map[string]any{"ok": returncode == 0, "returncode": returncode}, func() {
+	return mode.emit(map[string]any{"ok": returncode == 0, "returncode": returncode, "synced": synced}, func() {
 		mode.println("Dolphin closed.")
+		if synced {
+			mode.println("Dolphin settings synced.")
+		}
 	})
 }

@@ -237,6 +237,14 @@ them to `-C System.Section.Key=Value` at launch. The important values:
 - `Graphics.Settings.InternalResolution` is the EFB scale (1 = native).
 - `Graphics.Settings.AspectRatio`: 1 widescreen, 2 4:3, 3 Melee, 4 stretch.
 - `Graphics.Settings.MSAA`: 1 off, then 2/4/8 samples.
+- `Dolphin.Slippi.EnableJukebox` (beta) or `Core.SlippiJukeboxEnabled`
+  (stable) is `dolphin.enable_music`.
+- `Graphics.Settings.WaitForShadersBeforeStarting` is
+  `dolphin.precompile_shaders`.
+- `Graphics.Settings.ShaderCompilationMode`: 0 sync, 1 sync uber, 2 async
+  uber, 3 async skip; stored as `dolphin.shader_mode`.
+- `Graphics.Settings.ShowNetPlayPing` is `dolphin.show_netplay_ping`.
+- `Graphics.Settings.ShowFPS` is `dolphin.show_fps`.
 - `Dolphin.Display.RenderWindowWidth`/`RenderWindowHeight`,
   `BorderlessFullscreen`, and `RenderWindowAutoSize=False` are set from the
   current X resolution so Melee fills the screen with borderless fullscreen.
@@ -254,8 +262,11 @@ from the global defaults go into `[Gecko_Enabled]`/`[Gecko_Disabled]`; custom
 codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
 `slippios gecko list|set|add|remove`.
 
-**Settings → Advanced → Expert mode → Expert tools → Open Dolphin GUI** still opens the
-real Dolphin GUI for anything the curated list does not cover.
+**Settings → Advanced → Expert mode → Expert tools → Open Dolphin GUI** opens the
+real Dolphin GUI for anything the curated list does not cover. Before the GUI
+opens, the curated keys are written into the INIs. When it closes,
+`slippios dolphin config` reads those keys back and updates `settings.toml` if
+the GUI changed them; uncurated keys stay in the INIs. See ADR-0005.
 
 PipeWire restores per-application stream volumes, and Dolphin can come back at
 -20 dB. `slippios-audio.service` (a user unit) applies the saved sink volume and

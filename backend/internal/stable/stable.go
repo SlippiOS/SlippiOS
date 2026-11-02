@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
+	dolphinpkg "github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/ini"
 )
 
@@ -19,6 +20,11 @@ func Configure(profileDir, stableDir, isoDir string, values map[string]any, widt
 	aspect := number(dolphin, "aspect", 3)
 	msaa := number(dolphin, "msaa", 1)
 	vsync := flag(dolphin, "vsync")
+	enableMusic := flagDefault(dolphin, "enable_music", true)
+	showFPS := flag(dolphin, "show_fps")
+	showPing := flagDefault(dolphin, "show_netplay_ping", true)
+	precompile := flag(dolphin, "precompile_shaders")
+	shaderMode := dolphinpkg.ShaderModeValue(text(dolphin, "shader_mode", "async_uber"))
 
 	dolphinINI, err := ini.Load(filepath.Join(stableDir, "Config", "Dolphin.ini"))
 	if err != nil {
@@ -47,7 +53,7 @@ func Configure(profileDir, stableDir, isoDir string, values map[string]any, widt
 	dolphinINI.Set("Core", "SlippiReplayDir", filepath.Join(profileDir, "replays"))
 	dolphinINI.Set("Core", "SlippiSaveReplays", "True")
 	dolphinINI.Set("Core", "SlippiReplayMonthFolders", "False")
-	dolphinINI.Set("Core", "SlippiJukeboxEnabled", "False")
+	dolphinINI.Set("Core", "SlippiJukeboxEnabled", boolText(enableMusic))
 	dolphinINI.Set("Core", "SlippiOnlineDelay", "2")
 	for port := 0; port < 4; port++ {
 		dolphinINI.Set("Core", fmt.Sprintf("SIDevice%d", port), fmt.Sprintf("%d", siValue(values, port+1)))
@@ -63,11 +69,14 @@ func Configure(profileDir, stableDir, isoDir string, values map[string]any, widt
 		return err
 	}
 	gfx.Set("Hardware", "VSync", boolText(vsync))
-	gfx.Set("Settings", "AspectRatio", strconv.FormatInt(aspectValue(aspect), 10))
+	gfx.Set("Settings", "AspectRatio", strconv.FormatInt(dolphinpkg.StableAspectValue(aspect), 10))
 	gfx.Set("Settings", "BorderlessFullscreen", boolText(fullscreen))
 	gfx.Set("Settings", "EFBScale", strconv.FormatInt(resolution, 10))
 	gfx.Set("Settings", "MSAA", strconv.FormatInt(msaa, 10))
-	gfx.Set("Settings", "ShowFPS", "False")
+	gfx.Set("Settings", "ShowFPS", boolText(showFPS))
+	gfx.Set("Settings", "ShowNetPlayPing", boolText(showPing))
+	gfx.Set("Settings", "WaitForShadersBeforeStarting", boolText(precompile))
+	gfx.Set("Settings", "ShaderCompilationMode", strconv.FormatInt(shaderMode, 10))
 	if err := ini.Save(filepath.Join(stableDir, "Config", "GFX.ini"), gfx); err != nil {
 		return err
 	}
@@ -100,19 +109,6 @@ func siValue(values map[string]any, port int) int {
 	}
 }
 
-func aspectValue(aspect int64) int64 {
-	switch aspect {
-	case 1:
-		return 1
-	case 2:
-		return 2
-	case 4:
-		return 3
-	default:
-		return 5
-	}
-}
-
 func text(values map[string]any, key, fallback string) string {
 	value, _ := values[key].(string)
 	if value == "" {
@@ -134,6 +130,13 @@ func number(values map[string]any, key string, fallback int64) int64 {
 func flag(values map[string]any, key string) bool {
 	value, _ := values[key].(bool)
 	return value
+}
+
+func flagDefault(values map[string]any, key string, fallback bool) bool {
+	if value, ok := values[key].(bool); ok {
+		return value
+	}
+	return fallback
 }
 
 func boolText(value bool) string {
