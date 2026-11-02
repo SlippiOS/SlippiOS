@@ -121,8 +121,7 @@ func _display_audio() -> void:
 	var audio: Dictionary = _settings.get("audio", {})
 	_pane_title("Display & Audio")
 	_pane_button("Display: %s" % _display_label(display), app.show_display)
-	_pane_button("Audio: %s · %d%%" % [_sink_label(audio), int(audio.get("volume", 100))],
-		app.show_audio)
+	_pane_button("Audio: %d%%" % int(audio.get("volume", 100)), app.show_audio)
 	_pane_hint("Changes apply immediately and are saved for the next boot.")
 
 
@@ -246,11 +245,6 @@ func _display_label(display: Dictionary) -> String:
 	if rate == "" or rate == "0":
 		return resolution
 	return "%s @ %s Hz" % [resolution, rate]
-
-
-func _sink_label(audio: Dictionary) -> String:
-	var sink := text_value(audio.get("sink"), "auto")
-	return "auto (system default)" if sink == "auto" else sink
 
 
 func _toggle_expert() -> void:
