@@ -258,9 +258,10 @@ codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
 real Dolphin GUI for anything the curated list does not cover.
 
 PipeWire restores per-application stream volumes, and Dolphin can come back at
--20 dB. `slippios-audio.service` (a user unit) sets the default sink and every
-new sink input to 100%, because the console has no volume UI yet. RTKit is
-enabled so PipeWire can take realtime priority.
+-20 dB. `slippios-audio.service` (a user unit) applies the saved sink volume and
+keeps every new sink input at 100%. The volume setting is user-facing in
+Settings → Display & Audio → Audio. RTKit is enabled so PipeWire can take
+realtime priority.
 
 The boot-time profile seeding creates the whole
 `/data/users/default/dolphin/Config` tree as `player:users`; otherwise Dolphin
@@ -440,7 +441,9 @@ The first boot shows the shim verification error and MokManager. Enroll
 ## Display and audio
 
 ```sh
-slippios display apply        # apply resolution, refresh, and audio sink
+slippios display apply        # apply resolution, refresh, and audio
+slippios audio apply          # apply the saved sink and volume
+slippios audio volume [0-100] # show or set the sink volume
 slippios audio sinks          # JSON list of PulseAudio outputs
 ```
 

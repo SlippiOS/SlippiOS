@@ -46,7 +46,8 @@ in
   time.timeZone = "UTC";
 
   # PipeWire otherwise restores a per-application stream volume (Dolphin can
-  # come back at -20 dB). The console has no volume UI, so keep streams at 0 dB.
+  # come back at -20 dB). Keep streams at 0 dB; the sink volume is the user's
+  # setting and is applied by `slippios audio apply`.
   security.rtkit.enable = true;
   systemd.user.services.slippios-audio = {
     description = "Keep SlippiOS audio streams at full volume";
@@ -58,7 +59,7 @@ in
       RestartSec = 2;
       ExecStart = "${pkgs.writeShellScript "slippios-audio" ''
         #!/bin/sh
-        ${pkgs.pulseaudio}/bin/pactl set-sink-volume @DEFAULT_SINK@ 100% || true
+        ${slippiosPackages.cli}/bin/slippios audio apply || true
         ${pkgs.pulseaudio}/bin/pactl subscribe | while read -r event; do
           case "$event" in
             *"new' on sink-input"*)
@@ -68,7 +69,7 @@ in
                 done
               ;;
             *"new' on sink"*)
-              ${pkgs.pulseaudio}/bin/pactl set-sink-volume @DEFAULT_SINK@ 100% || true
+              ${slippiosPackages.cli}/bin/slippios audio apply || true
               ;;
           esac
         done

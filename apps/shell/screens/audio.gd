@@ -4,7 +4,21 @@ func present() -> void:
 	clear()
 	title("AUDIO OUTPUT", 44)
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
-	var current := text_value(settings.get("audio", {}).get("sink"), "auto")
+	var audio: Dictionary = settings.get("audio", {})
+	var current := text_value(audio.get("sink"), "auto")
+	var volume := int(audio.get("volume", 100))
+
+	section("Volume")
+	var volume_label := label("Volume: %d%%" % volume, 0.8)
+	var slider := HSlider.new()
+	slider.min_value = 0
+	slider.max_value = 100
+	slider.step = 5
+	slider.value = volume
+	slider.custom_minimum_size = Vector2(360, 32)
+	slider.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	slider.value_changed.connect(_set_volume.bind(volume_label))
+	add_content(slider)
 
 	section("Outputs")
 	button("Auto (system default)%s" % ("  (selected)" if current == "auto" else ""),
@@ -26,6 +40,14 @@ func present() -> void:
 			button(sink_label, _select.bind(name))
 	button("Back", app.show_settings)
 	focus()
+	slider.grab_focus()
+
+
+func _set_volume(value: float, volume_label: Label) -> void:
+	volume_label.text = "Volume: %d%%" % int(value)
+	var result := cli(["audio", "volume", str(int(value))])
+	if not result.get("ok", false):
+		toast(str(result.get("error", "Could not set the volume.")), "error")
 
 
 func _select(name: String) -> void:
@@ -34,7 +56,7 @@ func _select(name: String) -> void:
 		toast(str(saved.get("error", "Could not save the audio output.")), "error")
 		app.show_audio()
 		return
-	var applied := cli(["display", "apply"])
+	var applied := cli(["audio", "apply"])
 	if not applied.get("ok", false):
 		toast("Audio saved, but applying it failed: %s" %
 			str(applied.get("error", "unknown error")), "error")

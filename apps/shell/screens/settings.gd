@@ -83,18 +83,37 @@ func _select(index: int) -> void:
 			_advanced()
 
 	var active: Button = _rail.get_child(index) as Button
-	var first: Button = null
+	var pane_buttons: Array[Button] = []
 	for child in _pane.get_children():
 		if child is Button:
-			if first == null:
-				first = child
-			child.focus_neighbor_left = child.get_path_to(active)
-	if first != null:
-		for position in CATEGORIES.size():
-			var category: Button = _rail.get_child(position) as Button
-			category.focus_neighbor_right = category.get_path_to(first)
-		var back_button: Button = _rail.get_child(CATEGORIES.size() + 1) as Button
-		back_button.focus_neighbor_right = back_button.get_path_to(first)
+			pane_buttons.append(child)
+
+	for position in pane_buttons.size():
+		var button := pane_buttons[position]
+		var up := pane_buttons[position - 1] if position > 0 else button
+		var down := pane_buttons[position + 1] \
+			if position + 1 < pane_buttons.size() else button
+		button.focus_neighbor_left = button.get_path_to(active)
+		button.focus_neighbor_right = button.get_path_to(button)
+		button.focus_neighbor_top = button.get_path_to(up)
+		button.focus_neighbor_bottom = button.get_path_to(down)
+
+	var first: Button = pane_buttons[0] if not pane_buttons.is_empty() else null
+	var rail_buttons: Array[Button] = []
+	for position in CATEGORIES.size():
+		rail_buttons.append(_rail.get_child(position) as Button)
+	var back_button: Button = _rail.get_child(CATEGORIES.size() + 1) as Button
+	rail_buttons.append(back_button)
+	for position in rail_buttons.size():
+		var button := rail_buttons[position]
+		var up := rail_buttons[position - 1] if position > 0 else button
+		var down := rail_buttons[position + 1] \
+			if position + 1 < rail_buttons.size() else button
+		button.focus_neighbor_left = button.get_path_to(button)
+		button.focus_neighbor_right = button.get_path_to(first) \
+			if first != null else button.get_path_to(button)
+		button.focus_neighbor_top = button.get_path_to(up)
+		button.focus_neighbor_bottom = button.get_path_to(down)
 
 
 func _display_audio() -> void:
@@ -102,7 +121,8 @@ func _display_audio() -> void:
 	var audio: Dictionary = _settings.get("audio", {})
 	_pane_title("Display & Audio")
 	_pane_button("Display: %s" % _display_label(display), app.show_display)
-	_pane_button("Audio: %s" % _sink_label(audio), app.show_audio)
+	_pane_button("Audio: %s · %d%%" % [_sink_label(audio), int(audio.get("volume", 100))],
+		app.show_audio)
 	_pane_hint("Changes apply immediately and are saved for the next boot.")
 
 

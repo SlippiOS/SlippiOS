@@ -81,7 +81,8 @@ func Defaults() map[string]any {
 			"custom":     "",
 		},
 		"audio": map[string]any{
-			"sink": "auto",
+			"sink":   "auto",
+			"volume": int64(100),
 		},
 		"network": map[string]any{
 			"ssid": "",

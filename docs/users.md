@@ -161,8 +161,10 @@ The same screen has **Gecko codes** for the optional Melee patches.
 [controllers.md](controllers.md)
 
 **Settings** lists the display modes the monitor advertises (read from
-xrandr/EDID), the audio outputs, Wi-Fi, and **Update**. Changes apply
-immediately and are saved for the next boot.
+xrandr/EDID), the audio output and volume, Wi-Fi, and **Update**. Changes apply
+immediately and are saved for the next boot. The Audio screen has a volume
+slider; the same value can be set from a terminal with
+`slippios audio volume 70`.
 
 **Settings → Gameplay → Controller Settings** assigns each of the four GameCube ports to a
 GameCube adapter, a standard pad with a Dolphin profile, the keyboard, or
