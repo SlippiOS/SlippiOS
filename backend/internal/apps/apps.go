@@ -39,6 +39,11 @@ func StablePath(dataDir string) string {
 	return filepath.Join(StableDir(dataDir), "Slippi_Online-x86_64.AppImage")
 }
 
+// StableVersion is the pinned stable build shipped with the image.
+func StableVersion() string {
+	return stableFallbackVersion
+}
+
 func PlaybackPath(dataDir string) string {
 	return filepath.Join(PlaybackDir(dataDir), "Slippi_Playback-x86_64.AppImage")
 }
@@ -89,6 +94,9 @@ func ensure(dataDir, directory, appName, version, url string, log func(string)) 
 	}
 	_ = os.Remove(archive)
 	if err := os.Chmod(filepath.Join(directory, appName), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(directory, ".version"), []byte(version+"\n"), 0o644); err != nil {
 		return "", err
 	}
 	return filepath.Join(directory, appName), nil

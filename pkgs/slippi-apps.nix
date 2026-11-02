@@ -16,16 +16,17 @@ let
     hash = "sha256-2iG4+9CLO4r/xYkQSx+QEf22ieciKdj56rtgcjWhusM=";
   };
 
-  extract = name: src: appimage: runCommand name {
+  extract = name: src: appimage: version: runCommand name {
     meta.license = lib.licenses.gpl2Plus;
   } ''
     mkdir -p $out
     ${unzip}/bin/unzip -q ${src} -d $out
     rm -f $out/*.zsync
     chmod +x $out/${appimage}
+    echo ${version} > $out/.version
   '';
 
-  stable = extract "slippios-stable-app-3.6.4" stableZip "Slippi_Online-x86_64.AppImage";
+  stable = extract "slippios-stable-app-3.6.4" stableZip "Slippi_Online-x86_64.AppImage" "3.6.4";
 
   # The AppImage runner extracts the AppImage into the profile cache on first
   # launch. Seed that cache in the image so the first launch does not spend
@@ -43,7 +44,7 @@ let
   '';
 in {
   inherit stable stableCache;
-  playback = extract "slippios-playback-app-3.5.2" playbackZip "Slippi_Playback-x86_64.AppImage";
+  playback = extract "slippios-playback-app-3.5.2" playbackZip "Slippi_Playback-x86_64.AppImage" "3.5.2";
   beta = runCommand "slippios-beta-app-4.0.0-mainline-beta.19" {
     meta.license = lib.licenses.gpl2Plus;
   } ''

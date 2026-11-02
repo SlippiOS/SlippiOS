@@ -57,6 +57,11 @@ func appsStatusPayload() map[string]any {
 	paths := settings.DefaultPaths()
 	stablePath := apps.StablePath(paths.DataDir)
 	stable := fileStatus(stablePath)
+	stableVersion := readTrimmed(filepath.Join(apps.StableDir(paths.DataDir), ".version"))
+	if stableVersion == "" {
+		stableVersion = apps.StableVersion()
+	}
+	stable["version"] = stableVersion
 
 	dolphinPaths := dolphin.DefaultPaths()
 	betaPath, betaInstalled := dolphinPaths.CurrentPath()

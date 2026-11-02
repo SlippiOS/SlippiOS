@@ -15,6 +15,11 @@ func present() -> void:
 	var os_check := cli(["os", "check"])
 	var os_status := cli(["os", "status"])
 	var dolphin := cli(["update", "--check"])
+	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
+	var dolphin_settings: Dictionary = settings.get("dolphin", {})
+	var build := text_value(dolphin_settings.get("build"), "stable")
+	var stable_version := text_value(
+		app.status.get("apps", {}).get("stable", {}).get("version"), "not installed")
 
 	section("System")
 	if os_check.get("ok", false):
@@ -37,10 +42,12 @@ func present() -> void:
 		button("Restart to finish update", app.request_reboot)
 
 	section("Dolphin")
+	label("Build: %s" % build, 0.65)
+	label("Stable: %s" % stable_version, 0.65)
 	if dolphin.get("ok", false):
-		label("Dolphin: %s" % text_value(dolphin.get("current"), "not installed"), 0.65)
+		label("Beta: %s" % text_value(dolphin.get("current"), "not installed"), 0.65)
 		if dolphin.get("current") != dolphin.get("latest"):
-			label("Latest Dolphin: %s" % str(dolphin.get("latest")), 0.65)
+			label("Latest beta: %s" % str(dolphin.get("latest")), 0.65)
 	else:
 		label(str(dolphin.get("error", "Dolphin update check failed.")), 0.8)
 

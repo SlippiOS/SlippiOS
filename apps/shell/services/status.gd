@@ -41,7 +41,12 @@ func text() -> String:
 	var dolphin: Dictionary = app.status.get("dolphin", {})
 	var game: String = "ready" if settings.get("iso_valid", false) else str(settings.get("iso_reason", "not configured"))
 	var account: String = "signed in" if login.get("signed_in", false) else "not signed in"
-	var version: String = app.text_value(dolphin.get("current"), "not installed")
+	var build: String = app.text_value(dolphin.get("build"), "stable")
+	var version: String
+	if build == "beta":
+		version = "beta %s" % app.text_value(dolphin.get("current"), "not installed")
+	else:
+		version = "stable %s" % app.text_value(dolphin.get("stable_version"), "not installed")
 	var lines := PackedStringArray(["Game: %s" % game, "Login: %s" % account, "Dolphin: %s" % version])
 	var os: Dictionary = app.status.get("os", {})
 	var os_version: String = app.text_value(os.get("version"), "")

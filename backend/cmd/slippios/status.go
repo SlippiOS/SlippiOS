@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/SlippiOS/SlippiOS/backend/internal/apps"
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
 	"github.com/SlippiOS/SlippiOS/backend/internal/network"
@@ -53,15 +54,29 @@ func statusPayload() map[string]any {
 	}
 	adapter := controllers.AdapterPresent()
 	currentDolphin := dolphinCurrent()
+	build := "stable"
+	if dolphinSettings, ok := values["dolphin"].(map[string]any); ok {
+		if value, ok := dolphinSettings["build"].(string); ok && value != "" {
+			build = value
+		}
+	}
+	stableVersion := readTrimmed(filepath.Join(apps.StableDir(paths.DataDir), ".version"))
+	if stableVersion == "" {
+		stableVersion = apps.StableVersion()
+	}
 	return map[string]any{
 		"ok":       true,
 		"settings": summary,
 		"login":    map[string]any{"signed_in": login, "detail": loginDetail},
-		"dolphin":  map[string]any{"current": currentDolphin},
-		"apps":     appsStatusPayload(),
-		"adapter":  map[string]any{"present": adapter},
-		"network":  network.StatusNow(),
-		"os":       map[string]any{"version": osVersion(), "build": osBuild()},
+		"dolphin": map[string]any{
+			"current":        currentDolphin,
+			"build":          build,
+			"stable_version": stableVersion,
+		},
+		"apps":    appsStatusPayload(),
+		"adapter": map[string]any{"present": adapter},
+		"network": network.StatusNow(),
+		"os":      map[string]any{"version": osVersion(), "build": osBuild()},
 	}
 }
 
@@ -115,10 +130,19 @@ func printStatus(mode *modes, payload map[string]any) {
 	}
 	dolphinInfo := payload["dolphin"].(map[string]any)
 	current, _ := dolphinInfo["current"].(string)
-	if current == "" {
-		current = "not installed"
+	build, _ := dolphinInfo["build"].(string)
+	stableVersion, _ := dolphinInfo["stable_version"].(string)
+	if build == "beta" {
+		if current == "" {
+			current = "not installed"
+		}
+		mode.printf("Dolphin:   beta %s (selected)\n", current)
+	} else {
+		if stableVersion == "" {
+			stableVersion = "not installed"
+		}
+		mode.printf("Dolphin:   stable %s (selected)\n", stableVersion)
 	}
-	mode.printf("Dolphin:   %s\n", current)
 	if osInfo, ok := payload["os"].(map[string]any); ok {
 		if version, _ := osInfo["version"].(string); version != "" {
 			mode.printf("SlippiOS:  %s\n", version)
