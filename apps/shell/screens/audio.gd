@@ -40,8 +40,6 @@ func present() -> void:
 				if name == current:
 					sink_label += "  (selected)"
 				button(sink_label, _select.bind(name))
-	else:
-		label("Output selection is available in Expert mode.", 0.6)
 
 	button("Back", app.show_settings)
 	focus()
