@@ -18,9 +18,12 @@ usage() {
 usage: scripts/flash-usb [enable|disable|status]
 
   enable    install the root helper and narrow sudoers rule (asks for sudo once)
+            options: --device PATH --image-dir DIR --allow-fixed
   (none)    flash the newest dev image using the installed helper
   status    show the configured device, image, and helper state
   disable   remove the helper, sudoers rule, and config
+
+  --allow-fixed permits a USB NVMe enclosure that reports removable=0.
 
 Environment:
   FLASH_USER  user allowed to run the helper (default: SUDO_USER)
@@ -79,6 +82,7 @@ enable() {
   if [[ $EUID -ne 0 ]]; then
     local args=(enable --image-dir "$image_dir")
     [[ -n "$device" ]] && args+=(--device "$device")
+    [[ "$allow_fixed" -eq 1 ]] && args+=(--allow-fixed)
     exec sudo "$(readlink -f "$0")" "${args[@]}"
   fi
 
@@ -96,6 +100,7 @@ enable() {
   cat > "$CONFIG" <<EOF
 device="$device"
 image_dir="$image_dir"
+allow_fixed="$allow_fixed"
 EOF
   chmod 0644 "$CONFIG"
   install -o root -g root -m 0755 scripts/flash-usb-helper "$HELPER"
@@ -131,6 +136,7 @@ status() {
     source "$CONFIG"
     echo "Device:  ${device:-missing}"
     echo "Images:  ${image_dir:-missing}"
+    echo "Allow fixed: $([[ "${allow_fixed:-0}" == "1" ]] && echo yes || echo no)"
     image_for "$image_dir" 2>/dev/null | sed 's/^/Image:   /' || true
   else
     echo "Config:  missing"

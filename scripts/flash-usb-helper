@@ -29,9 +29,12 @@ if [[ ! -b "$dev" ]]; then
   echo "target is not a block device: $dev" >&2
   exit 1
 fi
-if [[ "$(cat "/sys/block/$name/removable" 2>/dev/null || echo 0)" != "1" ]]; then
-  echo "refusing to write a non-removable device: $dev" >&2
-  exit 1
+if [[ "${allow_fixed:-0}" != "1" ]]; then
+  if [[ "$(cat "/sys/block/$name/removable" 2>/dev/null || echo 0)" != "1" ]]; then
+    echo "refusing to write a non-removable device: $dev" >&2
+    echo "use --allow-fixed when enabling the helper for a USB NVMe enclosure" >&2
+    exit 1
+  fi
 fi
 if [[ "$(lsblk -dno TRAN "$dev" 2>/dev/null || true)" != "usb" ]]; then
   echo "refusing to write a non-USB device: $dev" >&2
