@@ -52,4 +52,4 @@ func back() -> void:
 	if app.setup_flow or app.onboarding:
 		app.show_controller_setup()
 	else:
-		app.show_dolphin()
+		app.show_dolphin_group("gameplay")

@@ -9,7 +9,7 @@ func present() -> void:
 	var result := cli(["gecko", "list"])
 	if not result.get("ok", false):
 		label(str(result.get("error", "Could not read the Gecko codes.")), 0.9)
-		button("Back", app.show_dolphin)
+		button("Back", app.show_dolphin_group.bind("advanced"))
 		focus()
 		return
 
@@ -30,7 +30,7 @@ func present() -> void:
 
 	section("Custom")
 	button("Custom codes…", app.show_gecko_custom)
-	button("Back", app.show_dolphin)
+	button("Back", app.show_dolphin_group.bind("advanced"))
 	focus()
 
 
@@ -49,4 +49,4 @@ func _toggle(name: String, enabled: bool, required: bool) -> void:
 
 
 func back() -> void:
-	app.show_dolphin()
+	app.show_dolphin_group("advanced")

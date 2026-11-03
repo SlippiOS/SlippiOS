@@ -2,7 +2,7 @@ extends "res://screens/screen.gd"
 
 
 const CategoryMenu := preload("res://widgets/category_menu.gd")
-const CATEGORIES := ["Display & Audio", "Gameplay", "Network", "System", "Advanced"]
+const CATEGORIES := ["Display & Audio", "Dolphin", "Network", "System", "Advanced"]
 
 static var selected := 0
 
@@ -25,7 +25,7 @@ func _build_category(index: int, menu: CategoryMenu) -> void:
 		0:
 			_display_audio(menu)
 		1:
-			_gameplay(menu)
+			_dolphin(menu)
 		2:
 			_network(menu)
 		3:
@@ -43,10 +43,13 @@ func _display_audio(menu: CategoryMenu) -> void:
 	menu.pane_hint("Changes apply immediately and are saved for the next boot.")
 
 
-func _gameplay(menu: CategoryMenu) -> void:
-	menu.pane_title("Gameplay")
-	menu.pane_button("Dolphin Settings", app.show_dolphin)
-	menu.pane_hint("Controllers, graphics, audio, and the build.")
+func _dolphin(menu: CategoryMenu) -> void:
+	menu.pane_title("Dolphin")
+	menu.pane_button("Gameplay", app.show_dolphin_group.bind("gameplay"))
+	menu.pane_button("Graphics", app.show_dolphin_group.bind("graphics"))
+	menu.pane_button("Audio", app.show_dolphin_group.bind("audio"))
+	menu.pane_button("Advanced", app.show_dolphin_group.bind("advanced"))
+	menu.pane_hint("Dolphin settings and controller assignment.")
 
 
 func _network(menu: CategoryMenu) -> void:

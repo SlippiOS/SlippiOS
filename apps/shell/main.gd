@@ -21,7 +21,7 @@ const AudioScreen := preload("res://screens/audio.gd")
 const DisplayScreen := preload("res://screens/display.gd")
 const CustomModeScreen := preload("res://screens/display_custom.gd")
 const ExpertScreen := preload("res://screens/expert.gd")
-const DolphinScreen := preload("res://screens/dolphin.gd")
+const DolphinGroupScreen := preload("res://screens/dolphin_group.gd")
 const ControllersScreen := preload("res://screens/controllers.gd")
 const ControllerSetupScreen := preload("res://screens/controller_setup.gd")
 const ControllerPortScreen := preload("res://screens/controller_port.gd")
@@ -298,9 +298,11 @@ func show_expert() -> void:
 	_present(ExpertScreen.new(self))
 
 
-func show_dolphin() -> void:
+func show_dolphin_group(group: String) -> void:
 	stop_net()
-	_present(DolphinScreen.new(self))
+	var screen = DolphinGroupScreen.new(self)
+	screen.group = group
+	_present(screen)
 
 
 func show_controllers() -> void:

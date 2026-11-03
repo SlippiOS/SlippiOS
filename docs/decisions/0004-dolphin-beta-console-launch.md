@@ -35,7 +35,7 @@ Test two console-specific causes in order:
    and launch beta again. The cache is extracted on first launch; an
    interrupted extraction can leave a directory that looks complete but
    cannot run. A fresh extraction should reproduce the host/dev result.
-2. **Try beta with OpenGL.** Settings → Dolphin Settings → Renderer: OGL,
+2. **Try beta with OpenGL.** Settings → Dolphin → Graphics → Renderer: OGL,
    Build: beta. This isolates the console's AMD Vulkan path from the beta
    build.
 
