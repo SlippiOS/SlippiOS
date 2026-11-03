@@ -73,10 +73,6 @@ export SLIPPIOS_SB_KEY="$key"
 export SLIPPIOS_SB_CERT="$cert"
 export SLIPPIOS_CACHE="$CACHE"
 
-if ! ./scripts/clean-cache --history; then
-  echo "warning: build history cleanup skipped" >&2
-fi
-
 if [[ "$BUILD" -eq 1 ]]; then
   if [[ -d "$RESULT" && ! -L "$RESULT" ]]; then
     echo "$RESULT is a directory; move the old image aside or set SLIPPI_RESULT" >&2

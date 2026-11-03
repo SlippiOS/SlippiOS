@@ -542,12 +542,27 @@ store image and UKI, writes a dev manifest, and publishes to `dev/` through
 The first dev build should use `--keep-raw`; flash that signed raw once with
 `scripts/flash-usb enable --image-dir .cache/release-dev`. After that, publish
 new dev builds and install them from **Settings → System → Update**; the
-inactive slot is updated exactly like a release.
+inactive slot is updated exactly like a release. `mise run release:dev` is the
+same as `scripts/release-dev`.
 
 `scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
 and manifest in that order, then deletes old `dev/` objects. Stable objects are
 left alone, so the bucket holds the latest stable plus the latest dev assets
 and stays under the 10 GB free tier.
+
+## Cleaning build history
+
+`mise run clean:history` removes old `.cache/release/<version>` directories,
+verification artifacts, stale `result-*` links, old image store paths, and
+build temp. It keeps the current release, minimal, dev, and shell-export
+results. `scripts/build-image` runs the same cleanup before every image build;
+set `SLIPPIOS_SKIP_CLEAN=1` to skip it.
+
+`mise run clean` also removes QEMU overlays, ISOs, and OVMF variables.
+`mise run clean:hard` wipes `.cache` and the nix-portable store for a full
+re-download. The history cleanup deliberately does not run a global Nix GC:
+that also removes the build inputs and makes the next image build start from
+scratch.
 
 ## Network pages
 
