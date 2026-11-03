@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
 
 type Part struct {
@@ -164,9 +166,21 @@ func parseManifest(data []byte) (*Manifest, error) {
 	}, nil
 }
 
+func updateChannel(paths Paths) string {
+	values, err := settings.PathsFor(paths.DataDir).Load()
+	if err != nil {
+		return "stable"
+	}
+	return settings.UpdateChannel(values)
+}
+
 func source(paths Paths) (string, string) {
 	base := defaultBase
 	manifest := defaultManifest
+	if updateChannel(paths) == "dev" {
+		base = devBase
+		manifest = devManifest
+	}
 	config := readJSON(paths.Source)
 	if configured, ok := stringValue(config["base"]); ok && configured != "" {
 		base = strings.TrimRight(configured, "/") + "/"

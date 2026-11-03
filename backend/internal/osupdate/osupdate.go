@@ -10,6 +10,8 @@ import (
 const (
 	defaultBase     = "https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/"
 	defaultManifest = defaultBase + "manifest.json"
+	devBase         = defaultBase + "dev/"
+	devManifest     = devBase + "manifest.json"
 	downloadBase    = "https://github.com/SlippiOS/SlippiOS/releases/download"
 	userAgent       = "SlippiOS/0.2"
 )

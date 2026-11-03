@@ -524,6 +524,31 @@ Local update source:
 Write this to `/data/system/update-source.json`. The HTTP server must support
 Range requests for zsync.
 
+### Dev update channel
+
+`settings.toml` has `[update] channel = "stable"` by default. The shell shows
+the switch in **Settings → System** only while Expert mode is on.
+`osupdate.source` uses the R2 root for stable and the `dev/` prefix for dev,
+unless `/data/system/update-source.json` overrides the source. The same switch
+is available from a terminal with
+`slippios settings set update.channel dev`.
+
+Dev images use `0.4.2.<checkout-timestamp>` as their version, so each committed
+build sorts above the release it is based on and above earlier dev builds.
+`scripts/release-dev` builds the uncompressed dev image, signs it, extracts the
+store image and UKI, writes a dev manifest, and publishes to `dev/` through
+`scripts/publish-r2 --dev`.
+
+The first dev build should use `--keep-raw`; flash that signed raw once with
+`scripts/flash-usb enable --image-dir .cache/release-dev`. After that, publish
+new dev builds and install them from **Settings → System → Update**; the
+inactive slot is updated exactly like a release.
+
+`scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
+and manifest in that order, then deletes old `dev/` objects. Stable objects are
+left alone, so the bucket holds the latest stable plus the latest dev assets
+and stays under the 10 GB free tier.
+
 ## Network pages
 
 The first-boot setup page is a two-step browser wizard served by
@@ -577,6 +602,6 @@ scripts/publish-r2 .cache/release/<version>
 ```
 
 The script reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
-uploads the full/unsigned images, store image, UKI, and checksums before
-`manifest.json`. R2 has no GitHub 2 GiB asset limit, so the full image can be a
-single file.
+uploads the store image, zsync, UKI, checksums, and manifest. Full USB images
+live on SourceForge. Pass `--dev` to publish the update assets under the
+`dev/` prefix and remove the previous dev objects.

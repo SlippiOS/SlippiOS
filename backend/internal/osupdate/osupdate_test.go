@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
 
 func sha(data []byte) string {
@@ -497,5 +499,30 @@ func TestRequestReboot(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) == "" {
 		t.Fatal("reboot request is empty")
+	}
+}
+
+func TestSourceUsesUpdateChannel(t *testing.T) {
+	paths := testPaths(t, "100")
+	base, manifest := source(paths)
+	if base != defaultBase || manifest != defaultManifest {
+		t.Fatalf("stable source = %q %q", base, manifest)
+	}
+
+	settingsPaths := settings.PathsFor(paths.DataDir)
+	values := settings.Defaults()
+	values["update"].(map[string]any)["channel"] = "dev"
+	if err := settingsPaths.Save(values); err != nil {
+		t.Fatal(err)
+	}
+	base, manifest = source(paths)
+	if base != devBase || manifest != devManifest {
+		t.Fatalf("dev source = %q %q", base, manifest)
+	}
+
+	writeSource(t, paths, "http://example.test/")
+	base, manifest = source(paths)
+	if base != "http://example.test/" || manifest != "http://example.test/manifest.json" {
+		t.Fatalf("override source = %q %q", base, manifest)
 	}
 }

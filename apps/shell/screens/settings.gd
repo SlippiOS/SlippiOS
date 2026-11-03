@@ -62,6 +62,11 @@ func _network(menu: CategoryMenu) -> void:
 func _system(menu: CategoryMenu) -> void:
 	menu.pane_title("System")
 	menu.pane_button("Update", app.show_update)
+	var expert: Dictionary = _settings.get("expert", {})
+	if bool(expert.get("enabled", false)):
+		var update: Dictionary = _settings.get("update", {})
+		menu.pane_button("Release channel: %s" % _channel_label(update), _toggle_channel)
+		menu.pane_hint("Dev builds update from the R2 test channel.")
 	menu.pane_hint("Install system updates and check the bundled Dolphin build.")
 
 
@@ -89,6 +94,23 @@ func _display_label(display: Dictionary) -> String:
 	if rate == "" or rate == "0":
 		return resolution
 	return "%s @ %s Hz" % [resolution, rate]
+
+
+func _channel_label(update: Dictionary) -> String:
+	return "Dev" if text_value(update.get("channel"), "stable") == "dev" else "Stable"
+
+
+func _toggle_channel() -> void:
+	var update: Dictionary = _settings.get("update", {})
+	var current := text_value(update.get("channel"), "stable")
+	var next := "dev" if current == "stable" else "stable"
+	var saved := cli(["settings", "set", "update.channel", next])
+	if not saved.get("ok", false):
+		toast(str(saved.get("error", "Could not save the release channel.")), "error")
+		app.show_settings()
+		return
+	toast("Release channel set to %s." % ("Dev" if next == "dev" else "Stable"), "success")
+	app.show_settings()
 
 
 func _toggle_expert() -> void:
