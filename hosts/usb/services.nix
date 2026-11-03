@@ -16,6 +16,7 @@ in {
   environment.systemPackages = with pkgs; [
     xz
     zsync
+    zsync2
   ];
 
   environment.etc."slippios/version".text = "${version}\n";

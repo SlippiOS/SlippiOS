@@ -515,6 +515,11 @@ The updater fetches `manifest.json`, zsyncs the store image against the active
 file. A root oneshot runs `systemd-sysupdate`. The shell polls
 `/data/system/update/status.json` and offers a restart.
 
+The image ships both `zsync2` and `zsync`. The updater prefers `zsync2` because
+the older `zsync` in the base image cannot read HTTPS control files. If neither
+client can fetch the control file, the updater falls back to a full download of
+the store image. The fallback is correct but much slower on a USB drive.
+
 Local update source:
 
 ```json
