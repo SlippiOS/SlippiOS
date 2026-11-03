@@ -152,11 +152,12 @@ the GameCube adapter or a wired USB pad. Wireless controllers are not
 supported because Melee is latency-sensitive. Press **Escape** to exit Melee and
 return to the shell. Press **Guide** to stop the current match and stay in
 Dolphin. While the launching screen is visible, **Escape** cancels the launch
-and returns to the menu. **Settings → Gameplay → Dolphin Settings**
-changes Dolphin's graphics backend,
-internal resolution, aspect ratio, VSync, anti-aliasing, and audio without
-leaving the console. SlippiOS maps these onto Dolphin's command-line config.
-The same screen has **Gecko codes** for the optional Melee patches.
+and returns to the menu. **Settings → Gameplay → Dolphin Settings** groups Dolphin's options into
+**Gameplay**, **Graphics**, **Audio**, and **Advanced**. It changes the build,
+controllers, graphics backend, resolution, aspect, VSync, anti-aliasing,
+shader compilation, netplay ping, FPS display, and Slippi music. SlippiOS maps
+these onto Dolphin's command-line config. The Advanced category has **Gecko
+codes** for the optional Melee patches.
 
 [controllers.md](controllers.md)
 
