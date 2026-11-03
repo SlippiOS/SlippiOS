@@ -94,7 +94,7 @@ while IFS=$'\t' read -r name size; do
   [[ -n "$name" ]] || continue
   remote_sizes["$name"]=$size
   current_total=$((current_total + size))
-done < <(jq -r '.[] | [.Name, .Size] | @tsv' <<<"$remote_json")
+done < <(jq -r '.[] | [.Path, .Size] | @tsv' <<<"$remote_json")
 
 new_total=0
 replaced_total=0
@@ -108,14 +108,19 @@ for i in "${!files[@]}"; do
   fi
 done
 obsolete_total=0
-if [[ -n "$prefix" ]]; then
-  for name in "${!remote_sizes[@]}"; do
-    if [[ "$name" == "$prefix"* && -z "${new_names[$name]:-}" ]]; then
-      obsolete+=("$name")
-      obsolete_total=$((obsolete_total + remote_sizes[$name]))
-    fi
-  done
-fi
+for name in "${!remote_sizes[@]}"; do
+  # Skip directory entries and the other channel's prefix.
+  [[ "${remote_sizes[$name]}" -ge 0 ]] || continue
+  if [[ -n "$prefix" ]]; then
+    [[ "$name" == "$prefix"* ]] || continue
+  else
+    [[ "$name" == dev/* ]] && continue
+  fi
+  if [[ -z "${new_names[$name]:-}" ]]; then
+    obsolete+=("$name")
+    obsolete_total=$((obsolete_total + remote_sizes[$name]))
+  fi
+done
 projected=$((current_total - replaced_total - obsolete_total + new_total))
 
 echo "R2 usage: current $current_total B, replacing $replaced_total B, upload $new_total B, projected $projected B / $limit B"
@@ -133,7 +138,7 @@ for i in "${!files[@]}"; do
 done
 
 if [[ ${#obsolete[@]} -gt 0 ]]; then
-  echo "Removing ${#obsolete[@]} old dev assets"
+  echo "Removing ${#obsolete[@]} old release assets"
   for name in "${obsolete[@]}"; do
     rclone --config /dev/null deletefile ":s3:${R2_BUCKET}/${name}" \
       --s3-provider Cloudflare \

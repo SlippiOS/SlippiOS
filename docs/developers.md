@@ -546,9 +546,9 @@ inactive slot is updated exactly like a release. `mise run release:dev` is the
 same as `scripts/release-dev`.
 
 `scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
-and manifest in that order, then deletes old `dev/` objects. Stable objects are
-left alone, so the bucket holds the latest stable plus the latest dev assets
-and stays under the 10 GB free tier.
+and manifest in that order, then deletes old `dev/` objects. A stable publish
+does the same for the stable prefix, so the bucket holds the latest stable plus
+the latest dev assets and stays under the 10 GB free tier.
 
 ## Cleaning build history
 
@@ -619,4 +619,5 @@ scripts/publish-r2 .cache/release/<version>
 The script reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
 uploads the store image, zsync, UKI, checksums, and manifest. Full USB images
 live on SourceForge. Pass `--dev` to publish the update assets under the
-`dev/` prefix and remove the previous dev objects.
+`dev/` prefix. Both modes remove old objects in their own prefix after the new
+manifest is uploaded.

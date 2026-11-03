@@ -38,9 +38,10 @@ signed full image for the one-time flash. Later builds only produce the update
 assets.
 
 `scripts/publish-r2 --dev` uploads the new assets (large files first, manifest
-last), then deletes old objects under `dev/`. Stable objects are untouched. The
-bucket therefore holds the latest stable plus the latest dev assets, which
-keeps the 10 GB free tier from filling with old test builds.
+last), then deletes old objects under `dev/`. A stable publish does the same
+for the stable prefix. The bucket therefore holds the latest stable plus the
+latest dev assets, which keeps the 10 GB free tier from filling with old test
+builds.
 
 ## Consequences
 
@@ -56,6 +57,6 @@ keeps the 10 GB free tier from filling with old test builds.
 - Switching back to Stable does not downgrade a dev build; the console waits
   for a newer stable release or is reflashed.
 - The expert-only gate keeps the test channel out of the normal user path.
-- Stable cleanup remains manual. If stable assets plus the latest dev assets
-  exceed 10 GB, the publish script refuses the upload and reports the projected
-  usage.
+- Both stable and dev publishes prune old assets in their own prefix after
+  uploading the new manifest. If the projected usage still exceeds 10 GB, the
+  publish script refuses the upload and reports the projected usage.
