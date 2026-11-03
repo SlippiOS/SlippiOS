@@ -262,6 +262,27 @@ from the global defaults go into `[Gecko_Enabled]`/`[Gecko_Disabled]`; custom
 codes live in `[Gecko]`. Required codes are locked. The CLI equivalents are
 `slippios gecko list|set|add|remove`.
 
+### In-game Quit button
+
+Melee's top-level **Data** slot is repurposed as **Quit**. On first launch,
+`gecko.EnsureQuitCode` writes `Required: SlippiOS Quit Button` into the local
+`GALE01.ini`. The code hooks the main-menu think function at `0x8022DB40`,
+checks for the Data slot (`hovered_selection == 4`) and Confirm, sends
+`CMD_LOG_MESSAGE` with `SLIPPIOS_QUIT` over the Slippi EXI device, and clears
+the button mask so the Data menu does not open.
+
+`slippios play` and `slippios-session` tail `<profile>/logs/dolphin.log` with
+`dolphin.WatchQuit` and send `SIGTERM` to Dolphin's process group on the
+marker. `dolphin.QuitRequested` turns that exit into a clean result instead of
+a launch error.
+
+The label is
+`backend/internal/dolphin/assets/tex1_176x30_d1fa83d25e26b8a9_2.png`, installed
+under `Load/Textures/GALE01/SlippiOS/`. Stable enables
+`Graphics.Settings.HiresTextures` in `GFX.ini`; beta passes the same key with
+`-C`. The Slippi log type must be enabled too: stable writes `Logger.ini`,
+beta passes `Logger.Logs.SLIPPI=True`. See ADR-0006.
+
 **Settings → Advanced → Expert mode → Expert tools → Open Dolphin GUI** opens the
 real Dolphin GUI for anything the curated list does not cover. Before the GUI
 opens, the curated keys are written into the INIs. When it closes,

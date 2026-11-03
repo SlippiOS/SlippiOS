@@ -152,7 +152,10 @@ the GameCube adapter or a wired USB pad. Wireless controllers are not
 supported because Melee is latency-sensitive. Press **Escape** to exit Melee and
 return to the shell. Press **Guide** to stop the current match and stay in
 Dolphin. While the launching screen is visible, **Escape** cancels the launch
-and returns to the menu. **Settings → Dolphin** lists **Gameplay**, **Graphics**, **Audio**, and
+and returns to the menu. Melee's main menu shows **Quit** in the slot normally
+used by **Data**; select it to close Dolphin and return to the SlippiOS menu.
+The Data menu is not available while the Quit button is installed.
+**Settings → Dolphin** lists **Gameplay**, **Graphics**, **Audio**, and
 **Advanced**; selecting one opens a flat menu for that group. It changes the build,
 controllers, graphics backend, resolution, aspect, VSync, anti-aliasing,
 shader compilation, netplay ping, FPS display, and Slippi music. SlippiOS maps
@@ -172,9 +175,10 @@ GameCube adapter, a standard pad with a Dolphin profile, the keyboard, or
 nothing. The screen marks profiles whose device is currently connected.
 
 **Settings → Dolphin → Advanced → Gecko codes** toggles the built-in Slippi codes.
-The required Slippi Online codes are locked; the optional codes (widescreen,
-flash on failed L-cancel, and so on) can be changed. Custom codes can be added
-from the Expert terminal with `slippios gecko add <file>`.
+The required Slippi Online codes and the SlippiOS Quit button are locked; the
+optional codes (widescreen, flash on failed L-cancel, and so on) can be
+changed. Custom codes can be added from the Expert terminal with
+`slippios gecko add <file>`.
 
 **Expert mode** (Settings → Advanced) unlocks tools for troubleshooting and
 tinkering: the Dolphin GUI, a terminal, a text editor, and a custom display

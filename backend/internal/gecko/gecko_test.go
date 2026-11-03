@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/ini"
 )
 
 func fixture(t *testing.T) string {
@@ -114,5 +116,78 @@ func TestAddAndRemoveCustomCode(t *testing.T) {
 		if code.Name == "Custom: Test" {
 			t.Fatal("custom code still present")
 		}
+	}
+}
+
+func TestEnsureQuitCodeIsIdempotent(t *testing.T) {
+	profile := fixture(t)
+	if err := EnsureQuitCode(profile); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureQuitCode(profile); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(LocalPath(profile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(data), "$"+QuitCodeName); count != 2 {
+		t.Fatalf("quit code appears %d times: %s", count, data)
+	}
+	if !strings.Contains(string(data), "C222DB40 00000019") {
+		t.Fatalf("quit code missing: %s", data)
+	}
+	codes, err := Load(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range codes {
+		if code.Name != QuitCodeName {
+			continue
+		}
+		if !code.Enabled || !code.UserDefined {
+			t.Fatalf("quit code = %#v", code)
+		}
+		return
+	}
+	t.Fatal("quit code not loaded")
+}
+
+func TestRequiredQuitCodeCannotBeRemoved(t *testing.T) {
+	profile := fixture(t)
+	if err := EnsureQuitCode(profile); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(profile, QuitCodeName); err == nil {
+		t.Fatal("required quit code removed")
+	}
+}
+
+func TestEnsureQuitCodeReenablesDisabledCode(t *testing.T) {
+	profile := fixture(t)
+	if err := EnsureQuitCode(profile); err != nil {
+		t.Fatal(err)
+	}
+	local, err := ini.Load(LocalPath(profile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	local.SetLines("Gecko_Enabled", nil)
+	local.SetLines("Gecko_Disabled", []string{"$" + QuitCodeName})
+	if err := ini.Save(LocalPath(profile), local); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureQuitCode(profile); err != nil {
+		t.Fatal(err)
+	}
+	local, err = ini.Load(LocalPath(profile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasLine(local.Lines("Gecko_Enabled"), "$"+QuitCodeName) {
+		t.Fatal("quit code was not re-enabled")
+	}
+	if hasLine(local.Lines("Gecko_Disabled"), "$"+QuitCodeName) {
+		t.Fatal("quit code is still disabled")
 	}
 }

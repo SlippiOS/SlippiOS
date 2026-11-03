@@ -16,6 +16,7 @@ import (
 	"github.com/SlippiOS/SlippiOS/backend/internal/controllers"
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	dolphinpkg "github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	"github.com/SlippiOS/SlippiOS/backend/internal/gecko"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 	"github.com/SlippiOS/SlippiOS/backend/internal/stable"
 	"github.com/spf13/cobra"
@@ -51,6 +52,9 @@ func runPlay(mode *modes, options playOptions) error {
 	values, err := paths.Load()
 	if err != nil {
 		return mode.fail("no game image")
+	}
+	if err := gecko.EnsureQuitCode(paths.ProfileDir); err != nil {
+		return mode.fail(err.Error())
 	}
 	if changed, err := controllers.NormalizeProfiles(values, paths.DolphinDir); err != nil {
 		return mode.fail(err.Error())
@@ -95,6 +99,9 @@ func runPlay(mode *modes, options playOptions) error {
 		if err := controllers.ConfigureHotkeys(paths.DolphinDir, values); err != nil {
 			return mode.fail(err.Error())
 		}
+		if err := dolphinpkg.EnableQuitSupport(paths.DolphinDir); err != nil {
+			return mode.fail(err.Error())
+		}
 		userDir = paths.DolphinDir
 		arguments = dolphinArgs(values)
 		arguments = append(arguments,
@@ -105,6 +112,12 @@ func runPlay(mode *modes, options playOptions) error {
 			"-C", fmt.Sprintf("Dolphin.Display.RenderWindowHeight=%d", height),
 			"-C", "Dolphin.Display.RenderWindowXPos=0",
 			"-C", "Dolphin.Display.RenderWindowYPos=0",
+			"-C", "Logger.Logs.SLIPPI=True",
+			"-C", "Logger.Options.WriteToConsole=True",
+			"-C", "Logger.Options.WriteToFile=True",
+			"-C", "Logger.Options.Verbosity=4",
+			"-C", "Graphics.Settings.HiresTextures=True",
+			"-C", "Graphics.Settings.CacheHiresTextures=True",
 			"-b", "-e", iso)
 	} else {
 		appimage, err = apps.EnsureStable(paths.DataDir, func(message string) {
@@ -287,10 +300,14 @@ func runDolphin(paths settings.Paths, appimage, userDir string, arguments []stri
 	if cancelFile != "" {
 		go watchCancel(cancelFile, command.Process.Pid, done)
 	}
+	go dolphinpkg.WatchQuit(logPath, command.Process.Pid, done)
 	err := command.Wait()
 	close(done)
 	if cancelFile != "" {
 		_ = os.Remove(cancelFile)
+	}
+	if dolphinpkg.QuitRequested(logPath) {
+		return 0, nil
 	}
 	// The game can map its window and exit before the shell notices the ready
 	// file. Record the successful start so the shell returns to the menu
@@ -342,13 +359,7 @@ func watchCancel(path string, pid int, done <-chan struct{}) {
 			if _, err := os.Stat(path); err != nil {
 				continue
 			}
-			_ = syscall.Kill(-pid, syscall.SIGTERM)
-			select {
-			case <-done:
-				return
-			case <-time.After(3 * time.Second):
-				_ = syscall.Kill(-pid, syscall.SIGKILL)
-			}
+			dolphinpkg.StopProcessGroup(pid, done)
 			return
 		}
 	}
