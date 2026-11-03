@@ -60,11 +60,34 @@ while read -r mountpoint; do
   fi
 done < <(lsblk -ln -o MOUNTPOINTS "$dev")
 
+progress_bar() {
+  local line bytes percent filled empty bar_fill bar_empty
+  local width=40
+  while IFS= read -r line; do
+    bytes=${line%% *}
+    if [[ ! "$bytes" =~ ^[0-9]+$ ]]; then
+      [[ -n "$line" ]] && printf '\r%s\n' "$line" >&2
+      continue
+    fi
+    percent=$(( bytes * 100 / image_size ))
+    (( percent > 100 )) && percent=100
+    filled=$(( percent * width / 100 ))
+    empty=$(( width - filled ))
+    bar_fill=$(printf '%*s' "$filled" '' | tr ' ' '#')
+    bar_empty=$(printf '%*s' "$empty" '')
+    printf '\r[%s%s] %3d%%  %s / %s' \
+      "$bar_fill" "$bar_empty" "$percent" \
+      "$(numfmt --to=iec "$bytes")" "$(numfmt --to=iec "$image_size")"
+  done
+  printf '\n'
+}
+
 echo "Flashing $image"
 echo "Target: $dev ($(numfmt --to=iec "$target_size"))"
-dd if="$image" of="$dev" bs=16M conv=fsync status=progress
+dd if="$image" of="$dev" bs=16M conv=fsync status=progress \
+  2> >(tr '\r' '\n' | progress_bar)
 sync
 
-echo "Verifying"
+echo "Verifying (reading the image back)…"
 cmp -n "$image_size" "$image" "$dev"
 echo "Flashed and verified $dev"
