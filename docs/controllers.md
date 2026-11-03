@@ -43,7 +43,7 @@ starting Dolphin and starts Godot again after Dolphin exits. With a standard
 pad the shell stays on its launching screen and hides itself while Dolphin
 runs. Do not run a uinput bridge at the same time.
 
-Open **Settings → Gameplay → Controller Settings** to assign each port. Ports set to
+Open **Settings → Gameplay → Dolphin Settings → Gameplay → Controller Settings** to assign each port. Ports set to
 **GameCube adapter** use Dolphin's native adapter support. Ports set to
 **standard pad** use a GCPad profile; the screen marks a profile as
 **(detected)** when a connected joystick matches its `Device` line. Use

@@ -166,11 +166,11 @@ immediately and are saved for the next boot. The Audio screen has a volume
 slider; output selection is available in Expert mode. The same volume can be
 set from a terminal with `slippios audio volume 70`.
 
-**Settings → Gameplay → Controller Settings** assigns each of the four GameCube ports to a
+**Settings → Gameplay → Dolphin Settings → Gameplay → Controller Settings** assigns each of the four GameCube ports to a
 GameCube adapter, a standard pad with a Dolphin profile, the keyboard, or
 nothing. The screen marks profiles whose device is currently connected.
 
-**Settings → Gameplay → Dolphin Settings → Gecko codes** toggles the built-in Slippi codes.
+**Settings → Gameplay → Dolphin Settings → Advanced → Gecko codes** toggles the built-in Slippi codes.
 The required Slippi Online codes are locked; the optional codes (widescreen,
 flash on failed L-cancel, and so on) can be changed. Custom codes can be added
 from the Expert terminal with `slippios gecko add <file>`.
