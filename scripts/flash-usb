@@ -11,7 +11,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 CONFIG="/etc/slippios/flash.conf"
 HELPER="/usr/local/sbin/slippios-flash"
 SUDOERS="/etc/sudoers.d/slippios-flash"
-DEFAULT_IMAGE_DIR="$PWD/result-local-image-dev"
+DEFAULT_IMAGE_DIR="$PWD/.cache/release-dev"
 
 usage() {
   cat <<'USAGE'
