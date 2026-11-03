@@ -3,7 +3,6 @@ extends "res://screens/screen.gd"
 func present() -> void:
 	clear()
 	add_content(_wordmark())
-	label("Super Smash Bros. Melee", 0.55)
 	var settings: Dictionary = app.status.get("settings", {})
 	var current := text_value(settings.get("iso_path"), "")
 	if current != "":
