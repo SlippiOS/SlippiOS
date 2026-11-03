@@ -57,6 +57,10 @@ run = "./scripts/stop-image"
 description = "Delete disposable cache and garbage-collect unreachable Nix paths"
 run = "./scripts/clean-cache --all"
 
+[tasks."clean:history"]
+description = "Remove old releases, verification artifacts, stale result links, and GC the Nix store"
+run = "./scripts/clean-cache --history"
+
 [tasks."clean:hard"]
 description = "Wipe .cache and the entire nix-portable store (full re-download next time)"
 run = "./scripts/clean-cache --hard"
