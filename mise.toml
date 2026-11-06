@@ -37,6 +37,10 @@ run = "./scripts/flash-usb"
 description = "Install the passwordless USB flash helper (asks for sudo once)"
 run = "sudo ./scripts/flash-usb enable"
 
+[tasks."flash:enable-fixed"]
+description = "Enable flashing for a USB NVMe enclosure (removable=0)"
+run = "sudo ./scripts/flash-usb enable --allow-fixed"
+
 [tasks."flash:status"]
 description = "Show the USB flash helper, device, and image state"
 run = "./scripts/flash-usb status"
