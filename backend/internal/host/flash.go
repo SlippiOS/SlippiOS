@@ -629,7 +629,17 @@ func configureFlash(ws *Workspace, device, imageDir string, allowFixed bool) err
 	if err != nil {
 		return err
 	}
-	args := []string{self, "flash", "enable", "--device", device, "--image-dir", imageDir}
+	installer := ws.CachePath("bin", "slippios-dev")
+	if err := os.MkdirAll(filepath.Dir(installer), 0o755); err != nil {
+		return err
+	}
+	if err := CopyFile(self, installer); err != nil {
+		return err
+	}
+	if err := os.Chmod(installer, 0o755); err != nil {
+		return err
+	}
+	args := []string{installer, "flash", "enable", "--device", device, "--image-dir", imageDir}
 	if allowFixed {
 		args = append(args, "--allow-fixed")
 	}
