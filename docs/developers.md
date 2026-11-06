@@ -555,6 +555,8 @@ The first dev build should use `--keep-raw`; flash that signed raw once with
 `mise run flash:usb`. The flasher detects USB media, confirms the target,
 configures the passwordless helper if needed, and writes the image. A USB NVMe
 enclosure that reports `removable=0` is detected and handled automatically.
+Pass `--no-verify` to skip the read-back verification; the write is still
+synced, but there is no post-write integrity check.
 After that, publish new dev builds and install them from
 **Settings → System → Update**; the inactive slot is updated exactly like a
 release.

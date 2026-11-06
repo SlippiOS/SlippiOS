@@ -12,6 +12,7 @@ func TestParseShellFlashConfig(t *testing.T) {
 device="/dev/disk/by-id/usb-test-0:0"
 image_dir="/home/user/.cache/release-dev"
 allow_fixed="1"
+skip_verify="1"
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -25,6 +26,9 @@ allow_fixed="1"
 	if !config.AllowFixed {
 		t.Fatal("allow_fixed was not parsed")
 	}
+	if !config.SkipVerify {
+		t.Fatal("skip_verify was not parsed")
+	}
 }
 
 func TestReadFlashConfigTOML(t *testing.T) {
@@ -33,6 +37,7 @@ func TestReadFlashConfigTOML(t *testing.T) {
 		Device:     "/dev/sda",
 		ImageDir:   "/tmp/images",
 		AllowFixed: true,
+		SkipVerify: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +45,7 @@ func TestReadFlashConfigTOML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config != (FlashConfig{Device: "/dev/sda", ImageDir: "/tmp/images", AllowFixed: true}) {
+	if config != (FlashConfig{Device: "/dev/sda", ImageDir: "/tmp/images", AllowFixed: true, SkipVerify: true}) {
 		t.Fatalf("config = %#v", config)
 	}
 }

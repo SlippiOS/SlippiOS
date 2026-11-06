@@ -19,13 +19,14 @@ const (
 	flashHelperPath  = "/usr/local/sbin/slippios-flash"
 	flashSudoersPath = "/etc/sudoers.d/slippios-flash"
 	flashMarkerPath  = "/etc/slippios/flash-helper.version"
-	flashMarkerValue = "slippios-dev-go-1"
+	flashMarkerValue = "slippios-dev-go-2"
 )
 
 type FlashConfig struct {
 	Device     string `toml:"device"`
 	ImageDir   string `toml:"image_dir"`
 	AllowFixed bool   `toml:"allow_fixed"`
+	SkipVerify bool   `toml:"skip_verify"`
 }
 
 type FlashOptions struct {
@@ -34,6 +35,7 @@ type FlashOptions struct {
 	Yes        bool
 	DryRun     bool
 	AllowFixed bool
+	SkipVerify bool
 }
 
 type USBDevice struct {
@@ -63,6 +65,7 @@ type flashConfigFile struct {
 	Device     string `toml:"device"`
 	ImageDir   string `toml:"image_dir"`
 	AllowFixed bool   `toml:"allow_fixed"`
+	SkipVerify bool   `toml:"skip_verify"`
 }
 
 func FlashInteractive(ws *Workspace, opts FlashOptions) error {
@@ -116,11 +119,11 @@ func FlashInteractive(ws *Workspace, opts FlashOptions) error {
 	}
 
 	if opts.DryRun {
-		fmt.Printf("Would flash %s to %s (allow_fixed=%t).\n", image, dev, allowFixed)
+		fmt.Printf("Would flash %s to %s (allow_fixed=%t, skip_verify=%t).\n", image, dev, allowFixed, opts.SkipVerify)
 		return nil
 	}
 
-	if err := configureFlash(ws, device, opts.ImageDir, allowFixed); err != nil {
+	if err := configureFlash(ws, device, opts.ImageDir, allowFixed, opts.SkipVerify); err != nil {
 		return err
 	}
 	return runFlashHelper()
@@ -144,6 +147,7 @@ func FlashStatus(ws *Workspace) error {
 		fmt.Printf("Device:  %s\n", config.Device)
 		fmt.Printf("Images:  %s\n", config.ImageDir)
 		fmt.Printf("Allow fixed: %s\n", yesNo(config.AllowFixed))
+		fmt.Printf("Verify:  %s\n", yesNo(!config.SkipVerify))
 		if image, err := findFlashImage(config.ImageDir); err == nil {
 			fmt.Printf("Image:   %s\n", image)
 		}
@@ -177,6 +181,9 @@ func FlashEnable(ws *Workspace, opts FlashOptions) error {
 		if opts.AllowFixed || (opts.Device != "" && !isRemovable(RealPath(opts.Device))) {
 			args = append(args, "--allow-fixed")
 		}
+		if opts.SkipVerify {
+			args = append(args, "--skip-verify")
+		}
 		return NewRunner(ws.Root).Run("sudo", args...)
 	}
 
@@ -205,7 +212,7 @@ func FlashEnable(ws *Workspace, opts FlashOptions) error {
 	}
 	allowFixed := opts.AllowFixed || !isRemovable(RealPath(device))
 
-	config := FlashConfig{Device: device, ImageDir: imageDir, AllowFixed: allowFixed}
+	config := FlashConfig{Device: device, ImageDir: imageDir, AllowFixed: allowFixed, SkipVerify: opts.SkipVerify}
 	if err := writeFlashConfig(flashConfigPath, config); err != nil {
 		return err
 	}
@@ -329,6 +336,11 @@ func RunFlashHelper() error {
 	}
 	syscall.Sync()
 	fmt.Println()
+	if config.SkipVerify {
+		fmt.Println("Skipping verification (skip_verify=true).")
+		fmt.Printf("Flashed %s (verification skipped)\n", dev)
+		return nil
+	}
 	fmt.Println("Verifying (reading the image back)…")
 	if err := verifyImage(image, dev, imageSize); err != nil {
 		return err
@@ -615,12 +627,13 @@ func verifyImage(imagePath, devicePath string, size int64) error {
 	return nil
 }
 
-func configureFlash(ws *Workspace, device, imageDir string, allowFixed bool) error {
+func configureFlash(ws *Workspace, device, imageDir string, allowFixed, skipVerify bool) error {
 	config, err := readFlashConfig(flashConfigPath)
 	if err == nil &&
 		config.Device == device &&
 		config.ImageDir == imageDir &&
 		config.AllowFixed == allowFixed &&
+		config.SkipVerify == skipVerify &&
 		fileExists(flashHelperPath) &&
 		readMarker() == flashMarkerValue {
 		return nil
@@ -643,6 +656,9 @@ func configureFlash(ws *Workspace, device, imageDir string, allowFixed bool) err
 	if allowFixed {
 		args = append(args, "--allow-fixed")
 	}
+	if skipVerify {
+		args = append(args, "--skip-verify")
+	}
 	return NewRunner(ws.Root).Run("sudo", args...)
 }
 
@@ -657,7 +673,7 @@ func readFlashConfig(path string) (FlashConfig, error) {
 	}
 	var file flashConfigFile
 	if err := toml.Unmarshal(data, &file); err == nil && (file.Device != "" || file.ImageDir != "") {
-		return FlashConfig{Device: file.Device, ImageDir: file.ImageDir, AllowFixed: file.AllowFixed}, nil
+		return FlashConfig{Device: file.Device, ImageDir: file.ImageDir, AllowFixed: file.AllowFixed, SkipVerify: file.SkipVerify}, nil
 	}
 	return parseShellFlashConfig(string(data))
 }
@@ -684,6 +700,8 @@ func parseShellFlashConfig(data string) (FlashConfig, error) {
 			config.ImageDir = value
 		case "allow_fixed":
 			config.AllowFixed = value == "1" || strings.EqualFold(value, "true")
+		case "skip_verify":
+			config.SkipVerify = value == "1" || strings.EqualFold(value, "true")
 		}
 	}
 	if config.Device == "" && config.ImageDir == "" {
@@ -700,6 +718,7 @@ func writeFlashConfig(path string, config FlashConfig) error {
 		Device:     config.Device,
 		ImageDir:   config.ImageDir,
 		AllowFixed: config.AllowFixed,
+		SkipVerify: config.SkipVerify,
 	})
 	if err != nil {
 		return err

@@ -150,6 +150,7 @@ func newFlashCommand() *cobra.Command {
 	command.Flags().StringVar(&opts.ImageDir, "image-dir", "", "signed image directory")
 	command.Flags().BoolVar(&opts.Yes, "yes", false, "skip the confirmation")
 	command.Flags().BoolVar(&opts.DryRun, "dry-run", false, "show the target and exit")
+	command.Flags().BoolVar(&opts.SkipVerify, "no-verify", false, "skip reading the image back after writing")
 	command.AddCommand(&cobra.Command{
 		Use:   "status",
 		Short: "Show the helper, device, image, and USB media",
@@ -191,6 +192,7 @@ func newFlashCommand() *cobra.Command {
 	enable.Flags().StringVar(&enableOpts.Device, "device", "", "target device")
 	enable.Flags().StringVar(&enableOpts.ImageDir, "image-dir", "", "signed image directory")
 	enable.Flags().BoolVar(&enableOpts.AllowFixed, "allow-fixed", false, "allow a USB NVMe enclosure")
+	enable.Flags().BoolVar(&enableOpts.SkipVerify, "skip-verify", false, "skip read-back verification")
 	command.AddCommand(enable)
 	return command
 }
