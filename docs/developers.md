@@ -545,10 +545,12 @@ store image and UKI, writes a dev manifest, and publishes to `dev/` through
 `scripts/publish-r2 --dev`.
 
 The first dev build should use `--keep-raw`; flash that signed raw once with
-`scripts/flash-usb enable --image-dir .cache/release-dev`. After that, publish
-new dev builds and install them from **Settings → System → Update**; the
-inactive slot is updated exactly like a release. `mise run release:dev` is the
-same as `scripts/release-dev`.
+`mise run flash:usb`. The flasher detects USB media, confirms the target,
+configures the passwordless helper if needed, and writes the image. A USB NVMe
+enclosure that reports `removable=0` is detected and handled automatically.
+After that, publish new dev builds and install them from
+**Settings → System → Update**; the inactive slot is updated exactly like a
+release. `mise run release:dev` is the same as `scripts/release-dev`.
 
 `scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
 and manifest in that order, then deletes old `dev/` objects. A stable publish

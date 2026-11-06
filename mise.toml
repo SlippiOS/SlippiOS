@@ -30,16 +30,8 @@ description = "Build the minimal USB image (apps install on first boot)"
 run = "SLIPPI_CONFIG=slippios-usb-minimal ./scripts/build-image"
 
 [tasks."flash:usb"]
-description = "Flash the newest dev image to the configured USB drive"
+description = "Detect USB media, confirm, and flash the newest dev image"
 run = "./scripts/flash-usb"
-
-[tasks."flash:enable"]
-description = "Install the passwordless USB flash helper (asks for sudo once)"
-run = "sudo ./scripts/flash-usb enable"
-
-[tasks."flash:enable-fixed"]
-description = "Enable flashing for a USB NVMe enclosure (removable=0)"
-run = "sudo ./scripts/flash-usb enable --allow-fixed"
 
 [tasks."flash:status"]
 description = "Show the USB flash helper, device, and image state"
