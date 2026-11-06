@@ -7,80 +7,96 @@ auto_install = true
 
 [tasks."build:image"]
 description = "Build the A/B USB image locally (uses nix-portable if Nix is absent)"
-run = "./scripts/build-image"
+run = "go -C backend run ./cmd/slippios-dev build image"
 
 [tasks."dev:cli"]
 description = "Run the CLI against the local sandbox"
-run = "./scripts/dev cli"
+run = "go -C backend run ./cmd/slippios-dev dev cli"
 
 [tasks."dev:ssh"]
 description = "SSH into the running dev VM (password: slippios)"
-run = "./scripts/dev ssh"
+run = "go -C backend run ./cmd/slippios-dev dev ssh"
 
 [tasks."dev:push"]
 description = "Push the CLI and exported shell to the running dev VM"
-run = "./scripts/dev push"
+run = "go -C backend run ./cmd/slippios-dev dev push"
 
 [tasks."build:image-dev"]
 description = "Build an uncompressed USB image for local boot testing"
-run = "SLIPPI_DEV=1 ./scripts/build-image"
+run = "go -C backend run ./cmd/slippios-dev build image --dev"
 
 [tasks."build:image-minimal"]
 description = "Build the minimal USB image (apps install on first boot)"
-run = "SLIPPI_CONFIG=slippios-usb-minimal ./scripts/build-image"
+run = "go -C backend run ./cmd/slippios-dev build image --minimal"
 
 [tasks."flash:usb"]
 description = "Detect USB media, confirm, and flash the newest dev image"
-run = "./scripts/flash-usb"
+run = "go -C backend run ./cmd/slippios-dev flash"
 
 [tasks."flash:status"]
 description = "Show the USB flash helper, device, and image state"
-run = "./scripts/flash-usb status"
+run = "go -C backend run ./cmd/slippios-dev flash status"
 
 [tasks."flash:disable"]
 description = "Remove the passwordless USB flash helper"
-run = "sudo ./scripts/flash-usb disable"
+run = "go -C backend run ./cmd/slippios-dev flash disable"
 
 [tasks."run:image"]
 description = "Boot the newest local USB image in QEMU/UEFI"
-run = "./scripts/run-image"
+run = "go -C backend run ./cmd/slippios-dev run image"
 
 [tasks."stop:image"]
 description = "Power off the running QEMU guest cleanly"
-run = "./scripts/stop-image"
+run = "go -C backend run ./cmd/slippios-dev run stop"
 
 [tasks.clean]
 description = "Delete disposable cache and garbage-collect unreachable Nix paths"
-run = "./scripts/clean-cache --all"
+run = "go -C backend run ./cmd/slippios-dev clean --all"
 
 [tasks."clean:history"]
 description = "Remove old releases, verification artifacts, stale result links, and GC the Nix store"
-run = "./scripts/clean-cache --history"
+run = "go -C backend run ./cmd/slippios-dev clean --history"
 
 [tasks."clean:hard"]
 description = "Wipe .cache and the entire nix-portable store (full re-download next time)"
-run = "./scripts/clean-cache --hard"
+run = "go -C backend run ./cmd/slippios-dev clean --hard"
 
 [tasks."fetch:image"]
 description = "Download and verify the newest published USB image"
-run = "./scripts/fetch-image"
+run = "go -C backend run ./cmd/slippios-dev fetch image"
 
 [tasks."sign:image"]
 description = "Sign a local image for Secure Boot (set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT)"
-run = "./scripts/nix shell --inputs-from . nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio nixpkgs#parted nixpkgs#openssl nixpkgs#curl -c ./scripts/sign-image"
+run = "go -C backend run ./cmd/slippios-dev sign image"
+
+[tasks."sign:uki"]
+description = "Sign a standalone UKI for Secure Boot"
+run = "go -C backend run ./cmd/slippios-dev sign uki"
 
 [tasks.release]
 description = "Build, sign, and publish a USB release"
-run = "./scripts/release"
+run = "go -C backend run ./cmd/slippios-dev release"
 
 [tasks."release:dev"]
 description = "Build, sign, and publish a dev update to the R2 dev channel"
-run = "./scripts/release-dev"
+run = "go -C backend run ./cmd/slippios-dev release dev"
+
+[tasks."release:minimal"]
+description = "Build and add the minimal image to an existing release"
+run = "go -C backend run ./cmd/slippios-dev release minimal"
+
+[tasks."publish:r2"]
+description = "Publish update assets to Cloudflare R2"
+run = "go -C backend run ./cmd/slippios-dev publish r2"
+
+[tasks."publish:sourceforge"]
+description = "Upload full images to SourceForge"
+run = "go -C backend run ./cmd/slippios-dev publish sourceforge"
 
 [tasks.test]
 description = "Run Go tests and the headless Godot parse"
-run = "./scripts/test"
+run = "go -C backend run ./cmd/slippios-dev test"
 
 [tasks."nix"]
 description = "Open a Nix shell with the project's tools"
-run = "./scripts/nix shell --inputs-from . nixpkgs#godot_4 nixpkgs#qemu nixpkgs#zsync nixpkgs#xz nixpkgs#jq"
+run = "go -C backend run ./cmd/slippios-dev nix"

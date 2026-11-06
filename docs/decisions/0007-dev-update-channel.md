@@ -31,14 +31,13 @@ makes each committed build sort above the release and above earlier dev builds,
 so `systemd`'s version comparison always offers the new build. Dev builds
 require a clean tree; uncommitted changes would reuse the last commit's version.
 
-`scripts/release-dev` builds the uncompressed dev image, signs it, extracts the
-store image and UKI, writes a manifest with only the update fields, and
-publishes through `scripts/publish-r2 --dev`. The first build is kept as a
-signed full image for the one-time flash. Later builds only produce the update
-assets.
+`mise run release:dev` builds the uncompressed dev image, signs it, extracts
+the store image and UKI, writes a manifest with only the update fields, and
+publishes through the R2 publisher. The first build is kept as a signed full
+image for the one-time flash. Later builds only produce the update assets.
 
-`scripts/publish-r2 --dev` uploads the new assets (large files first, manifest
-last), then deletes old objects under `dev/`. A stable publish does the same
+`mise run publish:r2 -- --dev <assets-dir>` uploads the new assets (large files
+first, manifest last), then deletes old objects under `dev/`. A stable publish does the same
 for the stable prefix. The bucket therefore holds the latest stable plus the
 latest dev assets, which keeps the 10 GB free tier from filling with old test
 builds.

@@ -1,27 +1,4 @@
 #!/usr/bin/env bash
-# Ask the running QEMU guest to power off cleanly (ACPI), then wait for exit.
+# Compatibility wrapper for the Go developer tool.
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
-sock=$(ls -t "$CACHE"/slippios-*.sock 2>/dev/null | head -1 || true)
-if [[ -z "$sock" ]]; then
-  echo "no running image (no monitor socket in $CACHE)" >&2
-  exit 1
-fi
-
-echo "Sending power button to $sock"
-python3 - "$sock" <<'PY'
-import socket, sys, time
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.connect(sys.argv[1])
-sock.settimeout(1)
-sock.sendall(b"system_powerdown\n")
-time.sleep(0.5)
-try:
-    while sock.recv(4096):
-        pass
-except Exception:
-    pass
-sock.close()
-PY
+exec go -C "$(dirname "${BASH_SOURCE[0]}")/../backend" run ./cmd/slippios-dev run stop "$@"
