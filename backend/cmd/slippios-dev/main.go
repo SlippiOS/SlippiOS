@@ -151,6 +151,8 @@ func newFlashCommand() *cobra.Command {
 	command.Flags().BoolVar(&opts.Yes, "yes", false, "skip the confirmation")
 	command.Flags().BoolVar(&opts.DryRun, "dry-run", false, "show the target and exit")
 	command.Flags().BoolVar(&opts.SkipVerify, "no-verify", false, "skip reading the image back after writing")
+	command.Flags().BoolVar(&opts.SkipVerify, "skip-verify", false, "alias for --no-verify")
+	command.Flags().MarkHidden("skip-verify")
 	command.AddCommand(&cobra.Command{
 		Use:   "status",
 		Short: "Show the helper, device, image, and USB media",
