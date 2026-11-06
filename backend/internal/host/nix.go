@@ -113,7 +113,13 @@ func (n *Nix) StoreDelete(path string) error {
 		// sandbox. Passing the host path makes Nix treat it as an installable.
 		arg = "/nix/store/" + filepath.Base(path)
 	}
-	return n.Run("store", "delete", arg)
+	cmd, err := n.Command("store", "delete", arg)
+	if err != nil {
+		return err
+	}
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	return cmd.Run()
 }
 
 func (n *Nix) Exec(args ...string) error {
