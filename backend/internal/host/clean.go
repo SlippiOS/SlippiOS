@@ -136,7 +136,7 @@ func cleanVM(ws *Workspace) {
 }
 
 func cleanHard(ws *Workspace) error {
-	home := os.Getenv("HOME")
+	home := homeDir()
 	if home == "" {
 		return fmt.Errorf("HOME is not set")
 	}

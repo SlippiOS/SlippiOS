@@ -22,7 +22,7 @@ func FindWorkspace() (*Workspace, error) {
 	for {
 		if fileExists(filepath.Join(dir, "mise.toml")) &&
 			fileExists(filepath.Join(dir, "backend", "go.mod")) {
-			cache := os.Getenv("SLIPPIOS_CACHE")
+			cache := expandHome(os.Getenv("SLIPPIOS_CACHE"))
 			if cache == "" {
 				cache = filepath.Join(dir, ".cache")
 			}

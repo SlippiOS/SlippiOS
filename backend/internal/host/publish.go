@@ -28,7 +28,7 @@ func PublishR2(ws *Workspace, assets string, opts PublishR2Options) error {
 	}
 	envFile := expandHome(os.Getenv("SLIPPIOS_R2_ENV"))
 	if envFile == "" {
-		envFile = filepath.Join(os.Getenv("HOME"), ".config/slippios/r2.env")
+		envFile = filepath.Join(homeDir(), ".config/slippios/r2.env")
 	}
 	values, err := readEnvFile(envFile)
 	if err != nil {
@@ -193,7 +193,7 @@ func PublishSourceForge(ws *Workspace, assets, user string) error {
 	}
 	key := expandHome(os.Getenv("SF_KEY"))
 	if key == "" {
-		key = filepath.Join(os.Getenv("HOME"), ".ssh/sourceforge_slippios")
+		key = filepath.Join(homeDir(), ".ssh/sourceforge_slippios")
 	}
 	if !fileExists(key) {
 		return fmt.Errorf("missing SSH key %s", key)

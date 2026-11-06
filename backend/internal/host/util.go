@@ -23,16 +23,19 @@ func trimSpace(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func homeDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	return os.Getenv("HOME")
+}
+
 func expandHome(path string) string {
 	if path == "~" {
-		if home, err := os.UserHomeDir(); err == nil {
-			return home
-		}
+		return homeDir()
 	}
 	if strings.HasPrefix(path, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, path[2:])
-		}
+		return filepath.Join(homeDir(), path[2:])
 	}
 	return path
 }
