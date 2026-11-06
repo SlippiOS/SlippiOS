@@ -43,8 +43,8 @@ func SignImage(ws *Workspace, opts SignOptions) error {
 	}
 	opts.Input = ws.ResolvePath(opts.Input)
 	opts.Output = ws.ResolvePath(opts.Output)
-	key := os.Getenv("SLIPPIOS_SB_KEY")
-	cert := os.Getenv("SLIPPIOS_SB_CERT")
+	key := expandHome(os.Getenv("SLIPPIOS_SB_KEY"))
+	cert := expandHome(os.Getenv("SLIPPIOS_SB_CERT"))
 	if key == "" || cert == "" {
 		return fmt.Errorf("set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT")
 	}
@@ -170,8 +170,8 @@ func SignUKI(ws *Workspace, opts SignOptions) error {
 	}
 	opts.Input = ws.ResolvePath(opts.Input)
 	opts.Output = ws.ResolvePath(opts.Output)
-	key := os.Getenv("SLIPPIOS_SB_KEY")
-	cert := os.Getenv("SLIPPIOS_SB_CERT")
+	key := expandHome(os.Getenv("SLIPPIOS_SB_KEY"))
+	cert := expandHome(os.Getenv("SLIPPIOS_SB_CERT"))
 	if key == "" || cert == "" {
 		return fmt.Errorf("set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT")
 	}

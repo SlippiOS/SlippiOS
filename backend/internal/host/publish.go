@@ -26,7 +26,7 @@ func PublishR2(ws *Workspace, assets string, opts PublishR2Options) error {
 	if opts.Dev {
 		prefix = "dev/"
 	}
-	envFile := os.Getenv("SLIPPIOS_R2_ENV")
+	envFile := expandHome(os.Getenv("SLIPPIOS_R2_ENV"))
 	if envFile == "" {
 		envFile = filepath.Join(os.Getenv("HOME"), ".config/slippios/r2.env")
 	}
@@ -191,7 +191,7 @@ func PublishSourceForge(ws *Workspace, assets, user string) error {
 	if project == "" {
 		project = "slippi-os"
 	}
-	key := os.Getenv("SF_KEY")
+	key := expandHome(os.Getenv("SF_KEY"))
 	if key == "" {
 		key = filepath.Join(os.Getenv("HOME"), ".ssh/sourceforge_slippios")
 	}

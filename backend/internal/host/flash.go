@@ -83,12 +83,21 @@ func FlashInteractive(ws *Workspace, opts FlashOptions) error {
 	if device == "" {
 		device, err = chooseUSBDevice(opts.Yes)
 		if err != nil {
+			if err == ErrCancelled {
+				fmt.Println("Cancelled.")
+			}
 			return err
 		}
 	}
 	dev := RealPath(device)
 	if _, err := os.Stat(dev); err != nil {
 		return fmt.Errorf("target is not present: %s", device)
+	}
+	if !isWholeDisk(dev) {
+		return fmt.Errorf("target is not a whole disk: %s", dev)
+	}
+	if !isUSBDevice(dev) {
+		return fmt.Errorf("target is not a USB disk: %s", dev)
 	}
 	allowFixed := !isRemovable(dev)
 
@@ -251,7 +260,7 @@ func FlashDisable(ws *Workspace) error {
 		}
 		return NewRunner(ws.Root).Run("sudo", self, "flash", "disable")
 	}
-	for _, path := range []string{flashSudoersPath, flashHelperPath, flashConfigPath, flashMarkerPath} {
+	for _, path := range []string{flashSudoersPath, flashSudoersPath + ".tmp", flashHelperPath, flashConfigPath, flashMarkerPath} {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -283,6 +292,9 @@ func RunFlashHelper() error {
 	}
 	if !isBlockDevice(dev) {
 		return fmt.Errorf("target is not a block device: %s", dev)
+	}
+	if !isWholeDisk(dev) {
+		return fmt.Errorf("target is not a whole disk: %s", dev)
 	}
 	if !config.AllowFixed && !isRemovable(dev) {
 		return fmt.Errorf("refusing to write a non-removable device: %s\nuse --allow-fixed when enabling the helper for a USB NVMe enclosure", dev)
@@ -449,6 +461,16 @@ func isRemovable(dev string) bool {
 func isBlockDevice(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode()&os.ModeDevice != 0 && info.Mode()&os.ModeCharDevice == 0
+}
+
+func isWholeDisk(dev string) bool {
+	out, err := NewRunner("").Output("lsblk", "-dno", "TYPE", dev)
+	return err == nil && strings.TrimSpace(out) == "disk"
+}
+
+func isUSBDevice(dev string) bool {
+	out, err := NewRunner("").Output("lsblk", "-dno", "TRAN", dev)
+	return err == nil && strings.TrimSpace(out) == "usb"
 }
 
 func blockDeviceSize(dev string) (int64, error) {

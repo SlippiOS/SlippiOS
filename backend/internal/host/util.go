@@ -23,6 +23,20 @@ func trimSpace(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func expandHome(path string) string {
+	if path == "~" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home
+		}
+	}
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
+}
+
 func HumanSize(bytes int64) string {
 	if bytes < 0 {
 		return "?"

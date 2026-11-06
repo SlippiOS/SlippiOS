@@ -27,7 +27,7 @@ func (n *Nix) hasSystemNix() bool {
 }
 
 func (n *Nix) portablePath() string {
-	if value := os.Getenv("NIX_PORTABLE"); value != "" {
+	if value := expandHome(os.Getenv("NIX_PORTABLE")); value != "" {
 		return value
 	}
 	return n.WS.CachePath("nix-portable-bin")

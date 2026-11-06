@@ -147,6 +147,9 @@ func RunImage(ws *Workspace, opts RunOptions) error {
 	}
 	monitor := opts.Monitor
 	if monitor == "" {
+		monitor = os.Getenv("SLIPPI_MONITOR")
+	}
+	if monitor == "" {
 		monitor = ws.CachePath("slippios-" + imageID + ".sock")
 	}
 	_ = os.Remove(monitor)

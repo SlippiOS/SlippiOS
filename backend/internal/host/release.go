@@ -351,6 +351,8 @@ func signingKey() (string, string, error) {
 	if cert == "" {
 		cert = filepath.Join(os.Getenv("HOME"), ".config/slippios/secureboot/slippios.crt")
 	}
+	key = expandHome(key)
+	cert = expandHome(cert)
 	if !fileExists(key) || !fileExists(cert) {
 		return "", "", fmt.Errorf("set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT, or install the key at %s/.config/slippios/secureboot", os.Getenv("HOME"))
 	}
