@@ -38,6 +38,11 @@ type ISO struct {
 	Reason string `json:"reason"`
 }
 
+// maxISOSearchDepth bounds the walk for auto-discovered mounts. Some systems
+// (notably WSL) mount enormous filesystems under /mnt, where an unbounded
+// walk can take minutes.
+const maxISOSearchDepth = 2
+
 func (p Paths) SearchDirs() []string {
 	dirs := []string{p.ISODir}
 	for _, base := range []string{"/run/media", "/media", "/mnt"} {
@@ -48,20 +53,6 @@ func (p Paths) SearchDirs() []string {
 		for _, entry := range entries {
 			if entry.IsDir() {
 				dirs = append(dirs, filepath.Join(base, entry.Name()))
-			}
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			nested, err := os.ReadDir(filepath.Join(base, entry.Name()))
-			if err != nil {
-				continue
-			}
-			for _, child := range nested {
-				if child.IsDir() {
-					dirs = append(dirs, filepath.Join(base, entry.Name(), child.Name()))
-				}
 			}
 		}
 	}
@@ -77,15 +68,32 @@ func (p Paths) SearchDirs() []string {
 }
 
 func (p Paths) FindISOs() []ISO {
-	return p.FindISOsIn(p.SearchDirs())
+	return p.findISOs(p.SearchDirs(), maxISOSearchDepth)
 }
 
 func (p Paths) FindISOsIn(dirs []string) []ISO {
+	return p.findISOs(dirs, -1)
+}
+
+func (p Paths) findISOs(dirs []string, maxDepth int) []ISO {
 	seen := map[string]bool{}
 	result := []ISO{}
 	for _, root := range dirs {
 		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-			if err != nil || entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".iso") {
+			if err != nil {
+				return nil
+			}
+			if entry.IsDir() {
+				if maxDepth >= 0 {
+					relative, relErr := filepath.Rel(root, path)
+					if relErr == nil && relative != "." &&
+						strings.Count(filepath.ToSlash(relative), "/")+1 > maxDepth {
+						return filepath.SkipDir
+					}
+				}
+				return nil
+			}
+			if !strings.HasSuffix(strings.ToLower(entry.Name()), ".iso") {
 				return nil
 			}
 			if seen[path] {
