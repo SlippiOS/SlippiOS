@@ -149,16 +149,17 @@ func rewriteResult(ws *Workspace, result string) (string, error) {
 		return "", err
 	}
 	if strings.HasPrefix(target, "/nix/store/") {
-		if _, err := os.Stat(target); err != nil {
-			for _, candidate := range []string{
-				filepath.Join(ws.Cache, ".nix-portable", target),
-				filepath.Join(ws.Cache, "nix", target),
-				filepath.Join(ws.Cache, "nix", strings.TrimPrefix(target, "/nix")),
-			} {
-				if _, err := os.Stat(candidate); err == nil {
-					target = candidate
-					break
-				}
+		// Prefer the project store even when /nix/store is visible: inside
+		// the nix-portable shell it is mounted, but the host link must point
+		// at the physical store.
+		for _, candidate := range []string{
+			filepath.Join(ws.Cache, ".nix-portable", target),
+			filepath.Join(ws.Cache, "nix", target),
+			filepath.Join(ws.Cache, "nix", strings.TrimPrefix(target, "/nix")),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				target = candidate
+				break
 			}
 		}
 	}
