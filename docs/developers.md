@@ -211,9 +211,10 @@ Build, sign, and create a draft release:
 mise run release
 ```
 
-This builds the image incrementally, signs it with the key in
-`~/.config/slippios/secureboot`, generates the assets, and creates a draft
-release. Pass `--publish` to publish it:
+This builds the image incrementally, signs it with the key from the private
+`SlippiOS/release-secrets` vault, the local `~/.config/slippios/secureboot`
+path, or `SLIPPIOS_SB_KEY`/`SLIPPIOS_SB_CERT`, generates the assets, and creates
+a draft release. Pass `--publish` to publish it:
 
 ```sh
 mise run release -- --publish
@@ -254,7 +255,7 @@ pkgs/appimage-runner.nix   Dolphin AppImage sandbox
 backend/cmd/slippios-dev   host-side build, flash, release, and VM tool
 backend/internal/host/     host tool packages (build, flash, sign, publish)
 scripts/                   thin compatibility wrappers for the Go tool
-secure-boot/               shim, enrollment note, and signing docs
+secure-boot/               shim, public cert, enrollment note, and signing docs
 ```
 
 ## Shell binary
@@ -495,18 +496,37 @@ fallback desktop is useful when the shell exits.
 The signed image uses the Fedora 16.1-7 shim and a SlippiOS MOK key. See
 [secure-boot/README.md](../secure-boot/README.md) for the chain and limits.
 
+The public certificate is tracked at `secure-boot/slippios.crt`. The private key
+is not in the repository. `scripts/with-release-secrets` resolves it from
+`SLIPPIOS_SB_KEY`/`SLIPPIOS_SB_CERT`, then
+`~/.config/slippios/secureboot/slippios.key`, then the encrypted `~/.secrets`
+copies from chezmoi, then the private `SlippiOS/release-secrets` vault. The
+release and signing tasks call the wrapper automatically, so a release manager
+with the vault cloned does not need to set anything. A second personal machine
+can use the chezmoi copies after `chezmoi update`; it does not need the vault
+clone.
+
 `mise run release` signs the image and extracts the signed UKI from it, so the
-update asset matches the image. It reads the key from `SLIPPIOS_SB_KEY` and
-`SLIPPIOS_SB_CERT`, or from `~/.config/slippios/secureboot/slippios.key` and
-`.crt`. Keep the private key offline and out of the repository.
+update asset matches the image. The wrapper decrypts the key into tmpfs for the
+command and removes it afterward; the key never enters the repository or the
+Nix store. Only release managers need this access. Everyone else builds
+unsigned images.
 
 To sign an image without publishing:
 
 ```sh
-SLIPPIOS_SB_KEY=/path/to/slippios.key \
-SLIPPIOS_SB_CERT=/path/to/slippios.crt \
-  mise run sign:image -- result-local-image/slippios_<version>.raw signed.raw
+mise run sign:image -- result-local-image/slippios_<version>.raw signed.raw
 ```
+
+Verify that the available key matches the public certificate:
+
+```sh
+scripts/with-release-secrets --check
+scripts/with-release-secrets --vault --check
+```
+
+See [ADR-0008](decisions/0008-release-key-custody.md) for the custody model and
+the onboarding and offboarding procedure.
 
 The tool downloads the pinned shim RPM, verifies its SHA-256 and both
 Microsoft signatures, signs systemd-boot and the UKI, and installs the shim,
@@ -593,7 +613,8 @@ Dev images use `0.5.0.<checkout-timestamp>` as their version, so each committed
 build sorts above the release it is based on and above earlier dev builds.
 `mise run release:dev` builds the uncompressed dev image, signs it, extracts
 the store image and UKI, writes a dev manifest, and publishes to `dev/` through
-the R2 publisher.
+the R2 publisher. It uses the same release-secrets wrapper as a stable release,
+so publishing a dev build is a release-manager action.
 
 The first dev build should use `--keep-raw`; flash that signed raw once with
 `mise run flash:usb`. The flasher detects USB media, confirms the target,
@@ -676,8 +697,10 @@ then publish the asset directory:
 mise run publish:r2 -- .cache/release/<version>
 ```
 
-The tool reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
-uploads the store image, zsync, UKI, checksums, and manifest. Full USB images
-live on SourceForge. Pass `--dev` to publish the update assets under the
-`dev/` prefix. Both modes remove old objects in their own prefix after the new
-manifest is uploaded.
+The publish task uses `scripts/with-release-secrets --publish`, which reads
+`SLIPPIOS_R2_ENV` or decrypts `r2.env.age` from the private
+`SlippiOS/release-secrets` vault. A plain `~/.config/slippios/r2.env` still
+works for a single machine. It uploads the store image, zsync, UKI, checksums,
+and manifest. Full USB images live on SourceForge. Pass `--dev` to publish the
+update assets under the `dev/` prefix. Both modes remove old objects in their
+own prefix after the new manifest is uploaded.

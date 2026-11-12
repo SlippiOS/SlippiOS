@@ -66,32 +66,36 @@ description = "Download and verify the newest published USB image"
 run = "go -C backend run ./cmd/slippios-dev fetch image"
 
 [tasks."sign:image"]
-description = "Sign a local image for Secure Boot (set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT)"
-run = "go -C backend run ./cmd/slippios-dev sign image"
+description = "Sign a local image for Secure Boot (uses the release vault or SLIPPIOS_SB_KEY)"
+run = "scripts/with-release-secrets go -C backend run ./cmd/slippios-dev sign image"
 
 [tasks."sign:uki"]
 description = "Sign a standalone UKI for Secure Boot"
-run = "go -C backend run ./cmd/slippios-dev sign uki"
+run = "scripts/with-release-secrets go -C backend run ./cmd/slippios-dev sign uki"
 
 [tasks.release]
 description = "Build, sign, and publish a USB release"
-run = "go -C backend run ./cmd/slippios-dev release"
+run = "scripts/with-release-secrets go -C backend run ./cmd/slippios-dev release"
 
 [tasks."release:dev"]
 description = "Build, sign, and publish a dev update to the R2 dev channel"
-run = "go -C backend run ./cmd/slippios-dev release dev"
+run = "scripts/with-release-secrets go -C backend run ./cmd/slippios-dev release dev"
 
 [tasks."release:minimal"]
 description = "Build and add the minimal image to an existing release"
-run = "go -C backend run ./cmd/slippios-dev release minimal"
+run = "scripts/with-release-secrets go -C backend run ./cmd/slippios-dev release minimal"
 
 [tasks."publish:r2"]
 description = "Publish update assets to Cloudflare R2"
-run = "go -C backend run ./cmd/slippios-dev publish r2"
+run = "scripts/with-release-secrets --publish go -C backend run ./cmd/slippios-dev publish r2"
 
 [tasks."publish:sourceforge"]
 description = "Upload full images to SourceForge"
-run = "go -C backend run ./cmd/slippios-dev publish sourceforge"
+run = "scripts/with-release-secrets --publish go -C backend run ./cmd/slippios-dev publish sourceforge"
+
+[tasks."secrets:check"]
+description = "Verify the release signing key matches the public certificate"
+run = "scripts/with-release-secrets --check"
 
 [tasks.test]
 description = "Run Go tests and the headless Godot parse"
