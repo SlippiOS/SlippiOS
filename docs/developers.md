@@ -701,6 +701,12 @@ The publish task uses `scripts/with-release-secrets --publish`, which reads
 `SLIPPIOS_R2_ENV` or decrypts `r2.env.age` from the private
 `SlippiOS/release-secrets` vault. A plain `~/.config/slippios/r2.env` still
 works for a single machine. It uploads the store image, zsync, UKI, checksums,
-and manifest. Full USB images live on SourceForge. Pass `--dev` to publish the
-update assets under the `dev/` prefix. Both modes remove old objects in their
-own prefix after the new manifest is uploaded.
+and manifest.
+
+Full USB images live on SourceForge. `mise run publish:sourceforge` uses the
+same wrapper for the upload SSH key (`sourceforge-ssh-key.age` in the vault or
+`~/.secrets` in chezmoi) and reads `SF_USER`, `SF_PROJECT`, and `SF_KEY` from
+the environment or `sourceforge.env.age`.
+
+Pass `--dev` to publish the update assets under the `dev/` prefix. Both modes
+remove old objects in their own prefix after the new manifest is uploaded.
