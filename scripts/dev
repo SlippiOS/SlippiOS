@@ -95,10 +95,19 @@ case "${1:-}" in
     echo "Exporting shell..."
     ./scripts/nix build .#shell-export -o result-shell-export >/dev/null
     target=$(readlink result-shell-export)
-    if [[ "$target" == /nix/store/* && -d "$STORE$target" ]]; then
-      target="$STORE$target"
+    if [[ "$target" == /nix/store/* && ! -e "$target" ]]; then
+      for candidate in \
+        "$CACHE_ROOT/.nix-portable$target" \
+        "$STORE$target" \
+        "$STORE${target#/nix}"; do
+        if [[ -d "$candidate" ]]; then
+          target="$candidate"
+          break
+        fi
+      done
     fi
-    target=${target/"$CACHE_ROOT/.nix-portable"/"$CACHE_ROOT/nix"}
+    # Keep result links on the physical store, not a compatibility symlink.
+    target=${target/"$STORE/"/"$CACHE_ROOT/.nix-portable/nix/"}
     src="$target"
     cp -f "$src/bin/slippios-shell" "$BIN/slippios-shell"
     chmod 0755 "$BIN/slippios" "$BIN/slippios-shell"

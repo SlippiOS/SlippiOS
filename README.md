@@ -41,7 +41,9 @@ mise run run:image
 mise run test
 ```
 
-No Docker or system Nix is required. The build falls back to nix-portable.
+No Docker or system Nix is required. Install `curl`, `xz`, and `bubblewrap`;
+image builds fall back to nix-portable. `run:image` can provision QEMU and xz
+through Nix, but a distro `qemu` is faster.
 
 **Full guide:** [docs/developers.md](docs/developers.md)
 

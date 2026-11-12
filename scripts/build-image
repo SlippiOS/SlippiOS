@@ -35,17 +35,29 @@ build() {
     -o "$OUT"
 }
 
-rm -f "$OUT"
+# A dev image is an uncompressed .raw. Release/minimal images are .raw.xz,
+# so only prune a previous result that actually is a dev image.
+is_dev_image() {
+  [[ -d "$1" ]] || return 1
+  compgen -G "$1/*.raw" >/dev/null || return 1
+  ! compgen -G "$1/*.raw.xz" >/dev/null
+}
 
 old_target=""
 if [[ "$CONFIG" == "slippios-usb-dev" && -e "$OUT" ]]; then
   old_target=$(readlink "$OUT" || true)
 fi
 
+rm -f "$OUT"
+
 if command -v nix >/dev/null 2>&1; then
   echo "Building with system Nix ($JOBS cores)..."
   build nix
 else
+  if ! command -v bwrap >/dev/null 2>&1; then
+    echo "nix-portable needs bubblewrap to build images; install bubblewrap" >&2
+    exit 1
+  fi
   echo "Building with nix-portable/bwrap ($JOBS cores)..."
   echo "  TMPDIR: $BUILD_TMP"
   build ./scripts/nix
@@ -57,23 +69,36 @@ if [[ "$CONFIG" == "slippios-usb-dev" ]]; then
   echo "Dev build: image is uncompressed."
 fi
 # Rewrite nix-portable's in-container store paths to the project-local store.
+# Its real store is under .nix-portable/; some versions also expose a
+# $CACHE/nix compatibility link, so probe the known layouts.
 target=$(readlink "$OUT" 2>/dev/null || true)
-if [[ "$target" == /nix/store/* && ! -e "$target" && -d "$CACHE/nix$target" ]]; then
-  target="$CACHE/nix$target"
+if [[ "$target" == /nix/store/* && ! -e "$target" ]]; then
+  for candidate in \
+    "$CACHE/.nix-portable$target" \
+    "$CACHE/nix$target" \
+    "$CACHE/nix${target#/nix}"; do
+    if [[ -d "$candidate" ]]; then
+      target="$candidate"
+      break
+    fi
+  done
 fi
-# Keep result links on the physical store.
-target=${target/"$CACHE/.nix-portable"/"$CACHE/nix"}
+# Keep result links on the physical store, not a compatibility symlink.
+target=${target/"$CACHE/nix/"/"$CACHE/.nix-portable/nix/"}
 if [[ -n "$target" && -e "$target" ]]; then
   ln -sfn "$target" "$OUT"
 fi
 
 if [[ "$CONFIG" == "slippios-usb-dev" && -n "$old_target" &&
-      "$old_target" != "$(readlink "$OUT")" ]]; then
+      "$old_target" != "$(readlink "$OUT")" ]] && is_dev_image "$old_target"; then
   echo "Pruning previous dev image: $old_target"
+  # Nix sees the sandbox path (/nix/store/<name>) regardless of where
+  # nix-portable keeps the physical store on the host.
+  prune="/nix/store/$(basename "$old_target")"
   if command -v nix >/dev/null 2>&1; then
-    nix store delete "$old_target" >/dev/null 2>&1 || true
+    nix store delete "$prune" >/dev/null 2>&1 || true
   else
-    ./scripts/nix store delete "$old_target" >/dev/null 2>&1 || true
+    ./scripts/nix store delete "$prune" >/dev/null 2>&1 || true
   fi
 fi
 

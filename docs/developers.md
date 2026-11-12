@@ -14,6 +14,23 @@ mise run test
 
 No Docker or system Nix required.
 
+### Prerequisites
+
+- Linux x86_64 with `mise`
+- `curl` to download nix-portable when system Nix is absent
+- `xz` for compressed images, releases, and downloads
+- `bubblewrap` for image builds through nix-portable; `run:image` and
+  `dev:push` fall back to proot when it is missing
+- Optional: `qemu` and UEFI firmware (otherwise `run:image` provisions them
+  through Nix)
+
+```sh
+# Fedora
+sudo dnf install curl xz bubblewrap qemu
+# Debian/Ubuntu
+sudo apt install curl xz-utils bubblewrap qemu-system-x86 ovmf
+```
+
 ## Tasks
 
 ```sh
@@ -119,6 +136,11 @@ mise run run:image
 `SLIPPI_DISK=usb` to exercise the USB-storage path; USB emulation adds about
 20 seconds to a boot. It also exposes a QEMU monitor socket at
 `.cache/<image>.sock`.
+
+If `qemu-img`/`qemu-system-x86_64` are not on `PATH`, `run-image` re-executes
+itself in a Nix shell with QEMU (using the project's nix-portable fallback).
+UEFI firmware is taken from the distro's OVMF packages or QEMU's bundled EDK2
+blobs; set `SLIPPI_OVMF_DIR` to point at a specific firmware directory.
 
 Closing the QEMU window is a hard power cut. Power off from the guest (**Quit →
 Power off**) or run `mise run stop:image`, which sends an ACPI power button over

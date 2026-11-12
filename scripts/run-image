@@ -21,6 +21,7 @@ Environment:
   SLIPPI_DISK_SIZE   virtual disk size (default 16G)
   SLIPPI_DISPLAY     QEMU display backend (default gtk, use none for headless)
   SLIPPI_VGA         std (default) or virtio (DRM/KMS like real hardware)
+  SLIPPI_OVMF_DIR    directory holding the UEFI code/vars firmware
   SLIPPI_SECURE_BOOT 1 to use OVMF Secure Boot firmware and vars
   SLIPPI_SSH_PORT    host port forwarded to the dev VM's SSH (default 2222)
   SLIPPI_MONITOR     QEMU monitor socket (default ~/.cache/slippios/<id>.sock)
@@ -51,11 +52,22 @@ if [[ ! -r "$IMAGE" ]]; then
   exit 1
 fi
 
-command -v qemu-img >/dev/null || { echo "qemu-img is required" >&2; exit 1; }
-command -v qemu-system-x86_64 >/dev/null || {
-  echo "qemu-system-x86_64 is required" >&2
+needs_shell=0
+command -v qemu-img >/dev/null 2>&1 || needs_shell=1
+command -v qemu-system-x86_64 >/dev/null 2>&1 || needs_shell=1
+if [[ "$IMAGE" == *.xz ]] && ! command -v xz >/dev/null 2>&1; then
+  needs_shell=1
+fi
+
+if (( needs_shell )); then
+  if [[ "${SLIPPI_IN_NIX:-0}" != "1" ]]; then
+    exec env SLIPPI_IN_NIX=1 \
+      ./scripts/nix shell --inputs-from . nixpkgs#qemu nixpkgs#xz \
+      -c "$PWD/scripts/run-image" "$@"
+  fi
+  echo "qemu-img, qemu-system-x86_64, and xz are required" >&2
   exit 1
-}
+fi
 
 mkdir -p "$CACHE"
 image_id=$(sha256sum "$IMAGE" | cut -c1-12)
@@ -63,7 +75,12 @@ if [[ "$IMAGE" == *.xz ]]; then
   raw="$CACHE/$(basename "${IMAGE%.xz}")-${image_id}.raw"
   if [[ ! -f "$raw" ]]; then
     echo "Decompressing $IMAGE"
-    xz -d -T0 -c "$IMAGE" > "$raw.tmp"
+    # BusyBox xz (e.g. nix-portable's) has no -T/--threads option.
+    xz_args=(-d -c)
+    if xz --help 2>&1 | grep -q -- '-T'; then
+      xz_args=(-d -T0 -c)
+    fi
+    xz "${xz_args[@]}" "$IMAGE" > "$raw.tmp"
     mv "$raw.tmp" "$raw"
   fi
 else
@@ -76,24 +93,36 @@ if [[ ! -f "$overlay" ]]; then
 fi
 
 secure_boot="${SLIPPI_SECURE_BOOT:-0}"
-code_name="OVMF_CODE.fd"
-vars_name="OVMF_VARS.fd"
+# Prefer the distro's OVMF names, then QEMU's bundled EDK2 blobs (which need
+# no separate firmware package). Each code file pairs with its vars template.
 if [[ "$secure_boot" == "1" ]]; then
-  code_name="OVMF_CODE.secboot.fd"
-  vars_name="OVMF_VARS.secboot.fd"
+  code_names=(OVMF_CODE.secboot.fd edk2-x86_64-secure-code.fd)
+  vars_names=(OVMF_VARS.secboot.fd edk2-i386-vars.fd)
+else
+  code_names=(OVMF_CODE.fd edk2-x86_64-code.fd)
+  vars_names=(OVMF_VARS.fd edk2-i386-vars.fd)
 fi
+
+qemu_share="$(dirname "$(dirname "$(command -v qemu-system-x86_64)")")/share/qemu"
+candidate_dirs=()
+[[ -n "${SLIPPI_OVMF_DIR:-}" ]] && candidate_dirs+=("$SLIPPI_OVMF_DIR")
+candidate_dirs+=("$qemu_share" /usr/share/OVMF /usr/share/edk2/ovmf
+  /usr/share/edk2/ovmf/x64 /usr/share/edk2/x64 /usr/share/edk2/x86_64
+  /usr/share/edk2-ovmf /usr/share/edk2-ovmf/x64 /usr/share/qemu)
 
 code=""
 vars=""
-for prefix in /usr/share/OVMF /usr/share/edk2/ovmf /usr/share/edk2-ovmf /usr/share/qemu; do
-  if [[ -f "$prefix/$code_name" && -f "$prefix/$vars_name" ]]; then
-    code="$prefix/$code_name"
-    vars="$prefix/$vars_name"
-    break
-  fi
+for i in "${!code_names[@]}"; do
+  for prefix in "${candidate_dirs[@]}"; do
+    if [[ -f "$prefix/${code_names[$i]}" && -f "$prefix/${vars_names[$i]}" ]]; then
+      code="$prefix/${code_names[$i]}"
+      vars="$prefix/${vars_names[$i]}"
+      break 2
+    fi
+  done
 done
 if [[ -z "$code" ]]; then
-  echo "OVMF firmware not found; install edk2-ovmf/ovmf" >&2
+  echo "UEFI firmware not found; install edk2-ovmf/ovmf or set SLIPPI_OVMF_DIR" >&2
   exit 1
 fi
 
@@ -101,6 +130,8 @@ vars_copy="$CACHE/OVMF_VARS-$(basename "$raw")-${secure_boot}.fd"
 if [[ ! -f "$vars_copy" ]]; then
   cp "$vars" "$vars_copy"
 fi
+# Nix store firmware is read-only; QEMU needs a writable vars image.
+chmod u+w "$vars_copy"
 
 accel="tcg"
 cpu="max"

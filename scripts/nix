@@ -23,5 +23,14 @@ if [[ ! -x "$PORTABLE" ]]; then
 fi
 
 # systemd-repart and some test derivations need nested user namespaces.
-# proot cannot provide those; bubblewrap can.
-exec env NP_RUNTIME=bwrap "$PORTABLE" nix --option sandbox false "$@"
+# bubblewrap provides those; proot cannot. Prefer bubblewrap when it is
+# installed and otherwise let nix-portable pick its default runtime (proot),
+# which is enough to run tools like QEMU.
+if [[ -z "${NP_RUNTIME:-}" ]] && command -v bwrap >/dev/null 2>&1; then
+  NP_RUNTIME=bwrap
+fi
+
+if [[ -n "${NP_RUNTIME:-}" ]]; then
+  exec env "NP_RUNTIME=$NP_RUNTIME" "$PORTABLE" nix --option sandbox false "$@"
+fi
+exec "$PORTABLE" nix --option sandbox false "$@"
