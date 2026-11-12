@@ -38,7 +38,27 @@ systemd-sysupdate. A shim update needs a new image.
 
 ## Signing
 
-Generate a key and certificate once:
+The public certificate is tracked at
+[`secure-boot/slippios.crt`](slippios.crt) and embedded in every signed image
+as `slippios.cer`. The private key is not in this repository.
+
+Signing keys are resolved in this order:
+
+1. `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` from the environment.
+2. `~/.config/slippios/secureboot/slippios.key` and `.crt`.
+3. The encrypted `~/.secrets/slippios-sb-key.age` and
+   `~/.secrets/slippios-sb-cert.age` copies from chezmoi, decrypted on demand.
+4. The private `SlippiOS/release-secrets` vault, decrypted into tmpfs for the
+   duration of the command.
+
+The `mise` tasks use `scripts/with-release-secrets`, so the vault is the normal
+path for release managers. A developer without the vault can still build
+unsigned images.
+
+### Key generation
+
+Generate a key and certificate only for the initial setup or a deliberate
+rotation:
 
 ```sh
 umask 077
@@ -47,10 +67,9 @@ openssl req -new -x509 -newkey rsa:4096 \
   -days 3650 -nodes -subj "/CN=SlippiOS Secure Boot"
 ```
 
-Keep `slippios.key` offline and out of the repository. The release script reads
-`SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` if set, otherwise
-`~/.config/slippios/secureboot/slippios.key` and `.crt`. The public certificate
-is embedded in every image as `slippios.cer`.
+Keep `slippios.key` offline and out of this repository. Back it up; losing every
+copy means every console must enroll a new key. The public certificate can be
+published and checked in.
 
 The production certificate SHA-256 fingerprint is:
 
@@ -59,7 +78,9 @@ B6:C7:CF:F2:FC:B0:0F:73:48:5F:49:67:C1:79:1A:01:B5:07:2A:68:F0:37:57:70:BE:E6:34
 ```
 
 Check a certificate with
-`openssl x509 -in slippios.crt -noout -fingerprint -sha256`.
+`openssl x509 -in secure-boot/slippios.crt -noout -fingerprint -sha256`.
+
+### Release workflow
 
 Build, sign, and create a draft release:
 
@@ -75,28 +96,49 @@ mise run release -- --dry-run
 mise run release -- --publish
 ```
 
+Verify that the available key matches the public certificate:
+
+```sh
+scripts/with-release-secrets --check
+scripts/with-release-secrets --vault --check
+```
+
 Sign an unsigned image without publishing:
 
 ```sh
-SLIPPIOS_SB_KEY=/path/to/slippios.key \
-SLIPPIOS_SB_CERT=/path/to/slippios.crt \
-nix shell --inputs-from . \
-  nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
-  nixpkgs#parted nixpkgs#openssl \
-  -c ./scripts/sign-image result-local-image/slippios_<version>.raw signed.raw
+mise run sign:image -- result-local-image/slippios_<version>.raw signed.raw
 ```
 
-The script downloads the pinned Fedora shim RPM, verifies its SHA-256 and
-both Microsoft signatures, signs systemd-boot and the UKI, installs the
-shim and MokManager, and writes the enrollment note and shim license.
-Signing is a post-build step so the private key never enters the Nix store.
+The tool downloads the pinned Fedora shim RPM, verifies its SHA-256 and both
+Microsoft signatures, signs systemd-boot and the UKI, installs the shim and
+MokManager, and writes the enrollment note and shim license. Signing is a
+post-build step so the private key never enters the Nix store.
+
+### Key custody
+
+The private key and publish credentials live in the private
+`SlippiOS/release-secrets` repository, age-encrypted to one recipient per
+release manager. Each release manager keeps their own age identity; private
+identities are never shared. See
+[ADR-0008](../docs/decisions/0008-release-key-custody.md) for the rationale and
+the onboarding and offboarding procedure.
+
+On the author's personal machines, chezmoi also carries encrypted copies of the
+key, certificate, and release age identity in `~/.secrets`. The wrapper uses
+them when the local key or the vault clone is absent, so a second PC can sign
+after `chezmoi update` without a separate key copy.
+
+Only release managers need this access. Everyone else builds unsigned images.
+The dev update channel uses the same key as stable, so publishing a dev build is
+a release-manager action.
 
 ## Release checklist
 
-1. Generate the production key and certificate once.
-2. Back up the private key offline.
-3. Confirm `SLIPPIOS_SB_KEY` and `SLIPPIOS_SB_CERT` point at the production key,
-   or that the default key is in `~/.config/slippios/secureboot`.
+1. Confirm the production key is available through the environment, the local
+   key path, or the `SlippiOS/release-secrets` vault.
+2. Run `scripts/with-release-secrets --check` and confirm the fingerprint
+   matches the production certificate.
+3. Confirm an offline backup of the private key exists.
 4. Run `mise run release` to create a draft.
 5. Confirm the release contains the signed image, unsigned image, signed UKI,
    store image, zsync file, manifest, and `SHA256SUMS`.

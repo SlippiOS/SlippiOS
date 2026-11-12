@@ -12,3 +12,8 @@ __pycache__/
 
 # Project-local QEMU/build cache (never commit)
 /.cache/
+
+# Secure Boot private key. The public certificate is tracked; the private key
+# lives in the private SlippiOS/release-secrets vault.
+/secure-boot/*.key
+/secure-boot/*.pem
