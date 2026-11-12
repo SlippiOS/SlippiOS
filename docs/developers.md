@@ -14,21 +14,35 @@ mise run test
 
 No Docker or system Nix required.
 
-### Prerequisites
+### Toolchain
 
-- Linux x86_64 with `mise`
-- `curl` to download nix-portable when system Nix is absent
-- `xz` for compressed images, releases, and downloads
-- `bubblewrap` for image builds through nix-portable; `run:image` and
-  `dev:push` fall back to proot when it is missing
-- Optional: `qemu` and UEFI firmware (otherwise `run:image` provisions them
-  through Nix)
+`mise` is the task runner and provides `go` and `jq` (see `mise.toml`).
+`nix-portable` is the reproducible build toolchain used when system Nix is
+absent. They are complementary: nix-portable cannot run tasks and itself needs
+`curl` plus `bubblewrap` (or proot) from the host.
+
+Host packages (mise cannot install these):
+
+- `curl` — download nix-portable
+- `xz` — compressed images, releases, and downloads
+- `git` — flakes, releases, and development
+- `bubblewrap` — image builds through nix-portable; `run:image` and `dev:push`
+  fall back to proot without it
+- `openssh` — `dev:ssh` and `dev:push`
+- `util-linux` — `flash:usb` (`lsblk`, `blockdev`)
+- optional `qemu` + UEFI firmware — otherwise `run:image` provisions them
+  through Nix
+- optional `gh`, `rclone`, `rsync` — `fetch:image`, release, and publishing
+
+`gh` and `rclone` are available through mise (`mise use -g gh rclone`); the
+rest are distribution packages. `xxd` is not used by the repository.
 
 ```sh
 # Fedora
-sudo dnf install curl xz bubblewrap qemu
+sudo dnf install curl xz git bubblewrap openssh-clients util-linux qemu
 # Debian/Ubuntu
-sudo apt install curl xz-utils bubblewrap qemu-system-x86 ovmf
+sudo apt install curl xz-utils git bubblewrap openssh-client util-linux \
+  qemu-system-x86 ovmf
 ```
 
 ## Tasks
@@ -60,13 +74,13 @@ improving the system.
 
 - With system Nix: `scripts/build-image` calls `nix build`.
 - Without Nix: it downloads nix-portable to
-  `.cache/nix-portable-bin` and keeps its store in `.cache/nix`.
+  `.cache/nix-portable-bin` and keeps its store in `.cache/.nix-portable/nix`.
 - nix-portable uses `--option sandbox false`; `systemd-repart` needs nested
   user namespaces.
 - Build artifacts need about 12 GB free. `TMPDIR` defaults to
   `.cache/build-tmp`, not `/tmp`.
 - First build downloads the closure. Later builds reuse the project-local Nix
-  store in `.cache/nix`.
+  store in `.cache/.nix-portable/nix`.
 - Full image and update slot must stay below GitHub's 2 GiB per-asset limit.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.

@@ -15,11 +15,16 @@ delete_store_path() {
   local path=$1
   [[ -n "$path" && -e "$path" ]] || return 0
   case "$path" in
-    "$CACHE"/nix/nix/store/*) ;;
+    "$CACHE"/.nix-portable/nix/store/*|\
+    "$CACHE"/nix/nix/store/*|\
+    "$CACHE"/nix/store/*|\
+    /nix/store/*) ;;
     *) return 0 ;;
   esac
   echo "Removing old store path $(basename "$path")"
-  ./scripts/nix store delete "$path" >/dev/null 2>&1 || true
+  # Nix sees the sandbox /nix/store path regardless of where nix-portable
+  # keeps the physical store on the host.
+  ./scripts/nix store delete "/nix/store/$(basename "$path")" >/dev/null 2>&1 || true
 }
 
 # Keep the current release, minimal image, dev image, and shell export. The
@@ -44,7 +49,7 @@ clean_history() {
     rm -rf result-local-image-dev
   fi
 
-  local keep=(result-local-image result-minimal-image result-dev-channel-image result-shell-export)
+  local keep=(result-local-image result-minimal-image result-local-image-dev result-dev-channel-image result-shell-export)
   local keep_targets=()
   for name in "${keep[@]}"; do
     if [[ -L "$name" ]]; then
@@ -66,7 +71,9 @@ clean_history() {
   # Image store paths are large and are not needed after their result link is
   # gone. Do not run a global Nix GC here: it also removes the build inputs
   # and forces the next image build to start from scratch.
-  for path in "$CACHE"/nix/nix/store/slippios-0.3.* \
+  for path in "$CACHE"/.nix-portable/nix/store/slippios-0.3.* \
+    "$CACHE"/.nix-portable/nix/store/slippios-0.4.* \
+    "$CACHE"/nix/nix/store/slippios-0.3.* \
     "$CACHE"/nix/nix/store/slippios-0.4.*; do
     [[ -e "$path" ]] || continue
     if [[ " ${keep_targets[*]} " == *" $path "* ]]; then
