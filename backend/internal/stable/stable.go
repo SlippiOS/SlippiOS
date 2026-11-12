@@ -80,6 +80,11 @@ func Configure(profileDir, stableDir, isoDir string, values map[string]any, widt
 	if err := ini.Save(filepath.Join(stableDir, "Config", "GFX.ini"), gfx); err != nil {
 		return err
 	}
+	// The Quit label is a Dolphin custom texture. The launcher also needs the
+	// Slippi log so it can see the game's quit marker.
+	if err := dolphinpkg.EnableQuitSupport(stableDir); err != nil {
+		return err
+	}
 
 	if err := controllers.EnsureDefaults(stableDir); err != nil {
 		return err

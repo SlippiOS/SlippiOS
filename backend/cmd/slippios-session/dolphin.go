@@ -7,9 +7,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/SlippiOS/SlippiOS/backend/internal/desktop"
 	"github.com/SlippiOS/SlippiOS/backend/internal/dolphin"
+	"github.com/SlippiOS/SlippiOS/backend/internal/gecko"
 	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
 
@@ -44,6 +46,14 @@ func launch(paths settings.Paths, values map[string]any, appimage string) {
 	game, _ := values["game"].(map[string]any)
 	raw, _ := game["iso"].(string)
 	iso := paths.ISOPath(raw)
+	if err := gecko.EnsureQuitCode(paths.ProfileDir); err != nil {
+		alert([]string{"Could not install the Quit button.", err.Error()})
+		return
+	}
+	if err := dolphin.EnableQuitSupport(paths.DolphinDir); err != nil {
+		alert([]string{"Could not install the Quit button.", err.Error()})
+		return
+	}
 	clear()
 	fmt.Print("\n\n                 Launching Slippi Dolphin…\n\n")
 	fmt.Println("                 " + iso)
@@ -75,6 +85,12 @@ func launch(paths settings.Paths, values map[string]any, appimage string) {
 		"-C", "Dolphin.Display.RenderWindowXPos=0",
 		"-C", "Dolphin.Display.RenderWindowYPos=0",
 		"-C", "Graphics.Hardware.VSync=False",
+		"-C", "Logger.Logs.SLIPPI=True",
+		"-C", "Logger.Options.WriteToConsole=True",
+		"-C", "Logger.Options.WriteToFile=True",
+		"-C", "Logger.Options.Verbosity=4",
+		"-C", "Graphics.Settings.HiresTextures=True",
+		"-C", "Graphics.Settings.CacheHiresTextures=True",
 		"-b", "-e", iso,
 	)
 	environment := environmentWithRuntime()
@@ -92,7 +108,22 @@ func launch(paths settings.Paths, values map[string]any, appimage string) {
 	command.Env = environment
 	command.Stdout = logFile
 	command.Stderr = logFile
-	runErr := command.Run()
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := command.Start(); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			alert([]string{"slippi-appimage-run is not installed in this image."})
+			return
+		}
+		alert([]string{"Could not start Slippi Dolphin.", err.Error()})
+		return
+	}
+	done := make(chan struct{})
+	go dolphin.WatchQuit(logPath, command.Process.Pid, done)
+	runErr := command.Wait()
+	close(done)
+	if dolphin.QuitRequested(logPath) {
+		return
+	}
 	if errors.Is(runErr, exec.ErrNotFound) {
 		alert([]string{"slippi-appimage-run is not installed in this image."})
 		return

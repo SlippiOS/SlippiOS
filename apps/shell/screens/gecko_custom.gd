@@ -11,7 +11,7 @@ func present() -> void:
 	if result.get("ok", false):
 		var found := false
 		for code in result.get("codes", []):
-			if not bool(code.get("user_defined", false)):
+			if not bool(code.get("user_defined", false)) or bool(code.get("required", false)):
 				continue
 			var name := str(code.get("name", ""))
 			if name == "":

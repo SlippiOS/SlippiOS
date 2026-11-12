@@ -93,7 +93,7 @@ func SetEnabled(profileDir, name string, enabled bool) error {
 		return fmt.Errorf("unknown Gecko code %q", name)
 	}
 	if codes[index].Required && !enabled {
-		return fmt.Errorf("%q is required by Slippi Online", name)
+		return fmt.Errorf("%q is required and cannot be disabled", name)
 	}
 	codes[index].Enabled = enabled
 	return save(profileDir, codes)
@@ -143,8 +143,96 @@ func Remove(profileDir, name string) error {
 	if !codes[index].UserDefined {
 		return fmt.Errorf("%q is built in and cannot be removed", name)
 	}
+	if codes[index].Required {
+		return fmt.Errorf("%q is required and cannot be removed", name)
+	}
 	codes = append(codes[:index], codes[index+1:]...)
 	return save(profileDir, codes)
+}
+
+const QuitCodeName = "Required: SlippiOS Quit Button"
+
+// The main menu's Data slot is repurposed as Quit. The code runs from the
+// main menu think function, checks the top-level Data selection, sends a
+// SLIPPIOS_QUIT message over the Slippi EXI device, and clears the button
+// mask so Melee does not open the Data menu.
+const quitCode = `C222DB40 00000019
+9421FFE0 7C0802A6
+9001001C 90610018
+90810014 90A10010
+3BC00000 70600010
+4182008C 881C0000
+2C000000 40820080
+A01C0002 2C000004
+40820074 806DAFC4
+380000D0 98030000
+38000000 98030001
+38000004 98030002
+38000053 98030003
+3C004C49 60005050
+90030004 3C00494F
+6000535F 90030008
+3C005155 60004954
+9003000C 38000000
+98030010 38800080
+38A00001 3D808000
+618C55F0 7D8903A6
+4E800421 38000000
+901C000C 80610018
+80810014 80A10010
+8001001C 7C0803A6
+38210020 4E800020`
+
+// EnsureQuitCode adds the built-in Quit code to the profile's local GALE01
+// settings the first time it is needed. A code that already exists is left
+// alone.
+func EnsureQuitCode(profileDir string) error {
+	path := LocalPath(profileDir)
+	local, err := ini.Load(path)
+	if err != nil {
+		return err
+	}
+	nameLine := "$" + QuitCodeName
+	lines := local.Lines("Gecko")
+	found := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) == nameLine {
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(append([]string(nil), lines...), nameLine)
+		for _, line := range strings.Split(quitCode, "\n") {
+			if line = strings.TrimSpace(line); line != "" {
+				lines = append(lines, line)
+			}
+		}
+		local.SetLines("Gecko", lines)
+	}
+	if !hasLine(local.Lines("Gecko_Enabled"), nameLine) {
+		local.SetLines("Gecko_Enabled", append(local.Lines("Gecko_Enabled"), nameLine))
+	}
+	if hasLine(local.Lines("Gecko_Disabled"), nameLine) {
+		disabled := local.Lines("Gecko_Disabled")
+		filtered := make([]string, 0, len(disabled))
+		for _, line := range disabled {
+			if strings.TrimSpace(line) != nameLine {
+				filtered = append(filtered, line)
+			}
+		}
+		local.SetLines("Gecko_Disabled", filtered)
+	}
+	return ini.Save(path, local)
+}
+
+func hasLine(lines []string, target string) bool {
+	for _, line := range lines {
+		if strings.TrimSpace(line) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func save(profileDir string, codes []Code) error {
