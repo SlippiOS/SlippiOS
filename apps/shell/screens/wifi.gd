@@ -1,6 +1,10 @@
 extends "res://screens/screen.gd"
 
+var _watch_generation := 0
+
 func present() -> void:
+	_watch_generation += 1
+	var generation := _watch_generation
 	clear()
 	if app.setup_flow:
 		title("CONNECT", 44)
@@ -35,6 +39,21 @@ func present() -> void:
 		button("Skip for offline play", app.skip_setup)
 	button("Back", back)
 	focus()
+	if app.setup_flow:
+		_watch_wired(generation)
+
+
+# If this page was shown before a late USB Ethernet adapter appeared, move on
+# once it has a link (or an address) instead of leaving the user stuck here.
+func _watch_wired(generation: int) -> void:
+	while app._screen_node == self and generation == _watch_generation:
+		await app.get_tree().create_timer(1.0).timeout
+		if app._screen_node != self or generation != _watch_generation:
+			return
+		var info: Dictionary = app.net.status()
+		if bool(info.get("wired_link", false)) or str(info.get("address", "")) != "":
+			app.show_setup()
+			return
 
 
 func _select(ssid: String, security: String) -> void:

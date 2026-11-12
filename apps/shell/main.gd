@@ -49,6 +49,9 @@ var shell_status
 var actions
 
 const ONBOARDED_PATH := "/data/system/onboarded"
+# USB Ethernet adapters can enumerate after the shell starts. Give a wired
+# interface a short, bounded chance to appear before falling back to Wi-Fi.
+const NETWORK_WAIT_MS := 5000
 
 var _screen_node = null
 var _busy := false
@@ -417,7 +420,7 @@ func start_onboarding() -> void:
 	if settings.get("exists", false) and has_valid_isos():
 		toast("Choose the Melee image for this console.")
 		show_roms()
-	elif not net.wired_present():
+	elif not (await wait_for_network()):
 		toast("No Ethernet interface found. Connect Wi-Fi to continue setup.")
 		show_wifi()
 	else:
@@ -509,14 +512,14 @@ func after_splash() -> void:
 			# Updating an existing console should not repeat onboarding.
 			mark_onboarded()
 		else:
-			start_onboarding()
+			await start_onboarding()
 			return
 	if needs_setup():
 		var settings: Dictionary = status.get("settings", {})
 		if settings.get("exists", false) and has_valid_isos():
 			toast("Default Melee image is missing. Choose one.")
 			show_roms()
-		elif not net.wired_present():
+		elif not (await wait_for_network()):
 			setup_flow = true
 			toast("No Ethernet interface found. Connect Wi-Fi to continue setup.")
 			show_wifi()
@@ -591,6 +594,20 @@ func adapter_present() -> bool:
 
 func needs_setup() -> bool:
 	return shell_status.needs_setup()
+
+
+# True when there is a wired interface or an existing network address. Polls
+# because the interface may still be enumerating when the shell starts.
+func wait_for_network(timeout_ms: int = NETWORK_WAIT_MS) -> bool:
+	var deadline := Time.get_ticks_msec() + timeout_ms
+	while true:
+		var info: Dictionary = net.status()
+		if bool(info.get("wired", false)) or str(info.get("address", "")) != "":
+			return true
+		if Time.get_ticks_msec() >= deadline:
+			break
+		await get_tree().create_timer(0.5).timeout
+	return false
 
 
 func has_valid_isos() -> bool:
