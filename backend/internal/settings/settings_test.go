@@ -80,7 +80,11 @@ func TestISOStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	good := filepath.Join(paths.ISODir, "good.iso")
-	if err := os.WriteFile(good, append([]byte("GALE01"), make([]byte, 32)...), 0o444); err != nil {
+	if err := os.WriteFile(good, gameCubeImage("GALE01", 64), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	mod := filepath.Join(paths.ISODir, "tm-ce.iso")
+	if err := os.WriteFile(mod, gameCubeImage("GTCE01", 64), 0o444); err != nil {
 		t.Fatal(err)
 	}
 	bad := filepath.Join(paths.ISODir, "bad.iso")
@@ -89,6 +93,9 @@ func TestISOStatus(t *testing.T) {
 	}
 	if ok, reason := paths.ISOStatus("good.iso"); !ok {
 		t.Fatalf("good rejected: %s", reason)
+	}
+	if ok, reason := paths.ISOStatus("tm-ce.iso"); !ok {
+		t.Fatalf("modded GameCube image rejected: %s", reason)
 	}
 	if ok, _ := paths.ISOStatus("bad.iso"); ok {
 		t.Fatal("bad accepted")
@@ -105,7 +112,7 @@ func TestFindISOs(t *testing.T) {
 	}
 	for _, name := range []string{"one.iso", "two.iso"} {
 		if err := os.WriteFile(filepath.Join(paths.ISODir, name),
-			append([]byte("GALE01"), make([]byte, 8)...), 0o444); err != nil {
+			gameCubeImage("GALE01", 64), 0o444); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -223,4 +230,11 @@ func TestCheckHardwareBinding(t *testing.T) {
 	if paths.CheckHardwareBinding() {
 		t.Fatal("same hardware reported a change")
 	}
+}
+
+func gameCubeImage(id string, size int) []byte {
+	data := make([]byte, size)
+	copy(data, id)
+	copy(data[gameCubeMagicOffset:], gameCubeMagic)
+	return data
 }

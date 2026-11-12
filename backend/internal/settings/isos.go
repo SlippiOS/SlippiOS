@@ -1,15 +1,19 @@
 package settings
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
 
-var meleeID = regexp.MustCompile(`^GAL[A-Z0-9]01`)
+// GameCube disc header: the game ID is at offset 0, but mods may change it.
+// The magic word at 0x1C is what identifies a GameCube disc image.
+var gameCubeMagic = []byte{0xC2, 0x33, 0x9F, 0x3D}
+
+const gameCubeMagicOffset = 0x1C
 
 func (p Paths) ISOStatus(value string) (bool, string) {
 	if value == "" {
@@ -21,12 +25,13 @@ func (p Paths) ISOStatus(value string) (bool, string) {
 		return false, fmt.Sprintf("not found: %s", iso)
 	}
 	defer file.Close()
-	header := make([]byte, 6)
-	if _, err := file.Read(header); err != nil {
+	header := make([]byte, gameCubeMagicOffset+len(gameCubeMagic))
+	if _, err := file.ReadAt(header, 0); err != nil {
 		return false, fmt.Sprintf("cannot read %s: %v", iso, err)
 	}
-	if !meleeID.Match(header) {
-		return false, fmt.Sprintf("%s is not a Melee image (game id %q)", iso, header)
+	if !bytes.Equal(header[gameCubeMagicOffset:], gameCubeMagic) {
+		return false, fmt.Sprintf("%s is not a GameCube image (magic %x)", iso,
+			header[gameCubeMagicOffset:])
 	}
 	return true, "ok"
 }

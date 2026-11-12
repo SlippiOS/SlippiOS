@@ -118,8 +118,8 @@ Because the shell export goes through the flake, new shell files must be staged
 Nix source tree. Image changes (NixOS modules, packages) still need
 `build:image-dev`.
 
-`scripts/dev` builds a throwaway data tree with a tiny fake Melee image
-(`GALE01` header, not a playable disc) and a `settings.toml`. The CLI, ISO
+`scripts/dev` builds a throwaway data tree with a tiny fake GameCube image
+(disc header, not a playable disc) and a `settings.toml`. The CLI, ISO
 checks, and Dolphin runner can be exercised there without an image build.
 
 `mise run test` starts the shell headlessly with `SLIPPIOS_PARSE_ONLY=1`, so
@@ -420,8 +420,9 @@ writes the result to `/data/system/isos-mount`. `slippios isos` reports
 ROM list. The partition is fixed-size; the ext4 `/data` partition after it grows
 to fill the stick. The initrd grows it once (parted, `e2fsck -f`, `resize2fs`)
 and skips the work on later boots when the partition already reaches the end of
-the disk. Images keep their original filenames. SlippiOS validates only the
-GameCube game ID, not a hash.
+the disk. Images keep their original filenames. SlippiOS validates the GameCube disc
+magic at `0x1C`, not the game ID or a hash, so modded images such as Training
+Mode CE are accepted.
 
 ## Boot and game handoff
 

@@ -133,7 +133,7 @@ func TestUpload(t *testing.T) {
 	server, httpServer := testServer(t, nil)
 	defer httpServer.Close()
 
-	image := append([]byte("GALE01"), make([]byte, 128)...)
+	image := testGameCubeImage("GALE01", 128)
 	response, err := http.Post(
 		httpServer.URL+"/abc123/iso?name=melee.iso",
 		"application/octet-stream",
@@ -219,7 +219,7 @@ func TestUploadLengthErrors(t *testing.T) {
 	server, httpServer := testServer(t, nil)
 	defer httpServer.Close()
 
-	image := append([]byte("GALE01"), make([]byte, 32)...)
+	image := testGameCubeImage("GALE01", 32)
 	request := httptest.NewRequest(http.MethodPost,
 		"/abc123/iso?name=short.iso", bytes.NewReader(image))
 	request.ContentLength = int64(len(image) + 10)
@@ -276,7 +276,7 @@ func TestSetupFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	isoPath := filepath.Join(paths.ISODir, "melee.iso")
-	if err := os.WriteFile(isoPath, append([]byte("GALE01"), make([]byte, 64)...), 0o444); err != nil {
+	if err := os.WriteFile(isoPath, testGameCubeImage("GALE01", 64), 0o444); err != nil {
 		t.Fatal(err)
 	}
 	server := New("abc123", 0, paths)
@@ -365,7 +365,7 @@ func TestSetupUploadAndLogin(t *testing.T) {
 		return http.ErrUseLastResponse
 	}}
 
-	image := append([]byte("GALE01"), make([]byte, 128)...)
+	image := testGameCubeImage("GTCE01", 128)
 	response, err := http.Post(
 		httpServer.URL+"/abc123/iso?name=melee.iso",
 		"application/octet-stream", bytes.NewReader(image),
@@ -469,4 +469,11 @@ func TestStartPublishesStatus(t *testing.T) {
 	if status["ok"] != false || status["error"] != "network page stopped" {
 		t.Fatalf("stopped status = %#v", status)
 	}
+}
+
+func testGameCubeImage(id string, size int) []byte {
+	data := make([]byte, size)
+	copy(data, id)
+	copy(data[0x1C:], []byte{0xC2, 0x33, 0x9F, 0x3D})
+	return data
 }

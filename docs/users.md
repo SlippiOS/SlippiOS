@@ -253,9 +253,11 @@ the wizard. Only one page can run at a time.
 network. Disable VPN or client isolation. In the QEMU VM, use
 `http://localhost:8080/<token>/` from the host.
 
-**No Melee image.** The file must be a GameCube Melee `.iso` with ID `GALE01`,
-`GALJ01`, or `GALP01`. Copy it to the `MELEE-ROMS` drive, then use **Melee ROMs**
-to choose it, or **Settings → Advanced → Expert mode → Run setup again**.
+**No Melee image.** The file must be a GameCube `.iso`. SlippiOS checks the
+GameCube disc header, not the game ID or a hash, so vanilla, training, and
+modded images all work. Copy it to the `MELEE-ROMS` drive, then use **Melee
+ROMs** to choose it, or **Settings → Advanced → Expert mode → Run setup
+again**.
 
 **The console shows a recovery menu instead of the shell.** The graphical shell
 crashed and the Openbox fallback also exited. The menu shows the last error and
