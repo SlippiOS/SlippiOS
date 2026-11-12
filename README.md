@@ -3,7 +3,7 @@
 SlippiOS is a Melee console on a USB stick. It boots into a fullscreen Godot
 shell and keeps games, settings, the Slippi login, and replays on the stick.
 
-**Status:** 0.4.2. A/B system updates, browser sign-in, Wi-Fi setup, network ISO
+**Status:** 0.5.0. A/B system updates, browser sign-in, Wi-Fi setup, network ISO
 upload, native GameCube-adapter input, and signed Secure Boot images work.
 Booting straight into a game and opening the menu with hold-A still need
 real-hardware validation.

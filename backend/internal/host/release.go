@@ -315,7 +315,11 @@ func Release(ws *Workspace, opts ReleaseOptions) error {
 		return fmt.Errorf("release %s already exists; pass --force to replace its assets", tag)
 	}
 	if !exists {
-		notes := fmt.Sprintf(`SlippiOS %s — new mark, multishine boot animation, smoother splash.
+		notes := fmt.Sprintf(`SlippiOS %s — other GameCube ISOs, wired-first setup, in-game Quit.
+
+- Modded and training GameCube ISOs are accepted alongside vanilla Melee.
+- Wired Ethernet is detected before the Wi-Fi setup page.
+- Includes the in-game Quit button and the dev update channel.
 
 Full image (apps preinstalled): https://sourceforge.net/projects/slippi-os/files/v%s/
 Minimal image (apps install on first boot): `+"`slippios-usb-%s-minimal.img.xz`"+` from this release.

@@ -589,7 +589,7 @@ unless `/data/system/update-source.json` overrides the source. The same switch
 is available from a terminal with
 `slippios settings set update.channel dev`.
 
-Dev images use `0.4.2.<checkout-timestamp>` as their version, so each committed
+Dev images use `0.5.0.<checkout-timestamp>` as their version, so each committed
 build sorts above the release it is based on and above earlier dev builds.
 `mise run release:dev` builds the uncompressed dev image, signs it, extracts
 the store image and UKI, writes a dev manifest, and publishes to `dev/` through
