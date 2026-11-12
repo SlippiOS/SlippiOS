@@ -177,7 +177,7 @@ removes the saved login.
 
 - **Validate:** pushes to `main`; Go tests, headless Godot, and NixOS
   evaluation.
-- Releases are built locally with `scripts/release`: full image + update slot +
+- Releases are built locally with `mise run release`: full image + update slot +
   UKI + zsync + manifest, published as a GitHub release.
 - The release script signs the default image, extracts the signed UKI from the
   image, and publishes the unsigned image as a fallback.

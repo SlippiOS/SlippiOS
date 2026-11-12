@@ -75,7 +75,7 @@ UEFI CA 2011 and 2023, plus a SlippiOS MOK key. The first boot requires a
 one-time MOK enrollment per PC; updates use the same key. The unsigned image
 still requires Secure Boot off.
 
-- [x] Add local release signing with `scripts/release`; it signs the image and
+- [x] Add local release signing with `mise run release`; it signs the image and
       extracts the signed UKI for the manifest.
 - [x] Document the one-time MOK enrollment in the user guide and keep the
       unsigned image as a fallback.

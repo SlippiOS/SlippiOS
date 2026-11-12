@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-# Fast checks: Go tests plus a headless Godot import/parse.
+# Compatibility wrapper for the Go developer tool.
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-( cd backend && go test ./... )
-./scripts/nix shell --inputs-from . nixpkgs#godot_4 -c sh -c '
-  export SLIPPIOS_PARSE_ONLY=1
-  log="$(mktemp)"
-  trap "rm -f \"$log\"" EXIT
-  godot --headless --path apps/shell --import >"$log" 2>&1
-  status=$?
-  godot --headless --path apps/shell --quit >>"$log" 2>&1 || status=$?
-  cat "$log"
-  if grep -qE "SCRIPT ERROR|Parse Error" "$log"; then
-    echo "Godot reported a script parse error" >&2
-    exit 1
-  fi
-  exit "$status"
-'
+exec go -C "$(dirname "${BASH_SOURCE[0]}")/../backend" run ./cmd/slippios-dev test "$@"

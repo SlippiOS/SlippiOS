@@ -19,7 +19,9 @@ No Docker or system Nix required.
 `mise` is the task runner and provides `go` and `jq` (see `mise.toml`).
 `nix-portable` is the reproducible build toolchain used when system Nix is
 absent. They are complementary: nix-portable cannot run tasks and itself needs
-`curl` plus `bubblewrap` (or proot) from the host.
+`curl` plus `bubblewrap` (or proot) from the host. The workflows live in
+`backend/cmd/slippios-dev` and `backend/internal/host`; `scripts/*` and the
+mise tasks are thin wrappers around that tool.
 
 Host packages (mise cannot install these):
 
@@ -48,17 +50,22 @@ sudo apt install curl xz-utils git bubblewrap openssh-client util-linux \
 ## Tasks
 
 ```sh
-mise run build:image    # USB image for release
-mise run build:image-dev  # uncompressed image, faster local boots
-mise run release        # build, sign, and create a draft release
-mise run dev:cli -- status   # CLI against that sandbox
-mise run dev:ssh        # SSH into the running dev VM
-mise run dev:push       # build CLI + shell and push them into the dev VM
-mise run run:image      # boot the local image (virtio disk; fast)
-mise run stop:image     # clean ACPI power-off of that VM
-mise run fetch:image    # download the latest published USB image
-mise run test           # Go tests + headless Godot parse
-mise run nix            # shell with Godot, QEMU, zsync, xz, jq
+mise run build:image        # USB image for release
+mise run build:image-dev    # uncompressed image, faster local boots
+mise run build:image-minimal # apps install on first boot
+mise run release            # build, sign, and create a draft release
+mise run release:dev        # publish a dev-channel update
+mise run release:minimal    # add the minimal image to a release
+mise run dev:cli -- status  # CLI against that sandbox
+mise run dev:ssh            # SSH into the running dev VM
+mise run dev:push           # build CLI + shell and push them into the dev VM
+mise run flash:usb          # detect USB media, confirm, and flash
+mise run run:image          # boot the local image (virtio disk; fast)
+mise run stop:image         # clean ACPI power-off of that VM
+mise run fetch:image        # download the latest published USB image
+mise run clean:history      # remove old builds and stale result links
+mise run test               # Go tests + headless Godot parse
+mise run nix                # shell with Godot, QEMU, zsync, xz, jq
 ```
 
 The image is written to `result-local-image/` (git-ignored).
@@ -72,7 +79,7 @@ improving the system.
 
 ## Build notes
 
-- With system Nix: `scripts/build-image` calls `nix build`.
+- With system Nix: `mise run build:image` calls `nix build`.
 - Without Nix: it downloads nix-portable to
   `.cache/nix-portable-bin` and keeps its store in `.cache/.nix-portable/nix`.
 - nix-portable uses `--option sandbox false`; `systemd-repart` needs nested
@@ -85,7 +92,7 @@ improving the system.
   Compression only matters for published images, so `build:image-dev` skips it
   (`SLIPPI_DEV=1`). Local boots then use the `.raw` directly.
 - For local update tests, build the image and the UKI in one evaluation:
-  `./scripts/nix build ...build.image ...build.uki`. A UKI rebuilt after
+  `mise run nix -- build ...build.image ...build.uki`. A UKI rebuilt after
   further edits embeds initrd store paths that the earlier store image does not
   contain, so the installed system drops to emergency mode. CI is safe because
   it builds from one clean checkout.
@@ -132,7 +139,7 @@ Because the shell export goes through the flake, new shell files must be staged
 Nix source tree. Image changes (NixOS modules, packages) still need
 `build:image-dev`.
 
-`scripts/dev` builds a throwaway data tree with a tiny fake GameCube image
+`mise run dev:cli` builds a throwaway data tree with a tiny fake GameCube image
 (disc header, not a playable disc) and a `settings.toml`. The CLI, ISO
 checks, and Dolphin runner can be exercised there without an image build.
 
@@ -213,10 +220,20 @@ mise run release -- --publish
 ```
 
 Use `--no-build` to reuse `result-local-image`, `--dry-run` to generate assets
-without uploading, and `--tag` to set the tag. The script refuses a dirty
+without uploading, and `--tag` to set the tag. The tool refuses a dirty
 working tree unless `--allow-dirty` is passed. It creates the release tag on
 GitHub at the current commit. Assets are written to
 `.cache/release/<version>/` (git-ignored).
+
+## Developer tool
+
+All repository tasks are implemented by `slippios-dev`, a Go program under
+`backend/cmd/slippios-dev`. `mise.toml` invokes it with
+`go -C backend run ./cmd/slippios-dev ...`; the `scripts/` files are thin
+compatibility wrappers for the same commands. The tool shells out to Nix,
+QEMU, `gh`, `rclone`, `rsync`, and the Secure Boot tools where those are the
+right tool, but device detection, prompts, progress, manifests, config files,
+and the flash write/verify loop are Go.
 
 ## Repository map
 
@@ -234,12 +251,9 @@ apps/shell/                Godot UI
   widgets/                 shared controls
 pkgs/slippios.nix          Go binaries
 pkgs/appimage-runner.nix   Dolphin AppImage sandbox
-scripts/build-image        local image build
-scripts/release            local build, sign, and publish
-scripts/run-image          QEMU/OVMF USB runner
-scripts/fetch-image        release downloader
-scripts/sign-image         Secure Boot signing for an image
-scripts/sign-uki           Secure Boot signing for a standalone UKI
+backend/cmd/slippios-dev   host-side build, flash, release, and VM tool
+backend/internal/host/     host tool packages (build, flash, sign, publish)
+scripts/                   thin compatibility wrappers for the Go tool
 secure-boot/               shim, enrollment note, and signing docs
 ```
 
@@ -481,7 +495,7 @@ fallback desktop is useful when the shell exits.
 The signed image uses the Fedora 16.1-7 shim and a SlippiOS MOK key. See
 [secure-boot/README.md](../secure-boot/README.md) for the chain and limits.
 
-`scripts/release` signs the image and extracts the signed UKI from it, so the
+`mise run release` signs the image and extracts the signed UKI from it, so the
 update asset matches the image. It reads the key from `SLIPPIOS_SB_KEY` and
 `SLIPPIOS_SB_CERT`, or from `~/.config/slippios/secureboot/slippios.key` and
 `.crt`. Keep the private key offline and out of the repository.
@@ -494,7 +508,7 @@ SLIPPIOS_SB_CERT=/path/to/slippios.crt \
   mise run sign:image -- result-local-image/slippios_<version>.raw signed.raw
 ```
 
-The script downloads the pinned shim RPM, verifies its SHA-256 and both
+The tool downloads the pinned shim RPM, verifies its SHA-256 and both
 Microsoft signatures, signs systemd-boot and the UKI, and installs the shim,
 MokManager, and `slippios.cer`.
 
@@ -577,29 +591,31 @@ is available from a terminal with
 
 Dev images use `0.4.2.<checkout-timestamp>` as their version, so each committed
 build sorts above the release it is based on and above earlier dev builds.
-`scripts/release-dev` builds the uncompressed dev image, signs it, extracts the
-store image and UKI, writes a dev manifest, and publishes to `dev/` through
-`scripts/publish-r2 --dev`.
+`mise run release:dev` builds the uncompressed dev image, signs it, extracts
+the store image and UKI, writes a dev manifest, and publishes to `dev/` through
+the R2 publisher.
 
 The first dev build should use `--keep-raw`; flash that signed raw once with
 `mise run flash:usb`. The flasher detects USB media, confirms the target,
 configures the passwordless helper if needed, and writes the image. A USB NVMe
 enclosure that reports `removable=0` is detected and handled automatically.
+Pass `--no-verify` to skip the read-back verification; the write is still
+synced, but there is no post-write integrity check.
 After that, publish new dev builds and install them from
 **Settings → System → Update**; the inactive slot is updated exactly like a
-release. `mise run release:dev` is the same as `scripts/release-dev`.
+release.
 
-`scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
-and manifest in that order, then deletes old `dev/` objects. A stable publish
-does the same for the stable prefix, so the bucket holds the latest stable plus
-the latest dev assets and stays under the 10 GB free tier.
+`mise run publish:r2 -- --dev <assets-dir>` uploads the new store image, zsync,
+UKI, checksums, and manifest in that order, then deletes old `dev/` objects. A
+stable publish does the same for the stable prefix, so the bucket holds the
+latest stable plus the latest dev assets and stays under the 10 GB free tier.
 
 ## Cleaning build history
 
 `mise run clean:history` removes old `.cache/release/<version>` directories,
 verification artifacts, stale `result-*` links, old image store paths, and
 build temp. It keeps the current release, minimal, dev, and shell-export
-results. `scripts/build-image` runs the same cleanup before every image build;
+results. `mise run build:image` runs the same cleanup before every image build;
 set `SLIPPIOS_SKIP_CLEAN=1` to skip it.
 
 `mise run clean` also removes QEMU overlays, ISOs, and OVMF variables.
@@ -653,14 +669,14 @@ The updater defaults to the public R2 bucket:
 https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/manifest.json
 ```
 
-Generate the signed assets with `scripts/release --dry-run --keep-raw`, then
-publish the asset directory:
+Generate the signed assets with `mise run release -- --dry-run --keep-raw`,
+then publish the asset directory:
 
 ```sh
-scripts/publish-r2 .cache/release/<version>
+mise run publish:r2 -- .cache/release/<version>
 ```
 
-The script reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
+The tool reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
 uploads the store image, zsync, UKI, checksums, and manifest. Full USB images
 live on SourceForge. Pass `--dev` to publish the update assets under the
 `dev/` prefix. Both modes remove old objects in their own prefix after the new

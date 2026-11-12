@@ -1,36 +1,4 @@
 #!/usr/bin/env bash
-# Run Nix, falling back to nix-portable when Nix is not installed.
+# Compatibility wrapper for the Go developer tool.
 set -euo pipefail
-
-if command -v nix >/dev/null 2>&1; then
-  exec nix "$@"
-fi
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CACHE="${SLIPPIOS_CACHE:-$ROOT/.cache}"
-PORTABLE="${NIX_PORTABLE:-$CACHE/nix-portable-bin}"
-export NP_LOCATION="$CACHE"
-export XDG_CACHE_HOME="$CACHE/xdg"
-mkdir -p "$CACHE"
-
-if [[ ! -x "$PORTABLE" ]]; then
-  echo "Nix is not installed; downloading nix-portable to $PORTABLE" >&2
-  command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
-  curl --fail --location --progress-bar \
-    -o "$PORTABLE" \
-    "https://github.com/DavHau/nix-portable/releases/download/v012/nix-portable-x86_64"
-  chmod +x "$PORTABLE"
-fi
-
-# systemd-repart and some test derivations need nested user namespaces.
-# bubblewrap provides those; proot cannot. Prefer bubblewrap when it is
-# installed and otherwise let nix-portable pick its default runtime (proot),
-# which is enough to run tools like QEMU.
-if [[ -z "${NP_RUNTIME:-}" ]] && command -v bwrap >/dev/null 2>&1; then
-  NP_RUNTIME=bwrap
-fi
-
-if [[ -n "${NP_RUNTIME:-}" ]]; then
-  exec env "NP_RUNTIME=$NP_RUNTIME" "$PORTABLE" nix --option sandbox false "$@"
-fi
-exec "$PORTABLE" nix --option sandbox false "$@"
+exec go -C "$(dirname "${BASH_SOURCE[0]}")/../backend" run ./cmd/slippios-dev nix "$@"
