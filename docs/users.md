@@ -204,6 +204,13 @@ The inactive system slot is updated. `/data` is untouched. A failed boot falls
 back to the previous system after three attempts. Downloads use zsync deltas
 when possible and fall back to a full download.
 
+With **Expert mode** on, **Settings → System** also shows **Release channel**.
+The default is **Stable**. **Dev** updates from the R2 test channel and is meant
+for testing changes without reflashing the drive. Dev builds may be less stable
+than releases. The selected channel is saved in `settings.toml` and is shown on
+the Update screen. Switching back to Stable does not downgrade a dev build;
+install a newer stable release or reflash the drive.
+
 Versions before `0.3.0` used a numeric build ID. Those devices must reflash
 once; automatic updates start with `0.3.0`. After that, updates use semver.
 

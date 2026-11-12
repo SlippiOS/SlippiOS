@@ -17,11 +17,14 @@ func present() -> void:
 	var dolphin := cli(["update", "--check"])
 	var settings: Dictionary = cli(["settings", "show"]).get("settings", {})
 	var dolphin_settings: Dictionary = settings.get("dolphin", {})
+	var update_settings: Dictionary = settings.get("update", {})
+	var channel := text_value(update_settings.get("channel"), "stable")
 	var build := text_value(dolphin_settings.get("build"), "stable")
 	var stable_version := text_value(
 		app.status.get("apps", {}).get("stable", {}).get("version"), "not installed")
 
 	section("System")
+	label("Channel: %s" % ("Dev" if channel == "dev" else "Stable"), 0.65)
 	if os_check.get("ok", false):
 		var current := text_value(os_check.get("current"), "unknown")
 		var latest := text_value(os_check.get("latest"), "unknown")

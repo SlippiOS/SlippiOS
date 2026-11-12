@@ -232,6 +232,21 @@ func TestCheckHardwareBinding(t *testing.T) {
 	}
 }
 
+func TestUpdateChannel(t *testing.T) {
+	values := Defaults()
+	if got := UpdateChannel(values); got != "stable" {
+		t.Fatalf("default channel = %q", got)
+	}
+	values["update"].(map[string]any)["channel"] = "dev"
+	if got := UpdateChannel(values); got != "dev" {
+		t.Fatalf("dev channel = %q", got)
+	}
+	values["update"].(map[string]any)["channel"] = "nightly"
+	if got := UpdateChannel(values); got != "stable" {
+		t.Fatalf("unknown channel = %q", got)
+	}
+}
+
 func gameCubeImage(id string, size int) []byte {
 	data := make([]byte, size)
 	copy(data, id)

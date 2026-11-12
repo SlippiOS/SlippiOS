@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# Build, sign, and publish a SlippiOS dev update to the R2 dev channel.
+#
+# The first run can keep the signed full image for the one-time USB flash.
+# Later runs only need the store image and UKI; the console updates through
+# the normal system update flow.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+CACHE="${SLIPPIOS_CACHE:-$PWD/.cache}"
+RESULT="${SLIPPI_RESULT:-result-local-image-dev}"
+ASSETS_DIR="${SLIPPIOS_DEV_ASSETS:-$CACHE/release-dev}"
+BUILD=1
+DRY_RUN=0
+KEEP_RAW=0
+ALLOW_DIRTY=0
+
+usage() {
+  cat <<'USAGE'
+usage: scripts/release-dev [options]
+
+Build the uncompressed dev image, sign it, and publish its nix-store and UKI
+to the R2 dev channel.
+
+Options:
+  --no-build      use the existing result-local-image-dev
+  --dry-run       build assets without uploading
+  --keep-raw      keep the signed full image for the initial USB flash
+  --allow-dirty   allow uncommitted changes (the version will not advance)
+  -h, --help      show this help
+
+Environment:
+  SLIPPIOS_SB_KEY     PEM private key (default ~/.config/slippios/secureboot/slippios.key)
+  SLIPPIOS_SB_CERT    PEM certificate for the same key
+  SLIPPIOS_CACHE      cache root (default .cache)
+  SLIPPIOS_DEV_ASSETS output directory (default .cache/release-dev)
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-build) BUILD=0 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --keep-raw) KEEP_RAW=1 ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+for tool in git jq sha256sum; do
+  command -v "$tool" >/dev/null || {
+    echo "$tool is required" >&2
+    exit 1
+  }
+done
+
+key="${SLIPPIOS_SB_KEY:-$HOME/.config/slippios/secureboot/slippios.key}"
+cert="${SLIPPIOS_SB_CERT:-$HOME/.config/slippios/secureboot/slippios.crt}"
+if [[ ! -f "$key" || ! -f "$cert" ]]; then
+  echo "set SLIPPIOS_SB_KEY and SLIPPIOS_SB_CERT, or install the key at $HOME/.config/slippios/secureboot" >&2
+  exit 1
+fi
+if [[ "$ALLOW_DIRTY" -eq 0 && -n "$(git status --porcelain)" ]]; then
+  echo "working tree is dirty; commit first or pass --allow-dirty" >&2
+  exit 1
+fi
+if [[ "$ALLOW_DIRTY" -eq 1 ]]; then
+  echo "warning: dirty tree; the dev version is based on the last commit" >&2
+fi
+export SLIPPIOS_SB_KEY="$key"
+export SLIPPIOS_SB_CERT="$cert"
+export SLIPPIOS_CACHE="$CACHE"
+
+if [[ "$BUILD" -eq 1 ]]; then
+  if [[ -d "$RESULT" && ! -L "$RESULT" ]]; then
+    echo "$RESULT is a directory; move the old image aside or set SLIPPI_RESULT" >&2
+    exit 1
+  fi
+  SLIPPI_DEV=1 SLIPPI_RESULT="$RESULT" ./scripts/build-image
+elif [[ ! -e "$RESULT" ]]; then
+  echo "$RESULT is missing; run without --no-build" >&2
+  exit 1
+fi
+
+image_raw=$(find -L "$RESULT" -maxdepth 1 -name 'slippios_*.raw' \
+  ! -name '*.nix-store.raw' -print -quit)
+nix_store_raw=$(find -L "$RESULT" -maxdepth 1 \
+  -name 'slippios_*.nix-store.raw' -print -quit)
+if [[ -z "$image_raw" || -z "$nix_store_raw" ]]; then
+  echo "cannot find the dev image and store image in $RESULT" >&2
+  exit 1
+fi
+image_raw=$(readlink -f "$image_raw")
+nix_store_raw=$(readlink -f "$nix_store_raw")
+
+version=$(basename "$image_raw")
+version=${version#slippios_}
+version=${version%.raw}
+if [[ "$(basename "$nix_store_raw")" != "slippios_${version}.nix-store.raw" ]]; then
+  echo "image and store image versions do not match" >&2
+  exit 1
+fi
+
+assets="$ASSETS_DIR"
+mkdir -p "$assets"
+rm -f "$assets"/slippios_*.nix-store.raw \
+  "$assets"/slippios_*.nix-store.raw.zsync \
+  "$assets"/slippios_*.efi \
+  "$assets"/slippios_*-signed.raw \
+  "$assets"/manifest.json "$assets"/SHA256SUMS "$assets"/SHA256SUMS.update
+rm -rf "$assets/uki"
+
+avail_kb=$(df -Pk "$assets" | awk 'NR == 2 { print $4 }')
+if (( avail_kb < 20000000 )); then
+  echo "not enough space in $assets (need ~20 GB, have $((avail_kb / 1024)) MB)" >&2
+  exit 1
+fi
+
+signed_raw="$assets/slippios_${version}-signed.raw"
+echo "Version: $version"
+echo "Image:   $image_raw"
+echo "Assets:  $assets"
+
+echo "Signing image..."
+./scripts/nix shell --inputs-from . \
+  nixpkgs#sbsigntool nixpkgs#mtools nixpkgs#rpm nixpkgs#cpio \
+  nixpkgs#parted nixpkgs#openssl nixpkgs#curl \
+  -c ./scripts/sign-image "$image_raw" "$signed_raw"
+
+offset=$(./scripts/nix shell --inputs-from . nixpkgs#parted -c \
+  parted -s -m "$signed_raw" unit B print | \
+  awk -F: '$6 == "boot" { gsub("B", "", $2); print $2; exit }')
+if [[ -z "$offset" ]]; then
+  echo "cannot find the ESP partition" >&2
+  exit 1
+fi
+
+echo "Extracting UKI..."
+mkdir -p "$assets/uki"
+./scripts/nix shell --inputs-from . nixpkgs#mtools -c \
+  mcopy -i "$signed_raw@@$offset" "::/EFI/Linux/*.efi" "$assets/uki/"
+mapfile -t ukis < <(find "$assets/uki" -maxdepth 1 -type f -name '*.efi' -print)
+if [[ ${#ukis[@]} -ne 1 ]]; then
+  echo "expected one UKI in the image, found ${#ukis[@]}" >&2
+  exit 1
+fi
+uki="$assets/slippios_${version}.efi"
+mv "${ukis[0]}" "$uki"
+rmdir "$assets/uki"
+
+echo "Staging update assets..."
+nix_store="$assets/slippios_${version}.nix-store.raw"
+if ! ln -f "$nix_store_raw" "$nix_store" 2>/dev/null; then
+  cp -f "$nix_store_raw" "$nix_store"
+fi
+./scripts/nix shell --inputs-from . nixpkgs#zsync -c \
+  zsyncmake -u "$(basename "$nix_store")" -o "$nix_store.zsync" "$nix_store"
+
+raw_sha=$(sha256sum "$nix_store" | cut -d' ' -f1)
+raw_size=$(stat -c '%s' "$nix_store")
+uki_sha=$(sha256sum "$uki" | cut -d' ' -f1)
+uki_size=$(stat -c '%s' "$uki")
+commit=$(git rev-parse HEAD)
+date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+jq -n \
+  --arg version "$version" \
+  --arg tag "dev-$version" \
+  --arg commit "$commit" \
+  --arg date "$date" \
+  --arg raw_name "$(basename "$nix_store")" \
+  --arg raw_sha "$raw_sha" \
+  --argjson raw_size "$raw_size" \
+  --arg uki_name "$(basename "$uki")" \
+  --arg uki_sha "$uki_sha" \
+  --argjson uki_size "$uki_size" \
+  '{
+    version: $version,
+    tag: $tag,
+    commit: $commit,
+    date: $date,
+    nix_store: {
+      name: $raw_name,
+      sha256: $raw_sha,
+      size: $raw_size,
+      zsync: ($raw_name + ".zsync")
+    },
+    uki: { name: $uki_name, sha256: $uki_sha, size: $uki_size }
+  }' > "$assets/manifest.json"
+
+(
+  cd "$assets"
+  sha256sum "$(basename "$nix_store")" "$(basename "$nix_store").zsync" \
+    "$(basename "$uki")" manifest.json > SHA256SUMS.update
+)
+
+echo
+ls -lh "$nix_store" "$nix_store.zsync" "$uki" "$assets/manifest.json" \
+  "$assets/SHA256SUMS.update"
+if [[ "$KEEP_RAW" -eq 1 ]]; then
+  echo "Initial flash image: $signed_raw"
+  echo "Flash it once with: scripts/flash-usb enable --image-dir $assets"
+else
+  rm -f "$signed_raw"
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo
+  echo "Dry run: assets are in $assets"
+  exit 0
+fi
+
+./scripts/publish-r2 --dev "$assets"

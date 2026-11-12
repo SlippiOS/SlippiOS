@@ -17,13 +17,12 @@
       cliPackage = pkgs.callPackage ./pkgs/slippios.nix { };
       shellPackage = pkgs.callPackage ./pkgs/slippios-shell.nix { };
 
-      # Semver is the user-facing and update version. Dev builds use the next
-      # patch plus the checkout timestamp so they sort above the release they
-      # are based on.
+      # Semver is the user-facing and update version. Dev builds append the
+      # checkout timestamp so each committed build sorts above the release it
+      # is based on and above earlier dev builds.
       releaseVersion = nixpkgs.lib.strings.trim (builtins.readFile ./VERSION);
       buildRevision = self.rev or self.dirtyRev or "unknown";
-      buildSuffix = builtins.substring 0 7 (builtins.baseNameOf (builtins.unsafeDiscardStringContext self.outPath));
-      devVersion = "${releaseVersion}.${buildSuffix}";
+      devVersion = "${releaseVersion}.${toString self.lastModified}";
       slippiosBuild = buildRevision;
 
       cachyosKernels = inputs.nix-cachyos-kernel.legacyPackages.${system};

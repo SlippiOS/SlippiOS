@@ -8,8 +8,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/SlippiOS/SlippiOS/backend/internal/settings"
 )
 
 func sha(data []byte) string {
@@ -497,5 +500,63 @@ func TestRequestReboot(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) == "" {
 		t.Fatal("reboot request is empty")
+	}
+}
+
+func TestSourceUsesUpdateChannel(t *testing.T) {
+	paths := testPaths(t, "100")
+	base, manifest := source(paths)
+	if base != defaultBase || manifest != defaultManifest {
+		t.Fatalf("stable source = %q %q", base, manifest)
+	}
+
+	settingsPaths := settings.PathsFor(paths.DataDir)
+	values := settings.Defaults()
+	values["update"].(map[string]any)["channel"] = "dev"
+	if err := settingsPaths.Save(values); err != nil {
+		t.Fatal(err)
+	}
+	base, manifest = source(paths)
+	if base != devBase || manifest != devManifest {
+		t.Fatalf("dev source = %q %q", base, manifest)
+	}
+
+	writeSource(t, paths, "http://example.test/")
+	base, manifest = source(paths)
+	if base != "http://example.test/" || manifest != "http://example.test/manifest.json" {
+		t.Fatalf("override source = %q %q", base, manifest)
+	}
+}
+
+func TestZsyncExecutablePrefersZsync2(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"zsync", "zsync2"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	got, err := zsyncExecutable()
+	if err != nil || filepath.Base(got) != "zsync2" {
+		t.Fatalf("zsync2 preference = %q, %v", got, err)
+	}
+	if err := os.Remove(filepath.Join(dir, "zsync2")); err != nil {
+		t.Fatal(err)
+	}
+	got, err = zsyncExecutable()
+	if err != nil || filepath.Base(got) != "zsync" {
+		t.Fatalf("zsync fallback = %q, %v", got, err)
+	}
+}
+
+func TestDefaultPathsProgressUsesRuntime(t *testing.T) {
+	runtime := filepath.Join("/run/user", strconv.Itoa(os.Getuid()))
+	if info, err := os.Stat(runtime); err != nil || !info.IsDir() {
+		t.Skip("runtime directory is not available")
+	}
+	t.Setenv("SLIPPIOS_DATA", t.TempDir())
+	paths := DefaultPaths()
+	if !strings.HasPrefix(paths.Progress, runtime) {
+		t.Fatalf("progress path = %q, want a path under %q", paths.Progress, runtime)
 	}
 }

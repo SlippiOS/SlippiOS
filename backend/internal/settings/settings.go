@@ -116,10 +116,24 @@ func Defaults() map[string]any {
 		"expert": map[string]any{
 			"enabled": false,
 		},
+		"update": map[string]any{
+			"channel": "stable",
+		},
 		"slippi": map[string]any{
 			"user_json": DefaultUserJSON,
 		},
 	}
+}
+
+// UpdateChannel returns the configured system update channel. Anything
+// unknown falls back to the stable channel.
+func UpdateChannel(values map[string]any) string {
+	update, _ := values["update"].(map[string]any)
+	channel, _ := update["channel"].(string)
+	if channel == "dev" {
+		return "dev"
+	}
+	return "stable"
 }
 
 func merge(dst, src map[string]any) {

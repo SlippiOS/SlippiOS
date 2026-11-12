@@ -5,11 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 )
 
 const (
 	defaultBase     = "https://pub-ac47e58c86e44a728518e30a6eb756da.r2.dev/"
 	defaultManifest = defaultBase + "manifest.json"
+	devBase         = defaultBase + "dev/"
+	devManifest     = devBase + "manifest.json"
 	downloadBase    = "https://github.com/SlippiOS/SlippiOS/releases/download"
 	userAgent       = "SlippiOS/0.2"
 )
@@ -37,7 +40,14 @@ func DefaultPaths() Paths {
 	if root == "" {
 		root = "/data"
 	}
-	return ForData(root)
+	paths := ForData(root)
+	// The progress file is updated for every download chunk. Keeping it on
+	// the USB drive makes the update write-bound; /run is a tmpfs.
+	runtime := filepath.Join("/run/user", strconv.Itoa(os.Getuid()))
+	if info, err := os.Stat(runtime); err == nil && info.IsDir() {
+		paths.Progress = filepath.Join(runtime, "slippios-update-progress.json")
+	}
+	return paths
 }
 
 func ForData(root string) Paths {

@@ -23,6 +23,15 @@ fi
 mkdir -p "$BUILD_TMP"
 export TMPDIR="$BUILD_TMP"
 
+# Keep old images and release artifacts from filling the disk. The cleanup
+# keeps the current release, minimal, dev, and shell-export results and never
+# runs a global Nix GC. Set SLIPPIOS_SKIP_CLEAN=1 to skip it.
+if [[ "${SLIPPIOS_SKIP_CLEAN:-0}" != "1" ]]; then
+  if ! SLIPPIOS_CACHE="$CACHE" ./scripts/clean-cache --history; then
+    echo "warning: build history cleanup skipped" >&2
+  fi
+fi
+
 build() {
   local nix_cmd=("$@")
   "${nix_cmd[@]}" build \

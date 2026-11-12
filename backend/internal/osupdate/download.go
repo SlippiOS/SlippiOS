@@ -70,7 +70,7 @@ func (p Paths) download(url, destination, expected string, size int64) error {
 		return fmt.Errorf("download failed: %w", err)
 	}
 	done := int64(0)
-	buffer := make([]byte, 1<<20)
+	buffer := make([]byte, 4<<20)
 	for {
 		count, readErr := response.Body.Read(buffer)
 		if count > 0 {
@@ -127,8 +127,17 @@ func CurrentStoreDevice() string {
 	return ""
 }
 
+func zsyncExecutable() (string, error) {
+	// The old zsync client in the base image cannot read HTTPS control files.
+	// Prefer zsync2 when it is installed and keep zsync as a fallback.
+	if path, err := exec.LookPath("zsync2"); err == nil {
+		return path, nil
+	}
+	return exec.LookPath("zsync")
+}
+
 func (p Paths) zsync(seed, destination, rawURL, zsyncURL string, size int64) bool {
-	executable, err := exec.LookPath("zsync")
+	executable, err := zsyncExecutable()
 	if err != nil || seed == "" {
 		return false
 	}

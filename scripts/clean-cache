@@ -11,17 +11,94 @@ if pgrep -f qemu-system-x86_64 >/dev/null; then
   exit 1
 fi
 
+delete_store_path() {
+  local path=$1
+  [[ -n "$path" && -e "$path" ]] || return 0
+  case "$path" in
+    "$CACHE"/nix/nix/store/*) ;;
+    *) return 0 ;;
+  esac
+  echo "Removing old store path $(basename "$path")"
+  ./scripts/nix store delete "$path" >/dev/null 2>&1 || true
+}
+
+# Keep the current release, minimal image, dev image, and shell export. The
+# other result links are old test builds and only keep their store paths alive.
+clean_history() {
+  local version dir link name target path
+  version=$(cat VERSION 2>/dev/null || true)
+  if [[ -n "$version" && -d "$CACHE/release" ]]; then
+    for dir in "$CACHE"/release/*; do
+      [[ -e "$dir" ]] || continue
+      [[ "$(basename "$dir")" == "$version" ]] && continue
+      echo "Removing old release $(basename "$dir")"
+      rm -rf "$dir"
+    done
+  fi
+  if [[ -d "$CACHE/verify" ]]; then
+    echo "Removing verification artifacts"
+    rm -rf "$CACHE/verify"
+  fi
+  if [[ -d result-local-image-dev && ! -L result-local-image-dev ]]; then
+    echo "Removing old dev image directory result-local-image-dev"
+    rm -rf result-local-image-dev
+  fi
+
+  local keep=(result-local-image result-minimal-image result-dev-channel-image result-shell-export)
+  local keep_targets=()
+  for name in "${keep[@]}"; do
+    if [[ -L "$name" ]]; then
+      keep_targets+=("$(readlink -f "$name" 2>/dev/null || true)")
+    fi
+  done
+  for link in result-*; do
+    [[ -L "$link" ]] || continue
+    name=$(basename "$link")
+    if [[ " ${keep[*]} " == *" $name "* ]]; then
+      continue
+    fi
+    target=$(readlink -f "$link" 2>/dev/null || true)
+    delete_store_path "$target"
+    echo "Removing stale result $name"
+    rm -f "$link"
+  done
+
+  # Image store paths are large and are not needed after their result link is
+  # gone. Do not run a global Nix GC here: it also removes the build inputs
+  # and forces the next image build to start from scratch.
+  for path in "$CACHE"/nix/nix/store/slippios-0.3.* \
+    "$CACHE"/nix/nix/store/slippios-0.4.*; do
+    [[ -e "$path" ]] || continue
+    if [[ " ${keep_targets[*]} " == *" $path "* ]]; then
+      continue
+    fi
+    delete_store_path "$path"
+  done
+
+  rm -rf "$CACHE"/build-tmp/*
+}
+
+clean_vm() {
+  find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
+  find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
+  find "$CACHE" -maxdepth 1 -name '*.iso' -delete
+  find "$CACHE" -maxdepth 1 -name 'ov*.raw' -delete
+  find "$CACHE" -maxdepth 1 -name 'slippios-usb-*.raw*' -delete
+  rm -f "$CACHE"/OVMF_VARS-*.fd
+}
+
 case "${1:-}" in
+  --history)
+    mkdir -p "$CACHE"
+    clean_history
+    echo "Cleaned build history."
+    du -sh "$CACHE"
+    exit 0
+    ;;
   --all)
-    find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
-    find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
-    find "$CACHE" -maxdepth 1 -name '*.iso' -delete
-    find "$CACHE" -maxdepth 1 -name 'ov*.raw' -delete
-    find "$CACHE" -maxdepth 1 -name 'slippios-usb-*.raw*' -delete
-    rm -rf "$CACHE"/build-tmp/*
-    rm -f "$CACHE"/OVMF_VARS-*.fd
-    ./scripts/nix store gc || true
-    echo "Cleaned disposable cache and garbage-collected the Nix store."
+    clean_vm
+    clean_history
+    echo "Cleaned disposable cache and old images."
     du -sh "$CACHE"
     exit 0
     ;;
@@ -35,13 +112,8 @@ case "${1:-}" in
 esac
 
 mkdir -p "$CACHE"
-find "$CACHE" -maxdepth 1 -name 'slippios-*.qcow2' -delete
-find "$CACHE" -maxdepth 1 -name 'slippios-*.sock' -delete
-find "$CACHE" -maxdepth 1 -name '*.iso' -delete
-find "$CACHE" -maxdepth 1 -name 'ov*.raw' -delete
-find "$CACHE" -maxdepth 1 -name 'slippios-usb-*.raw*' -delete
+clean_vm
 rm -rf "$CACHE"/build-tmp/*
-rm -f "$CACHE"/OVMF_VARS-*.fd
 
 echo "Remaining cache:"
 du -sh "$CACHE"

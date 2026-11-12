@@ -538,6 +538,11 @@ The updater fetches `manifest.json`, zsyncs the store image against the active
 file. A root oneshot runs `systemd-sysupdate`. The shell polls
 `/data/system/update/status.json` and offers a restart.
 
+The image ships both `zsync2` and `zsync`. The updater prefers `zsync2` because
+the older `zsync` in the base image cannot read HTTPS control files. If neither
+client can fetch the control file, the updater falls back to a full download of
+the store image. The fallback is correct but much slower on a USB drive.
+
 Local update source:
 
 ```json
@@ -546,6 +551,48 @@ Local update source:
 
 Write this to `/data/system/update-source.json`. The HTTP server must support
 Range requests for zsync.
+
+### Dev update channel
+
+`settings.toml` has `[update] channel = "stable"` by default. The shell shows
+the switch in **Settings → System** only while Expert mode is on.
+`osupdate.source` uses the R2 root for stable and the `dev/` prefix for dev,
+unless `/data/system/update-source.json` overrides the source. The same switch
+is available from a terminal with
+`slippios settings set update.channel dev`.
+
+Dev images use `0.4.2.<checkout-timestamp>` as their version, so each committed
+build sorts above the release it is based on and above earlier dev builds.
+`scripts/release-dev` builds the uncompressed dev image, signs it, extracts the
+store image and UKI, writes a dev manifest, and publishes to `dev/` through
+`scripts/publish-r2 --dev`.
+
+The first dev build should use `--keep-raw`; flash that signed raw once with
+`mise run flash:usb`. The flasher detects USB media, confirms the target,
+configures the passwordless helper if needed, and writes the image. A USB NVMe
+enclosure that reports `removable=0` is detected and handled automatically.
+After that, publish new dev builds and install them from
+**Settings → System → Update**; the inactive slot is updated exactly like a
+release. `mise run release:dev` is the same as `scripts/release-dev`.
+
+`scripts/publish-r2 --dev` uploads the new store image, zsync, UKI, checksums,
+and manifest in that order, then deletes old `dev/` objects. A stable publish
+does the same for the stable prefix, so the bucket holds the latest stable plus
+the latest dev assets and stays under the 10 GB free tier.
+
+## Cleaning build history
+
+`mise run clean:history` removes old `.cache/release/<version>` directories,
+verification artifacts, stale `result-*` links, old image store paths, and
+build temp. It keeps the current release, minimal, dev, and shell-export
+results. `scripts/build-image` runs the same cleanup before every image build;
+set `SLIPPIOS_SKIP_CLEAN=1` to skip it.
+
+`mise run clean` also removes QEMU overlays, ISOs, and OVMF variables.
+`mise run clean:hard` wipes `.cache` and the nix-portable store for a full
+re-download. The history cleanup deliberately does not run a global Nix GC:
+that also removes the build inputs and makes the next image build start from
+scratch.
 
 ## Network pages
 
@@ -600,6 +647,7 @@ scripts/publish-r2 .cache/release/<version>
 ```
 
 The script reads `~/.config/slippios/r2.env` (stored encrypted with chezmoi) and
-uploads the full/unsigned images, store image, UKI, and checksums before
-`manifest.json`. R2 has no GitHub 2 GiB asset limit, so the full image can be a
-single file.
+uploads the store image, zsync, UKI, checksums, and manifest. Full USB images
+live on SourceForge. Pass `--dev` to publish the update assets under the
+`dev/` prefix. Both modes remove old objects in their own prefix after the new
+manifest is uploaded.
